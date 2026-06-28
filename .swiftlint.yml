@@ -1,0 +1,20 @@
+included:
+  - Package.swift
+  - Sources
+  - scripts
+
+excluded:
+  - .build
+
+disabled_rules:
+  - file_length
+  - type_body_length
+
+identifier_name:
+  excluded:
+    - id
+    - lg
+    - md
+    - sm
+    - xl
+    - xs

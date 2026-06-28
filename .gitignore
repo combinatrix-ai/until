@@ -1,0 +1,17 @@
+node_modules/
+dist/
+out/
+.build/
+.swiftpm/
+DerivedData/
+*.log
+.DS_Store
+scripts/*.iconset
+.env
+.env.*
+!.env.example
+tokens.bin
+config.json
+*.pem
+*.key
+*.p12
