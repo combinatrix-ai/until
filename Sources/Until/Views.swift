@@ -371,6 +371,21 @@ private struct ConferenceActionButton: View {
 private struct EventDetailView: View {
   var event: CalendarEvent
   @ObservedObject var model: AppModel
+  @State private var copiedRecently = false
+
+  private static let copyDateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .none
+    return formatter
+  }()
+
+  private static let copyDateTimeFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .short
+    return formatter
+  }()
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -398,16 +413,87 @@ private struct EventDetailView: View {
         }
       }
 
-      Button {
-        model.open(event)
-      } label: {
-        Label("Open in Calendar", systemImage: "arrow.up.right.square")
-          .font(.caption)
+      HStack(spacing: Theme.Spacing.sm) {
+        Button {
+          copyEventDetails()
+        } label: {
+          Image(systemName: copiedRecently ? "checkmark" : "doc.on.doc")
+            .font(.caption)
+            .frame(width: 16, height: 16)
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(copiedRecently ? Color.green : Color.accentColor)
+        .help(copiedRecently ? "Copied event details" : "Copy event details")
+        .accessibilityLabel("Copy event details")
+
+        Button {
+          model.open(event)
+        } label: {
+          Image(systemName: "arrow.up.right.square")
+            .font(.caption)
+            .frame(width: 16, height: 16)
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(Color.accentColor)
+        .help("Open in Calendar")
+        .accessibilityLabel("Open in Calendar")
       }
-      .buttonStyle(.borderless)
-      .foregroundStyle(Color.accentColor)
     }
     .padding(.vertical, Theme.Spacing.xs)
+  }
+
+  private func copyEventDetails() {
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    pasteboard.setString(copyText, forType: .string)
+
+    withAnimation(.easeInOut(duration: 0.12)) {
+      copiedRecently = true
+    }
+    Task { @MainActor in
+      try? await Task.sleep(nanoseconds: 1_200_000_000)
+      copiedRecently = false
+    }
+  }
+
+  private var copyText: String {
+    var lines = [
+      event.title,
+      copyTimeText
+    ]
+
+    if !event.location.isEmpty {
+      lines.append("Location: \(event.location)")
+    }
+
+    let conferenceURL = EventLinks.conferenceURLString(for: event)
+    if !conferenceURL.isEmpty {
+      lines.append("Meet: \(conferenceURL)")
+    }
+
+    let calendarURL = EventLinks.eventURLString(for: event)
+    if !calendarURL.isEmpty {
+      lines.append("Calendar: \(calendarURL)")
+    }
+
+    return lines.joined(separator: "\n")
+  }
+
+  private var copyTimeText: String {
+    let calendar = Calendar.current
+
+    if event.allDay {
+      let displayEnd = calendar.date(byAdding: .second, value: -1, to: event.endDate) ?? event.endDate
+      if calendar.isDate(event.startDate, inSameDayAs: displayEnd) {
+        return "\(Self.copyDateFormatter.string(from: event.startDate)) all-day"
+      }
+      return "\(Self.copyDateFormatter.string(from: event.startDate)) - \(Self.copyDateFormatter.string(from: displayEnd)) all-day"
+    }
+
+    if calendar.isDate(event.startDate, inSameDayAs: event.endDate) {
+      return "\(Self.copyDateFormatter.string(from: event.startDate)), \(clock(event.startDate)) - \(clock(event.endDate))"
+    }
+    return "\(Self.copyDateTimeFormatter.string(from: event.startDate)) - \(Self.copyDateTimeFormatter.string(from: event.endDate))"
   }
 
   private func responseIcon(_ status: String) -> String {
