@@ -6,8 +6,7 @@ import Foundation
 private let googleScopes = [
   "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
   "https://www.googleapis.com/auth/calendar.events",
-  "https://www.googleapis.com/auth/drive",
-  "https://www.googleapis.com/auth/documents",
+  "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/userinfo.email",
   "openid"
 ]
@@ -33,7 +32,7 @@ final class GoogleAuth: Identifiable {
   func login(loginHint: String? = nil, expectedEmail: String? = nil) async throws {
     let clientId = config.oauthClientId.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !clientId.isEmpty else {
-      throw AppError.message("Google OAuth Client ID is not configured.")
+      throw AppError.message(loc("Google OAuth Client ID is not configured."))
     }
 
     let loopback = try await LoopbackServer.start()
@@ -57,7 +56,7 @@ final class GoogleAuth: Identifiable {
     }
     components.queryItems = queryItems
     guard let authURL = components.url else {
-      throw AppError.message("Failed to build Google sign-in URL.")
+      throw AppError.message(loc("Failed to build Google sign-in URL."))
     }
 
     try openAuthURL(authURL)
@@ -67,13 +66,12 @@ final class GoogleAuth: Identifiable {
     if let expectedEmail = expectedEmail?.trimmingCharacters(in: .whitespacesAndNewlines),
        !expectedEmail.isEmpty,
        email.caseInsensitiveCompare(expectedEmail) != .orderedSame {
-      throw AppError.message("Selected Google account \(email) does not match \(expectedEmail).")
+      throw AppError.message(loc("Selected Google account %1$@ does not match %2$@.", email, expectedEmail))
     }
     guard !exchanged.refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-      throw AppError.message(
-        "Google did not return a refresh token. "
-          + "Try removing access for Until from your Google Account, then sign in again."
-      )
+      let key = "Google did not return a refresh token. Try removing access for Until from your Google " +
+        "Account, then sign in again."
+      throw AppError.message(loc(key))
     }
     let stored = StoredToken(
       email: email,
@@ -99,7 +97,7 @@ final class GoogleAuth: Identifiable {
 
   func accessToken() async throws -> String {
     guard var token else {
-      throw AppError.message("Not authenticated.")
+      throw AppError.message(loc("Not authenticated."))
     }
     if token.expiryDate.timeIntervalSinceNow > 60 {
       return token.accessToken
@@ -159,7 +157,7 @@ final class GoogleAuth: Identifiable {
     request.httpBody = formBody([URLQueryItem(name: "token", value: token)])
     let (_, response) = try await URLSession.shared.data(for: request)
     guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-      throw AppError.message("Failed to revoke Google credentials.")
+      throw AppError.message(loc("Failed to revoke Google credentials."))
     }
   }
 
@@ -177,7 +175,7 @@ final class GoogleAuth: Identifiable {
     request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
     let (data, response) = try await URLSession.shared.data(for: request)
     guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-      throw AppError.message("Failed to fetch Google account email.")
+      throw AppError.message(loc("Failed to fetch Google account email."))
     }
     let user = try JSONDecoder().decode(UserInfo.self, from: data)
     return user.email
@@ -194,7 +192,7 @@ final class GoogleAuth: Identifiable {
     do {
       try process.run()
     } catch {
-      throw AppError.message("Failed to open browser for Google sign-in: \(error.localizedDescription)")
+      throw AppError.message(loc("Failed to open browser for Google sign-in: %@", error.localizedDescription))
     }
   }
 }
@@ -341,7 +339,7 @@ private final class LoopbackServer {
     let port = UInt16(bigEndian: actual.sin_port)
     guard port != 0 else {
       close(socketFD)
-      throw AppError.message("Failed to allocate loopback port.")
+      throw AppError.message(loc("Failed to allocate loopback port."))
     }
     return port
   }
@@ -363,34 +361,80 @@ private final class LoopbackServer {
     var clientAddressLength = socklen_t(MemoryLayout<sockaddr>.size)
     let clientFD = accept(socketFD, &clientAddress, &clientAddressLength)
     guard clientFD >= 0 else {
-      finish(.failure(POSIXError(.init(rawValue: errno) ?? .EINVAL)))
+      // Ignore accept failures on a single connection; keep listening.
+      // Task cancellation (via waitForCode's cancellation handler) remains
+      // the escape hatch if the server needs to be torn down.
       return
     }
     handle(clientFD: clientFD)
   }
 
+  /// Result of parsing the raw HTTP request line for the OAuth redirect's
+  /// `code`/`error` query parameters.
+  private struct RedirectParams {
+    var code: String?
+    var error: String?
+
+    var isRedirect: Bool { code != nil || error != nil }
+  }
+
   private func handle(clientFD: Int32) {
     defer {
       close(clientFD)
-      stop()
     }
 
     var buffer = [UInt8](repeating: 0, count: 8192)
     let count = recv(clientFD, &buffer, buffer.count, 0)
     guard count > 0 else {
-      finish(.failure(POSIXError(.init(rawValue: errno) ?? .EINVAL)))
+      // Speculative/preconnect connections send no bytes. Just close and
+      // keep the server running for the real redirect.
       return
     }
 
     let request = String(bytes: buffer.prefix(count), encoding: .utf8) ?? ""
+    let params = parseRedirectParams(from: request)
+
+    guard params.isRedirect else {
+      // Not the OAuth redirect (e.g. /favicon.ico or another stray request).
+      // Respond minimally and keep listening for the real redirect.
+      sendResponse(notFoundResponse(), to: clientFD)
+      return
+    }
+
+    sendResponse(landingPageResponse(for: params), to: clientFD)
+
+    if let authError = params.error {
+      finish(.failure(AppError.message(authError)))
+    } else if let code = params.code {
+      finish(.success(code))
+    }
+    stop()
+  }
+
+  private func parseRedirectParams(from request: String) -> RedirectParams {
     let firstLine = request.components(separatedBy: "\r\n").first ?? ""
     let path = firstLine.split(separator: " ").dropFirst().first.map(String.init) ?? "/"
     let components = URLComponents(string: "http://127.0.0.1\(path)")
     let code = components?.queryItems?.first(where: { $0.name == "code" })?.value
     let authError = components?.queryItems?.first(where: { $0.name == "error" })?.value
-    let success = authError == nil && code != nil
-    let title = success ? "You can close this tab" : "Login failed"
-    let detail = success ? "Return to Until." : (authError ?? "No authorization code returned.")
+    return RedirectParams(code: code, error: authError)
+  }
+
+  private func notFoundResponse() -> Data {
+    let response = """
+    HTTP/1.1 404 Not Found\r
+    Content-Length: 0\r
+    Connection: close\r
+    \r
+
+    """
+    return Data(response.utf8)
+  }
+
+  private func landingPageResponse(for params: RedirectParams) -> Data {
+    let success = params.error == nil && params.code != nil
+    let title = success ? loc("You can close this tab") : loc("Login failed")
+    let detail = success ? loc("Return to Until.") : (params.error ?? loc("No authorization code returned."))
     let body = """
     <html><body style="font-family:-apple-system,sans-serif;padding:40px;text-align:center">
     <h2>\(title)</h2><p>\(detail)</p></body></html>
@@ -403,19 +447,14 @@ private final class LoopbackServer {
     \r
     \(body)
     """
-    let data = Data(response.utf8)
+    return Data(response.utf8)
+  }
+
+  private func sendResponse(_ data: Data, to clientFD: Int32) {
     data.withUnsafeBytes { bytes in
       if let baseAddress = bytes.baseAddress {
         _ = send(clientFD, baseAddress, data.count, 0)
       }
-    }
-
-    if let authError {
-      finish(.failure(AppError.message(authError)))
-    } else if let code {
-      finish(.success(code))
-    } else {
-      finish(.failure(AppError.message("No authorization code returned.")))
     }
   }
 

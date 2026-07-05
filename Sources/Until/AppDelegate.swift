@@ -4,8 +4,13 @@ import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-  private let model = AppModel()
+  private let model: AppModel
   private var statusController: StatusBarController?
+
+  init(options: AppRuntimeOptions = .fromProcess()) {
+    model = AppModel(options: options)
+    super.init()
+  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     statusController = StatusBarController(model: model)
@@ -23,10 +28,14 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
   private let popover = NSPopover()
   private var cancellables = Set<AnyCancellable>()
   private var settingsWindow: NSWindow?
+  private var hotkeyManager: HotkeyManager?
 
   init(model: AppModel) {
     self.model = model
     super.init()
+    hotkeyManager = HotkeyManager { [weak self] in
+      self?.hotkeyToggle()
+    }
     popover.behavior = .transient
     popover.delegate = self
     popover.contentSize = NSSize(width: 390, height: 520)
@@ -44,6 +53,21 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     model.$state.combineLatest(model.$config).sink { [weak self] state, config in
       self?.updateStatus(state: state, config: config)
     }.store(in: &cancellables)
+    model.$config
+      .map { ($0.hotkeyEnabled, $0.hotkeyPreset) }
+      .removeDuplicates { $0 == $1 }
+      .sink { [weak self] enabled, preset in
+        self?.applyHotkey(enabled: enabled, preset: preset)
+      }
+      .store(in: &cancellables)
+  }
+
+  private func applyHotkey(enabled: Bool, preset: String) {
+    if enabled {
+      hotkeyManager?.register(presetId: preset)
+    } else {
+      hotkeyManager?.unregister()
+    }
   }
 
   @objc private func togglePopover(_ sender: NSStatusBarButton) {
@@ -51,12 +75,29 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
       showMenu()
       return
     }
+    // ⌥-click on the icon joins the next meeting instead of opening the popover.
+    if NSApp.currentEvent?.modifierFlags.contains(.option) == true {
+      if model.joinNextMeeting() { return }
+      // Nothing joinable — fall through to the normal popover toggle.
+    }
+    togglePopover(relativeTo: sender)
+  }
+
+  private func togglePopover(relativeTo sender: NSStatusBarButton) {
     if popover.isShown {
       popover.performClose(sender)
     } else {
       popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
       popover.contentViewController?.view.window?.makeKey()
     }
+  }
+
+  /// Toggle the popover from a source other than a mouse click (global hotkey),
+  /// activating the app so the popover receives key focus.
+  private func hotkeyToggle() {
+    guard let button = item.button else { return }
+    NSApp.activate(ignoringOtherApps: true)
+    togglePopover(relativeTo: button)
   }
 
   nonisolated func popoverDidClose(_ notification: Notification) {
@@ -67,10 +108,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
   private func showMenu() {
     let menu = NSMenu()
-    menu.addItem(withTitle: "Refresh Now", action: #selector(refresh), keyEquivalent: "")
-    menu.addItem(withTitle: "Preferences...", action: #selector(showSettingsAction), keyEquivalent: ",")
+    menu.addItem(withTitle: loc("Refresh Now"), action: #selector(refresh), keyEquivalent: "")
+    menu.addItem(withTitle: loc("Preferences..."), action: #selector(showSettingsAction), keyEquivalent: ",")
     menu.addItem(.separator())
-    menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "q")
+    menu.addItem(withTitle: loc("Quit"), action: #selector(quit), keyEquivalent: "q")
     menu.items.forEach { $0.target = self }
     item.menu = menu
     item.button?.performClick(nil)
@@ -79,24 +120,49 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
   private func updateStatus(state: AppState, config: AppConfig) {
     guard let button = item.button else { return }
+    let now = Date()
     if let next = state.next {
       let title = next.title.count > config.maxTitleLength
-        ? String(next.title.prefix(max(1, config.maxTitleLength - 1))) + "..."
+        ? String(next.title.prefix(max(1, config.maxTitleLength - 1))) + "…"
         : next.title
-      let when = next.allDay ? "all-day" : relativeWhen(next.startMinutesFromNow)
+      let when: String
+      if next.allDay {
+        when = loc("all-day")
+      } else if next.startDate <= now && next.endDate > now {
+        // Event already underway: show time remaining instead of "now".
+        let remaining = max(0, Int((next.endDate.timeIntervalSince(now) / 60).rounded()))
+        when = loc("%@ left", relativeWhen(remaining))
+      } else {
+        when = relativeWhen(next.startMinutesFromNow)
+      }
       button.title = " \(when) \(title)"
     } else if state.auth.authenticated && state.events.isEmpty && state.allDayEvents.isEmpty && state.lastError == nil {
-      button.title = " No events"
+      button.title = " " + loc("No events")
     } else {
       button.title = ""
     }
     button.toolTip = state.lastError
-      ?? state.next.map { $0.allDay ? "\($0.title) - all-day" : "\($0.title) - \(clock($0.startDate))" }
+      ?? state.next.map { tooltip(for: $0, state: state, now: now) }
       ?? (
         state.auth.authenticated && state.events.isEmpty && state.allDayEvents.isEmpty
-          ? "No events to show"
-          : "No current or imminent events"
+          ? loc("No events to show")
+          : loc("No current or imminent events")
       )
+  }
+
+  /// Tooltip for the shown event, with a count of other timed events still to
+  /// come today appended when there are any.
+  private func tooltip(for event: CalendarEvent, state: AppState, now: Date) -> String {
+    let base = event.allDay
+      ? loc("%@ - all-day", event.title)
+      : loc("%1$@ - %2$@", event.title, clock(event.startDate))
+    let calendar = Calendar.current
+    let moreToday = state.events.filter { other in
+      other.startDate > now
+        && calendar.isDateInToday(other.startDate)
+        && other.actionKey != event.actionKey
+    }.count
+    return moreToday > 0 ? loc("%1$@ (%2$d more today)", base, moreToday) : base
   }
 
   @objc private func refresh() {
@@ -117,7 +183,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
     let controller = NSHostingController(rootView: SettingsView(model: model))
     let window = NSWindow(contentViewController: controller)
-    window.title = "Until Settings"
+    window.title = loc("Until Settings")
     window.setContentSize(NSSize(width: 780, height: 640))
     window.contentMinSize = NSSize(width: 720, height: 480)
     window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
@@ -141,28 +207,38 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 }
 
 func relativeWhen(_ minutes: Int) -> String {
-  if minutes <= 0 { return "now" }
+  if minutes <= 0 { return loc("now") }
   if minutes < 60 { return "\(minutes)m" }
   let hours = minutes / 60
   let mins = minutes % 60
   return mins == 0 ? "\(hours)h" : "\(hours)h\(mins)m"
 }
 
-func clock(_ date: Date) -> String {
+// Cached formatters: `clock` runs per visible row on every render, so a fresh
+// `DateFormatter` per call is measurable overhead. Hoisted to file scope.
+private let clockFormatter: DateFormatter = {
   let formatter = DateFormatter()
   formatter.timeStyle = .short
   formatter.dateStyle = .none
-  return formatter.string(from: date)
+  return formatter
+}()
+
+private let dayHeaderFormatter: DateFormatter = {
+  let formatter = DateFormatter()
+  formatter.setLocalizedDateFormatFromTemplate("EEEMMMd")
+  return formatter
+}()
+
+func clock(_ date: Date) -> String {
+  clockFormatter.string(from: date)
 }
 
 func dayHeader(_ day: Date, now: Date = Date()) -> String {
   let calendar = Calendar.current
-  if calendar.isDate(day, inSameDayAs: now) { return "Today" }
+  if calendar.isDate(day, inSameDayAs: now) { return loc("Today") }
   if let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)),
      calendar.isDate(day, inSameDayAs: tomorrow) {
-    return "Tomorrow"
+    return loc("Tomorrow")
   }
-  let formatter = DateFormatter()
-  formatter.setLocalizedDateFormatFromTemplate("EEEMMMd")
-  return formatter.string(from: day)
+  return dayHeaderFormatter.string(from: day)
 }

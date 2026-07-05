@@ -11,7 +11,7 @@ enum RuleEngine {
     case .group:
       let children = rule.children ?? []
       if children.isEmpty {
-        return true
+        result = true
       } else if rule.groupOperator == .any {
         result = children.contains { evaluate($0, event: event, now: now) }
       } else {
@@ -103,8 +103,8 @@ enum RuleEngine {
     case "not_contains": return !actualLowercased.contains(valueLowercased)
     case "starts_with": return actualLowercased.hasPrefix(valueLowercased)
     case "ends_with": return actualLowercased.hasSuffix(valueLowercased)
-    case "equals": return actual == value.string
-    case "not_equals": return actual != value.string
+    case "equals": return actualLowercased == valueLowercased
+    case "not_equals": return actualLowercased != valueLowercased
     case "matches": return actual.range(of: value.string, options: [.regularExpression, .caseInsensitive]) != nil
     case "is_empty": return actual.isEmpty
     case "is_not_empty": return !actual.isEmpty

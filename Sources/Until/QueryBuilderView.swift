@@ -48,14 +48,14 @@ private struct RuleGroupView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack(spacing: 8) {
-        Text("Events where")
+        Text(loc("Events where"))
           .foregroundStyle(.secondary)
         Spacer()
         if canDelete {
           Button(role: .destructive, action: onDelete) {
             Image(systemName: "trash")
           }
-          .help("Remove group")
+          .help(loc("Remove group"))
         }
       }
 
@@ -63,10 +63,10 @@ private struct RuleGroupView: View {
         HStack(alignment: .center, spacing: 8) {
           MenuPicker(
             options: [
-              ("include_all", "All of"),
-              ("include_any", "Any of"),
-              ("exclude_all", "Not all of"),
-              ("exclude_any", "None of")
+              ("include_all", loc("All of")),
+              ("include_any", loc("Any of")),
+              ("exclude_all", loc("Not all of")),
+              ("exclude_any", loc("None of"))
             ],
             selection: groupModeBinding,
             minWidth: 90
@@ -81,7 +81,7 @@ private struct RuleGroupView: View {
             .frame(width: 13)
 
           VStack(alignment: .leading, spacing: 8) {
-            Text("No rules yet — this group matches every event.")
+            Text(loc("No rules yet — this group matches every event."))
               .font(.callout)
               .foregroundStyle(.secondary)
               .padding(.vertical, 4)
@@ -93,10 +93,10 @@ private struct RuleGroupView: View {
         HStack(alignment: .center, spacing: 8) {
           MenuPicker(
             options: [
-              ("include_all", "All of"),
-              ("include_any", "Any of"),
-              ("exclude_all", "Not all of"),
-              ("exclude_any", "None of")
+              ("include_all", loc("All of")),
+              ("include_any", loc("Any of")),
+              ("exclude_all", loc("Not all of")),
+              ("exclude_any", loc("None of"))
             ],
             selection: groupModeBinding,
             minWidth: 90
@@ -167,12 +167,12 @@ private struct RuleGroupView: View {
       Button {
         addCondition()
       } label: {
-        Label("Add rule", systemImage: "plus")
+        Label(loc("Add rule"), systemImage: "plus")
       }
       Button {
         addGroup()
       } label: {
-        Label("Add group", systemImage: "folder.badge.plus")
+        Label(loc("Add group"), systemImage: "folder.badge.plus")
       }
     }
   }
@@ -272,7 +272,7 @@ private struct ConditionRuleView: View {
         Image(systemName: "trash")
       }
       .buttonStyle(.borderless)
-      .help("Remove rule")
+      .help(loc("Remove rule"))
     }
     .card(.inset, padding: Theme.Spacing.sm)
   }
@@ -328,7 +328,7 @@ private struct ValueEditor: View {
     case .none:
       EmptyView()
     case .text:
-      TextField("Value", text: stringBinding)
+      TextField(loc("Value"), text: stringBinding)
         .textFieldStyle(.roundedBorder)
     case .number(let unit):
       HStack(spacing: 6) {
@@ -342,12 +342,12 @@ private struct ValueEditor: View {
       }
     case .numberRange(let unit):
       HStack(spacing: 6) {
-        TextField("Min", value: rangeBinding(0), format: .number)
+        TextField(loc("Min"), value: rangeBinding(0), format: .number)
           .textFieldStyle(.roundedBorder)
           .frame(width: 72)
-        Text("to")
+        Text(loc("to"))
           .foregroundStyle(.secondary)
-        TextField("Max", value: rangeBinding(1), format: .number)
+        TextField(loc("Max"), value: rangeBinding(1), format: .number)
           .textFieldStyle(.roundedBorder)
           .frame(width: 72)
         if let unit {
@@ -361,7 +361,7 @@ private struct ValueEditor: View {
         selection: stringBinding
       )
     case .multiSelect(let choices):
-      MultiChoiceMenu(title: "Select values", choices: choices, selection: stringSetBinding)
+      MultiChoiceMenu(title: loc("Select values"), choices: choices, selection: stringSetBinding)
     case .calendars:
       calendarPicker(multiple: false)
     case .multiCalendars:
@@ -414,19 +414,19 @@ private struct ValueEditor: View {
   @ViewBuilder
   private func calendarPicker(multiple: Bool) -> some View {
     if calendars.isEmpty {
-      Text("No calendars loaded")
+      Text(loc("No calendars loaded"))
         .foregroundStyle(.secondary)
     } else if multiple {
       MultiChoiceMenu(
-        title: "Select calendars",
+        title: loc("Select calendars"),
         choices: calendars.map { FilterChoice(value: $0.id, label: $0.name) },
         selection: stringSetBinding
       )
     } else {
       MenuPicker(
-        options: [("", "Choose calendar")] + calendars.map { ($0.id, $0.name) },
+        options: [("", loc("Choose calendar"))] + calendars.map { ($0.id, $0.name) },
         selection: stringBinding,
-        placeholder: "Choose calendar"
+        placeholder: loc("Choose calendar")
       )
     }
   }
@@ -460,6 +460,6 @@ private struct MultiChoiceMenu: View {
        let selected = choices.first(where: { selection.contains($0.value) }) {
       return selected.label
     }
-    return "\(selection.count) selected"
+    return loc("%d selected", selection.count)
   }
 }

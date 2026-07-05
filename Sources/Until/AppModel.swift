@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import ServiceManagement
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -19,17 +20,37 @@ final class AppModel: ObservableObject {
   @Published private(set) var creatingNoteKey: String?
   @Published private(set) var conferenceErrors: [String: String] = [:]
   @Published private(set) var addingConferenceKey: String?
+  @Published private(set) var creatingTemplateEmail: String?
+  @Published private(set) var templateErrors: [String: String] = [:]
   @Published var externalSharePrompt: ExternalSharePrompt?
+  @Published private(set) var launchAtLoginEnabled = false
+  @Published private(set) var launchAtLoginError: String?
 
+  /// Launch-at-login via `SMAppService` only works from a real .app bundle. In
+  /// bare `swift run` dev mode the row is shown disabled — same bundle check
+  /// `EventNotifier` uses to pick its notification backend.
+  let launchAtLoginAvailable = Bundle.main.bundleURL.pathExtension == "app"
+
+  private let runtimeOptions: AppRuntimeOptions
   private let store = ConfigStore()
   private let notifier = EventNotifier()
   private var accounts: [GoogleAuth] = []
   private var rawEvents: [CalendarEvent] = []
   private var refreshTimer: Timer?
   private var clockTimer: Timer?
+  private var wakeObserver: NSObjectProtocol?
 
-  init() {
-    config = store.load()
+  init(options: AppRuntimeOptions = .fromProcess()) {
+    runtimeOptions = options
+    config = options.demoMode ? DemoCalendarData.config() : store.load()
+    observeWake()
+    refreshLaunchAtLoginState()
+    if runtimeOptions.demoMode {
+      notificationAuthorizationState = .unavailable
+      loadDemoData(now: Date())
+      startTimers()
+      return
+    }
     accounts = KeychainStore.loadTokens().map { GoogleAuth(config: config, token: $0) }
     updateAuthState()
     startTimers()
@@ -39,9 +60,20 @@ final class AppModel: ObservableObject {
     }
   }
 
+  deinit {
+    if let wakeObserver {
+      NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+    }
+  }
+
   func saveConfig(_ next: AppConfig) {
     config = normalized(next)
-    try? store.save(config)
+    if runtimeOptions.demoMode {
+      loadDemoData(now: Date())
+      startTimers()
+      return
+    }
+    persistConfig()
     accounts.forEach { $0.configure(config) }
     startTimers()
     Task {
@@ -51,6 +83,10 @@ final class AppModel: ObservableObject {
   }
 
   func login() async {
+    guard !runtimeOptions.demoMode else {
+      signInError = loc("Google sign-in is disabled in demo mode.")
+      return
+    }
     isSigningIn = true
     signInError = nil
     if accounts.isEmpty {
@@ -74,6 +110,10 @@ final class AppModel: ObservableObject {
   }
 
   func reauthorize(email: String) async {
+    guard !runtimeOptions.demoMode else {
+      signInError = loc("Google sign-in is disabled in demo mode.")
+      return
+    }
     let expectedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !expectedEmail.isEmpty else { return }
 
@@ -94,6 +134,10 @@ final class AppModel: ObservableObject {
   }
 
   func logout(email: String? = nil) async {
+    guard !runtimeOptions.demoMode else {
+      loadDemoData(now: Date())
+      return
+    }
     do {
       if let email {
         let removed = accounts.first(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame })
@@ -121,43 +165,126 @@ final class AppModel: ObservableObject {
   }
 
   func refresh() async {
+    if runtimeOptions.demoMode {
+      isRefreshing = true
+      loadDemoData(now: Date())
+      isRefreshing = false
+      return
+    }
     guard !accounts.isEmpty else {
       reapplyFilter()
       return
     }
     isRefreshing = true
     defer { isRefreshing = false }
-    do {
-      let now = Date()
-      var fetched: [CalendarEvent] = []
+
+    let now = Date()
+    let results = await fetchAllAccounts(
+      selectedIds: config.selectedCalendarIds,
+      lookaheadHours: config.lookaheadHours,
+      now: now
+    )
+    applyFetchResults(results, now: now)
+    reapplyFilter()
+  }
+
+  /// Fetches each account's calendars and events concurrently, tolerating
+  /// per-account failure: one account throwing must not discard events from
+  /// healthy accounts. Each task returns either the account's events (list
+  /// once + fetch) or an error message tagged with the account email. The
+  /// calendar list is fetched once per account here (updating the published
+  /// `calendars`), replacing the old duplicate round-trip via `fetchEvents` +
+  /// `refreshCalendars`.
+  private func fetchAllAccounts(
+    selectedIds: [String],
+    lookaheadHours: Int,
+    now: Date
+  ) async -> [AccountFetchResult] {
+    let accounts = self.accounts
+    return await withTaskGroup(of: AccountFetchResult.self) { group -> [AccountFetchResult] in
       for account in accounts {
-        let client = CalendarClient(auth: account)
-        fetched.append(contentsOf: try await client.fetchEvents(
-          selectedIds: config.selectedCalendarIds,
-          lookaheadHours: config.lookaheadHours,
-          now: now
-        ))
+        group.addTask {
+          let client = CalendarClient(auth: account)
+          let email = await account.email
+          do {
+            let calendars = try await client.listCalendars(selectedIds: selectedIds)
+            let events = try await client.fetchEvents(
+              calendars: calendars.filter(\.selected),
+              lookaheadHours: lookaheadHours,
+              now: now
+            )
+            return AccountFetchResult(email: email, calendars: calendars, events: events, error: nil)
+          } catch {
+            return AccountFetchResult(
+              email: email,
+              calendars: nil,
+              events: nil,
+              error: error.localizedDescription
+            )
+          }
+        }
       }
-      rawEvents = fetched.sorted { $0.startDate < $1.startDate }
-      state.lastSync = now
-      state.lastError = nil
-      reapplyFilter()
-      await refreshCalendars()
-    } catch {
-      state.lastError = error.localizedDescription
+      var collected: [AccountFetchResult] = []
+      for await result in group {
+        collected.append(result)
+      }
+      return collected
     }
   }
 
+  /// Aggregates per-account results, publishing the merged events/calendars
+  /// only when at least one account succeeded — so a transient outage on
+  /// every account leaves previously cached events (`rawEvents`) untouched
+  /// instead of wiping the panel.
+  private func applyFetchResults(_ results: [AccountFetchResult], now: Date) {
+    var fetchedEvents: [CalendarEvent] = []
+    var fetchedCalendars: [CalendarSummary] = []
+    var errors: [String] = []
+    var anySucceeded = false
+    for result in results {
+      if let error = result.error {
+        errors.append("\(result.email): \(error)")
+      } else {
+        anySucceeded = true
+        fetchedEvents.append(contentsOf: result.events ?? [])
+        fetchedCalendars.append(contentsOf: result.calendars ?? [])
+      }
+    }
+
+    if anySucceeded {
+      rawEvents = fetchedEvents.sorted { $0.startDate < $1.startDate }
+      calendars = fetchedCalendars.sorted { $0.name < $1.name }
+      state.lastSync = now
+    }
+    state.lastError = errors.isEmpty ? nil : errors.joined(separator: "\n")
+  }
+
   func refreshCalendars() async {
+    if runtimeOptions.demoMode {
+      calendars = DemoCalendarData.calendars(selectedIds: config.selectedCalendarIds)
+      return
+    }
     guard !accounts.isEmpty else {
       calendars = []
       return
     }
+    let selectedIds = config.selectedCalendarIds
+    let accounts = self.accounts
     do {
-      var next: [CalendarSummary] = []
-      for account in accounts {
-        let client = CalendarClient(auth: account)
-        next.append(contentsOf: try await client.listCalendars(selectedIds: config.selectedCalendarIds))
+      let next = try await withThrowingTaskGroup(
+        of: [CalendarSummary].self
+      ) { group -> [CalendarSummary] in
+        for account in accounts {
+          group.addTask {
+            let client = CalendarClient(auth: account)
+            return try await client.listCalendars(selectedIds: selectedIds)
+          }
+        }
+        var collected: [CalendarSummary] = []
+        for try await summaries in group {
+          collected.append(contentsOf: summaries)
+        }
+        return collected
       }
       calendars = next.sorted { $0.name < $1.name }
     } catch {
@@ -183,6 +310,47 @@ final class AppModel: ObservableObject {
   func open(_ event: CalendarEvent) {
     guard let url = EventLinks.eventURL(for: event) else { return }
     NSWorkspace.shared.open(url)
+  }
+
+  // MARK: - Launch at login
+
+  /// Reads the live `SMAppService.mainApp` status. This is system state, not
+  /// persisted config. When not running as an app bundle the toggle is inert.
+  func refreshLaunchAtLoginState() {
+    guard launchAtLoginAvailable else {
+      launchAtLoginEnabled = false
+      return
+    }
+    launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+  }
+
+  func setLaunchAtLogin(_ enabled: Bool) {
+    guard launchAtLoginAvailable else { return }
+    launchAtLoginError = nil
+    do {
+      if enabled {
+        try SMAppService.mainApp.register()
+      } else {
+        try SMAppService.mainApp.unregister()
+      }
+    } catch {
+      launchAtLoginError = error.localizedDescription
+    }
+    refreshLaunchAtLoginState()
+  }
+
+  // MARK: - Join next meeting
+
+  /// Opens the next joinable meeting: the current/next event if it has a
+  /// conference URL, otherwise the first upcoming timed event that does.
+  /// Returns false when nothing is joinable so callers can fall back.
+  @discardableResult
+  func joinNextMeeting() -> Bool {
+    let candidate = state.next.flatMap { $0.conferenceUrl.isEmpty ? nil : $0 }
+      ?? state.events.first { !$0.allDay && !$0.conferenceUrl.isEmpty }
+    guard let event = candidate else { return false }
+    join(event)
+    return true
   }
 
   /// Expansion is keyed per day so a multi-day all-day event repeated across
@@ -231,13 +399,24 @@ final class AppModel: ObservableObject {
 
   func addConference(for event: CalendarEvent) {
     let key = event.actionKey
+    if runtimeOptions.demoMode {
+      rawEvents = rawEvents.map { current in
+        guard current.actionKey == key else { return current }
+        var next = current
+        next.hangoutLink = "https://meet.google.com/demo-until-app"
+        next.conferenceUrl = "https://meet.google.com/demo-until-app"
+        return next
+      }
+      reapplyFilter()
+      return
+    }
     addingConferenceKey = key
     conferenceErrors[key] = nil
     Task {
       defer { addingConferenceKey = nil }
       do {
         guard let account = accounts.first(where: { $0.email == event.account.email }) else {
-          throw AppError.message("Google account is not connected: \(event.account.email)")
+          throw AppError.message(loc("Google account is not connected: %@", event.account.email))
         }
         let client = MeetingNotesClient(auth: account)
         _ = try await client.addConference(for: event)
@@ -252,18 +431,72 @@ final class AppModel: ObservableObject {
     config.meetingNotesFoldersByAccount[accountEmail]
   }
 
-  func setMeetingNotesFolder(_ folder: DriveFolderRef, for accountEmail: String) {
+  /// Opens the app-managed notes folder in Google Drive (authuser-attached), if
+  /// one has been created/stored for the account.
+  func openNotesFolder(for accountEmail: String) {
+    guard let folder = config.meetingNotesFoldersByAccount[accountEmail], !folder.id.isEmpty else { return }
+    let raw = "https://drive.google.com/drive/folders/\(folder.id)"
+    guard let url = EventLinks.authenticatedURL(from: raw, accountEmail: accountEmail) else { return }
+    NSWorkspace.shared.open(url)
+  }
+
+  func meetingNotesTemplateDocId(for accountEmail: String) -> String? {
+    config.meetingNotesTemplateDocsByAccount[accountEmail]?.nilIfEmpty
+  }
+
+  func isCreatingTemplate(for accountEmail: String) -> Bool {
+    creatingTemplateEmail?.caseInsensitiveCompare(accountEmail) == .orderedSame
+  }
+
+  func templateError(for accountEmail: String) -> String? {
+    templateErrors[accountEmail]
+  }
+
+  /// Creates an app-managed template Google Doc for the account, stores its id,
+  /// and opens it in the browser for editing.
+  func createTemplateDoc(for accountEmail: String) {
+    guard !runtimeOptions.demoMode else {
+      var next = config
+      next.meetingNotesTemplateDocsByAccount[accountEmail] = "demo-template-\(accountEmail)"
+      saveConfig(next)
+      return
+    }
+    creatingTemplateEmail = accountEmail
+    templateErrors[accountEmail] = nil
+    Task {
+      defer { creatingTemplateEmail = nil }
+      do {
+        let client = try meetingNotesClient(for: accountEmail)
+        let result = try await client.createTemplateDoc(
+          folder: config.meetingNotesFoldersByAccount[accountEmail],
+          folderName: config.meetingNotesFolderNamesByAccount[accountEmail]
+        )
+        var next = config
+        next.meetingNotesTemplateDocsByAccount[accountEmail] = result.id
+        if let folder = result.resolvedFolder {
+          next.meetingNotesFoldersByAccount[accountEmail] = folder
+        }
+        saveConfig(next)
+        openNote(url: result.webViewLink, accountEmail: accountEmail)
+      } catch {
+        templateErrors[accountEmail] = error.localizedDescription
+      }
+    }
+  }
+
+  /// Opens the account's app-created template doc for editing (authuser-attached).
+  func editTemplateDoc(for accountEmail: String) {
+    guard let id = meetingNotesTemplateDocId(for: accountEmail) else { return }
+    let raw = "https://docs.google.com/document/d/\(id)/edit"
+    openNote(url: raw, accountEmail: accountEmail)
+  }
+
+  /// Forgets the stored template doc id (does not delete the doc itself).
+  func removeTemplateDoc(for accountEmail: String) {
     var next = config
-    next.meetingNotesFoldersByAccount[accountEmail] = folder
+    next.meetingNotesTemplateDocsByAccount.removeValue(forKey: accountEmail)
+    templateErrors[accountEmail] = nil
     saveConfig(next)
-  }
-
-  func driveRoots(for accountEmail: String) async throws -> [DriveFolderRef] {
-    try await meetingNotesClient(for: accountEmail).listDriveRoots()
-  }
-
-  func driveFolders(for accountEmail: String, in parent: DriveFolderRef) async throws -> [DriveFolderRef] {
-    try await meetingNotesClient(for: accountEmail).listDriveFolders(in: parent)
   }
 
   func createOrOpenNote(for event: CalendarEvent) {
@@ -356,6 +589,7 @@ final class AppModel: ObservableObject {
     state.next = pickMenubarEvent(timed: timed, allDay: allDay, now: now)
     state.filterError = nil
     let notificationEvents = config.notifyVideoOnly ? timed.filter { !$0.conferenceUrl.isEmpty } : timed
+    guard !runtimeOptions.demoMode else { return }
     Task {
       await notifier.sync(
         events: notificationEvents,
@@ -429,12 +663,19 @@ final class AppModel: ObservableObject {
     if let current = events.first(where: { $0.startDate <= now && $0.endDate > now }) {
       return current
     }
-    let lead = TimeInterval(max(0, config.menubarLeadMinutes) * 60)
-    if let upcoming = events.first(where: { event in
-      let startsIn = event.startDate.timeIntervalSince(now)
-      return startsIn >= 0 && startsIn <= lead
-    }) {
-      return upcoming
+    if config.menubarShowsNextAlways {
+      // Always surface the next upcoming timed event, regardless of lead time.
+      if let upcoming = events.first(where: { $0.startDate.timeIntervalSince(now) >= 0 }) {
+        return upcoming
+      }
+    } else {
+      let lead = TimeInterval(max(0, config.menubarLeadMinutes) * 60)
+      if let upcoming = events.first(where: { event in
+        let startsIn = event.startDate.timeIntervalSince(now)
+        return startsIn >= 0 && startsIn <= lead
+      }) {
+        return upcoming
+      }
     }
     return allDayEvents.first { event in
       event.startDate <= now && event.endDate > now
@@ -457,6 +698,18 @@ final class AppModel: ObservableObject {
     lhs == rhs ? nil : lhs && !rhs
   }
 
+  /// Refresh calendar data when the machine wakes — timers can be delayed or
+  /// coalesced across sleep, so an explicit refresh keeps the menubar current.
+  private func observeWake() {
+    wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.didWakeNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor in await self?.refresh() }
+    }
+  }
+
   private func startTimers() {
     refreshTimer?.invalidate()
     clockTimer?.invalidate()
@@ -469,6 +722,16 @@ final class AppModel: ObservableObject {
     clockTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
       Task { @MainActor in self?.reapplyFilter() }
     }
+  }
+
+  private func loadDemoData(now: Date) {
+    calendars = DemoCalendarData.calendars(selectedIds: config.selectedCalendarIds)
+    rawEvents = DemoCalendarData.events(now: now, selectedIds: config.selectedCalendarIds)
+    state.auth = DemoCalendarData.accountState()
+    state.lastSync = now
+    state.lastError = nil
+    signInError = nil
+    reapplyFilter()
   }
 
   private func updateAuthState() {
@@ -491,21 +754,39 @@ final class AppModel: ObservableObject {
     defer { creatingNoteKey = nil }
 
     do {
+      if runtimeOptions.demoMode {
+        noteResults[key] = DemoCalendarData.noteResult(for: event)
+        return
+      }
       guard let account = accounts.first(
         where: { $0.email.caseInsensitiveCompare(event.account.email) == .orderedSame }
       ) else {
         throw AppError.message("Google account is not connected: \(event.account.email)")
       }
       let client = MeetingNotesClient(auth: account)
-      let templateDocUrl = config.meetingNotesTemplateDocsByAccount[event.account.email] ?? ""
-      let result = try await client.createNote(
-        for: event,
+      // The stored value is now an app-created doc id; tolerate a legacy URL by
+      // extracting the id from it.
+      let templateDocRaw = config.meetingNotesTemplateDocsByAccount[event.account.email] ?? ""
+      let options = NoteCreationOptions(
         folder: config.meetingNotesFoldersByAccount[event.account.email],
+        folderName: config.meetingNotesFolderNamesByAccount[event.account.email],
         titleTemplate: config.meetingNotesTitleTemplatesByAccount[event.account.email],
-        templateDocId: GoogleDocLinks.documentId(from: templateDocUrl) ?? templateDocUrl.nilIfEmpty,
+        templateDocId: GoogleDocLinks.documentId(from: templateDocRaw) ?? templateDocRaw.nilIfEmpty,
         shareExternalAttendees: shareExternalAttendees
       )
+      let result = try await client.createNote(for: event, options: options)
       noteResults[key] = result
+      // Persist a (re)resolved app-managed folder so settings can show it and
+      // future runs skip the lookup.
+      if let folder = result.resolvedFolder {
+        var next = config
+        next.meetingNotesFoldersByAccount[event.account.email] = folder
+        saveConfig(next)
+      }
+      // Surface a non-fatal template fallback as a per-event note error.
+      if let templateError = result.templateError {
+        noteErrors[key] = templateError
+      }
       await refresh()
       openNote(url: result.webViewLink, accountEmail: event.account.email)
     } catch {
@@ -520,7 +801,7 @@ final class AppModel: ObservableObject {
 
   private func meetingNotesClient(for accountEmail: String) throws -> MeetingNotesClient {
     guard let account = accounts.first(where: { $0.email.caseInsensitiveCompare(accountEmail) == .orderedSame }) else {
-      throw AppError.message("Google account is not connected: \(accountEmail)")
+      throw AppError.message(loc("Google account is not connected: %@", accountEmail))
     }
     return MeetingNotesClient(auth: account)
   }
@@ -535,20 +816,34 @@ final class AppModel: ObservableObject {
       return normalizedId == normalizedEmail || normalizedId.hasPrefix("\(normalizedEmail)::")
     }
     next.meetingNotesFoldersByAccount.removeValue(forCaseInsensitiveKey: email)
+    next.meetingNotesFolderNamesByAccount.removeValue(forCaseInsensitiveKey: email)
     next.meetingNotesTitleTemplatesByAccount.removeValue(forCaseInsensitiveKey: email)
     next.meetingNotesTemplateDocsByAccount.removeValue(forCaseInsensitiveKey: email)
+    templateErrors.removeValue(forCaseInsensitiveKey: email)
     config = next
-    try? store.save(config)
+    persistConfig()
   }
 
   private func removeAllAccountConfiguration() {
     var next = config
     next.selectedCalendarIds = []
     next.meetingNotesFoldersByAccount = [:]
+    next.meetingNotesFolderNamesByAccount = [:]
     next.meetingNotesTitleTemplatesByAccount = [:]
     next.meetingNotesTemplateDocsByAccount = [:]
+    templateErrors = [:]
     config = next
-    try? store.save(config)
+    persistConfig()
+  }
+
+  /// Persists the current config, surfacing (rather than swallowing) failures so
+  /// the user learns their settings weren't saved.
+  private func persistConfig() {
+    do {
+      try store.save(config)
+    } catch {
+      state.lastError = loc("Failed to save settings: %@", error.localizedDescription)
+    }
   }
 
   private func externalAttendees(for event: CalendarEvent) -> [String] {
@@ -570,6 +865,7 @@ final class AppModel: ObservableObject {
     next.menubarLeadMinutes = max(0, min(720, next.menubarLeadMinutes))
     next.notifyLeadMinutes = max(0, min(120, next.notifyLeadMinutes))
     next.meetingNotesTemplateDocsByAccount = trimmedNonEmpty(next.meetingNotesTemplateDocsByAccount)
+    next.meetingNotesFolderNamesByAccount = trimmedNonEmpty(next.meetingNotesFolderNamesByAccount)
     next.meetingNotesTitleTemplatesByAccount = trimmedNonEmpty(next.meetingNotesTitleTemplatesByAccount)
     if next.oauthClientId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
       next.oauthClientId = AppConfig.bundledGoogleClientId
@@ -587,6 +883,16 @@ final class AppModel: ObservableObject {
       if !trimmed.isEmpty { result[pair.key] = trimmed }
     }
   }
+}
+
+/// Per-account outcome of a refresh cycle. `error` is nil on success; on failure
+/// `calendars`/`events` are nil and the account is skipped without discarding
+/// other accounts' data.
+private struct AccountFetchResult {
+  var email: String
+  var calendars: [CalendarSummary]?
+  var events: [CalendarEvent]?
+  var error: String?
 }
 
 private extension String {

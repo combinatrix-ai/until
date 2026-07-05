@@ -3,6 +3,7 @@ import SwiftUI
 struct PanelView: View {
   @ObservedObject var model: AppModel
   var openSettings: () -> Void
+  @State private var showQuitConfirm = false
 
   var body: some View {
     VStack(spacing: 0) {
@@ -15,42 +16,57 @@ struct PanelView: View {
 
   @ViewBuilder
   private var content: some View {
+    let hasEvents = !(model.state.events.isEmpty && model.state.allDayEvents.isEmpty)
     if !model.state.auth.authenticated {
       OnboardingView(model: model)
-    } else if let error = model.state.lastError {
-      EmptyStateView(systemImage: "exclamationmark.triangle", title: "Sync Error", detail: error)
+    } else if let error = model.state.lastError, !hasEvents {
+      // Full-screen error only when there's nothing cached to show.
+      EmptyStateView(systemImage: "exclamationmark.triangle", title: loc("Sync Error"), detail: error)
         .frame(maxHeight: .infinity)
-    } else if model.state.events.isEmpty && model.state.allDayEvents.isEmpty {
+    } else if !hasEvents {
       EmptyStateView(
         systemImage: "calendar",
-        title: "No Events",
-        detail: "No upcoming events match the selected calendars, fetch window, and filter."
+        title: loc("No Events"),
+        detail: loc("No upcoming events match the selected calendars, fetch window, and filter.")
       )
       .frame(maxHeight: .infinity)
     } else {
-      List {
-        ForEach(model.daySections) { section in
-          Section(dayHeader(section.day)) {
-            ForEach(section.rows) { row in
-              EventRow(event: row.event, day: row.day, model: model)
+      VStack(spacing: 0) {
+        // Cached events remain visible; the error rides above them as a compact
+        // banner so a transient outage doesn't hide the whole panel.
+        if let error = model.state.lastError {
+          SyncErrorBanner(message: error)
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.top, Theme.Spacing.sm)
+        }
+        List {
+          ForEach(model.daySections) { section in
+            Section(dayHeader(section.day)) {
+              ForEach(section.rows) { row in
+                EventRow(event: row.event, day: row.day, model: model)
+              }
             }
           }
         }
+        .listStyle(.inset)
       }
-      .listStyle(.inset)
     }
   }
 
   private var footer: some View {
     HStack(spacing: Theme.Spacing.sm) {
       Button {
-        NSApp.terminate(nil)
+        showQuitConfirm = true
       } label: {
         Image(systemName: "power")
-          .foregroundStyle(.red)
+          .foregroundStyle(.secondary)
       }
       .buttonStyle(.borderless)
-      .help("Quit Until")
+      .help(loc("Quit Until"))
+      .confirmationDialog(loc("Quit Until?"), isPresented: $showQuitConfirm) {
+        Button(loc("Quit"), role: .destructive) { NSApp.terminate(nil) }
+        Button(loc("Cancel"), role: .cancel) {}
+      }
 
       Text(statusText)
         .font(.caption)
@@ -65,22 +81,22 @@ struct PanelView: View {
         Image(systemName: model.isRefreshing ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
       }
       .buttonStyle(.borderless)
-      .help("Refresh")
+      .help(loc("Refresh"))
 
       Button(action: openSettings) {
         Image(systemName: "gearshape")
       }
       .buttonStyle(.borderless)
-      .help("Preferences")
+      .help(loc("Preferences"))
     }
     .padding(.horizontal, Theme.Spacing.md)
     .padding(.vertical, Theme.Spacing.sm)
   }
 
   private var statusText: String {
-    guard let date = model.state.lastSync else { return "Not synced yet" }
+    guard let date = model.state.lastSync else { return loc("Not synced yet") }
     let minutes = max(0, Int(Date().timeIntervalSince(date) / 60))
-    return minutes == 0 ? "Updated just now" : "Updated \(relativeWhen(minutes)) ago"
+    return minutes == 0 ? loc("Updated just now") : loc("Updated %@ ago", relativeWhen(minutes))
   }
 }
 
@@ -105,7 +121,7 @@ struct OnboardingView: View {
         VStack(spacing: Theme.Spacing.xs) {
           Text("Until")
             .font(.title2.weight(.semibold))
-          Text("Your next Google Calendar event, always in the menubar.")
+          Text(loc("Your next Google Calendar event, always in the menubar."))
             .font(.callout)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
@@ -116,18 +132,18 @@ struct OnboardingView: View {
       VStack(alignment: .leading, spacing: Theme.Spacing.md) {
         FeatureRow(
           systemImage: "menubar.arrow.up.rectangle",
-          title: "Glance at what's next",
-          detail: "Your upcoming meeting lives in the menubar."
+          title: loc("Glance at what's next"),
+          detail: loc("Your upcoming meeting lives in the menubar.")
         )
         FeatureRow(
           systemImage: "bell.badge",
-          title: "Never miss a join",
-          detail: "Native reminders before your video calls start."
+          title: loc("Never miss a join"),
+          detail: loc("Native reminders before your video calls start.")
         )
         FeatureRow(
           systemImage: "doc.text",
-          title: "One-click meeting notes",
-          detail: "Open or create notes straight from an event."
+          title: loc("One-click meeting notes"),
+          detail: loc("Open or create notes straight from an event.")
         )
       }
       .frame(maxWidth: 300)
@@ -143,7 +159,7 @@ struct OnboardingView: View {
             } else {
               Image(systemName: "person.crop.circle.badge.plus")
             }
-            Text(model.isSigningIn ? "Opening Google sign-in…" : "Sign in with Google")
+            Text(model.isSigningIn ? loc("Opening Google sign-in…") : loc("Sign in with Google"))
           }
           .frame(maxWidth: .infinity)
         }
@@ -189,6 +205,10 @@ private struct FeatureRow: View {
 }
 
 struct EventRow: View {
+  private static let colorBarWidth: CGFloat = 3
+  private static let timeColumnWidth: CGFloat = 64
+  private static let detailIndent = colorBarWidth + Theme.Spacing.sm + timeColumnWidth + Theme.Spacing.sm
+
   var event: CalendarEvent
   var day: Date
   @ObservedObject var model: AppModel
@@ -198,12 +218,15 @@ struct EventRow: View {
       HStack(spacing: Theme.Spacing.sm) {
         RoundedRectangle(cornerRadius: 1.5)
           .fill(eventColor)
-          .frame(width: 3)
+          .frame(width: Self.colorBarWidth)
+          .accessibilityHidden(true)
 
-        Text(event.allDay ? "all-day" : clock(event.startDate))
+        Text(event.allDay ? loc("all-day") : clock(event.startDate))
           .font(.system(.caption, design: .monospaced))
           .foregroundStyle(.secondary)
-          .frame(width: 46, alignment: .leading)
+          .lineLimit(1)
+          .fixedSize(horizontal: true, vertical: false)
+          .frame(width: Self.timeColumnWidth, alignment: .leading)
 
         VStack(alignment: .leading, spacing: 3) {
           HStack(spacing: Theme.Spacing.xs) {
@@ -214,7 +237,7 @@ struct EventRow: View {
               Image(systemName: "paperclip")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .help("Meeting notes attached")
+                .help(loc("Meeting notes attached"))
             }
           }
           if !metadata.isEmpty {
@@ -236,7 +259,7 @@ struct EventRow: View {
                 .foregroundStyle(Color.accentColor)
             }
             .buttonStyle(.borderless)
-            .help("Join video call")
+            .help(loc("Join video call"))
           } else {
             ConferenceActionButton(event: event, model: model)
           }
@@ -253,30 +276,58 @@ struct EventRow: View {
 
       if model.isExpanded(event, on: day) {
         EventDetailView(event: event, model: model)
-          .padding(.leading, 57)
+          .padding(.leading, Self.detailIndent)
           .transition(.opacity.combined(with: .move(edge: .top)))
       }
 
       if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
         ExternalShareOverlay(prompt: prompt, model: model)
-          .padding(.leading, 57)
+          .padding(.leading, Self.detailIndent)
       }
 
       if let error = model.noteError(for: event) {
         NoteErrorOverlay(message: error) {
           model.createOrOpenNote(for: event)
         }
-        .padding(.leading, 57)
+        .padding(.leading, Self.detailIndent)
       }
 
       if let error = model.conferenceError(for: event) {
         NoteErrorOverlay(message: error) {
           model.addConference(for: event)
         }
-        .padding(.leading, 57)
+        .padding(.leading, Self.detailIndent)
       }
     }
     .padding(.vertical, Theme.Spacing.xs)
+    .contextMenu {
+      if !event.conferenceUrl.isEmpty {
+        Button {
+          model.join(event)
+        } label: {
+          Label(loc("Join video call"), systemImage: "video")
+        }
+        Button {
+          let pasteboard = NSPasteboard.general
+          pasteboard.clearContents()
+          pasteboard.setString(event.conferenceUrl, forType: .string)
+        } label: {
+          Label(loc("Copy meeting link"), systemImage: "link")
+        }
+      }
+      Button {
+        model.open(event)
+      } label: {
+        Label(loc("Open in Google Calendar"), systemImage: "calendar")
+      }
+      if !model.noteURL(for: event).isEmpty {
+        Button {
+          model.createOrOpenNote(for: event)
+        } label: {
+          Label(loc("Open meeting notes"), systemImage: "doc.text")
+        }
+      }
+    }
   }
 
   private var eventColor: Color {
@@ -324,12 +375,12 @@ private struct NoteActionButton: View {
     }
     .buttonStyle(.borderless)
     .disabled(isCreating)
-    .help(notesUrl.isEmpty ? "Create meeting notes" : "Open meeting notes")
-    .confirmationDialog("Create meeting notes?", isPresented: $showConfirm) {
-      Button("Create notes") { model.createOrOpenNote(for: event) }
-      Button("Cancel", role: .cancel) {}
+    .help(notesUrl.isEmpty ? loc("Create meeting notes") : loc("Open meeting notes"))
+    .confirmationDialog(loc("Create meeting notes?"), isPresented: $showConfirm) {
+      Button(loc("Create notes")) { model.createOrOpenNote(for: event) }
+      Button(loc("Cancel"), role: .cancel) {}
     } message: {
-      Text("Create a Google Doc for \(event.title) and attach it to the calendar event.")
+      Text(loc("Create a Google Doc for %@ and attach it to the calendar event.", event.title))
     }
   }
 }
@@ -358,12 +409,12 @@ private struct ConferenceActionButton: View {
     }
     .buttonStyle(.borderless)
     .disabled(isAdding)
-    .help("Add Google Meet")
-    .confirmationDialog("Add Google Meet?", isPresented: $showConfirm) {
-      Button("Add Meet") { model.addConference(for: event) }
-      Button("Cancel", role: .cancel) {}
+    .help(loc("Add Google Meet"))
+    .confirmationDialog(loc("Add Google Meet?"), isPresented: $showConfirm) {
+      Button(loc("Add Meet")) { model.addConference(for: event) }
+      Button(loc("Cancel"), role: .cancel) {}
     } message: {
-      Text("Add a Google Meet video link to \(event.title).")
+      Text(loc("Add a Google Meet video link to %@.", event.title))
     }
   }
 }
@@ -405,6 +456,7 @@ private struct EventDetailView: View {
               Image(systemName: responseIcon(attendee.responseStatus))
                 .font(.system(size: 9))
                 .foregroundStyle(responseColor(attendee.responseStatus))
+                .accessibilityLabel(responseLabel(attendee.responseStatus))
               Text(attendee.name.isEmpty ? attendee.email : attendee.name)
                 .font(.caption)
                 .foregroundStyle(.primary)
@@ -423,8 +475,8 @@ private struct EventDetailView: View {
         }
         .buttonStyle(.borderless)
         .foregroundStyle(copiedRecently ? Color.green : Color.accentColor)
-        .help(copiedRecently ? "Copied event details" : "Copy event details")
-        .accessibilityLabel("Copy event details")
+        .help(copiedRecently ? loc("Copied event details") : loc("Copy event details"))
+        .accessibilityLabel(loc("Copy event details"))
 
         Button {
           model.open(event)
@@ -435,8 +487,8 @@ private struct EventDetailView: View {
         }
         .buttonStyle(.borderless)
         .foregroundStyle(Color.accentColor)
-        .help("Open in Calendar")
-        .accessibilityLabel("Open in Calendar")
+        .help(loc("Open in Calendar"))
+        .accessibilityLabel(loc("Open in Calendar"))
       }
     }
     .padding(.vertical, Theme.Spacing.xs)
@@ -463,17 +515,17 @@ private struct EventDetailView: View {
     ]
 
     if !event.location.isEmpty {
-      lines.append("Location: \(event.location)")
+      lines.append(loc("Location: %@", event.location))
     }
 
     let conferenceURL = EventLinks.conferenceURLString(for: event)
     if !conferenceURL.isEmpty {
-      lines.append("Meet: \(conferenceURL)")
+      lines.append(loc("Meet: %@", conferenceURL))
     }
 
     let calendarURL = EventLinks.eventURLString(for: event)
     if !calendarURL.isEmpty {
-      lines.append("Calendar: \(calendarURL)")
+      lines.append(loc("Calendar: %@", calendarURL))
     }
 
     return lines.joined(separator: "\n")
@@ -484,16 +536,21 @@ private struct EventDetailView: View {
 
     if event.allDay {
       let displayEnd = calendar.date(byAdding: .second, value: -1, to: event.endDate) ?? event.endDate
+      let start = Self.copyDateFormatter.string(from: event.startDate)
       if calendar.isDate(event.startDate, inSameDayAs: displayEnd) {
-        return "\(Self.copyDateFormatter.string(from: event.startDate)) all-day"
+        return "\(start) \(loc("all-day"))"
       }
-      return "\(Self.copyDateFormatter.string(from: event.startDate)) - \(Self.copyDateFormatter.string(from: displayEnd)) all-day"
+      let end = Self.copyDateFormatter.string(from: displayEnd)
+      return "\(start) - \(end) \(loc("all-day"))"
     }
 
     if calendar.isDate(event.startDate, inSameDayAs: event.endDate) {
-      return "\(Self.copyDateFormatter.string(from: event.startDate)), \(clock(event.startDate)) - \(clock(event.endDate))"
+      let day = Self.copyDateFormatter.string(from: event.startDate)
+      return "\(day), \(clock(event.startDate)) - \(clock(event.endDate))"
     }
-    return "\(Self.copyDateTimeFormatter.string(from: event.startDate)) - \(Self.copyDateTimeFormatter.string(from: event.endDate))"
+    let start = Self.copyDateTimeFormatter.string(from: event.startDate)
+    let end = Self.copyDateTimeFormatter.string(from: event.endDate)
+    return "\(start) - \(end)"
   }
 
   private func responseIcon(_ status: String) -> String {
@@ -511,6 +568,15 @@ private struct EventDetailView: View {
     case "declined": return .red
     case "tentative": return .orange
     default: return .secondary
+    }
+  }
+
+  private func responseLabel(_ status: String) -> String {
+    switch status {
+    case "accepted": return loc("Accepted")
+    case "declined": return loc("Declined")
+    case "tentative": return loc("Tentative")
+    default: return loc("No response")
     }
   }
 
@@ -546,7 +612,7 @@ private struct ExternalShareOverlay: View {
         Image(systemName: "person.2.badge.gearshape")
           .foregroundStyle(.orange)
         VStack(alignment: .leading, spacing: 2) {
-          Text("External attendees")
+          Text(loc("External attendees"))
             .font(.caption.weight(.semibold))
           Text(prompt.externalAttendees.prefix(3).joined(separator: ", ") + overflowText)
             .font(.caption2)
@@ -556,10 +622,10 @@ private struct ExternalShareOverlay: View {
       }
 
       HStack(spacing: Theme.Spacing.sm) {
-        Button("Internal only") {
+        Button(loc("Internal only")) {
           model.resolveExternalShare(shareExternalAttendees: false)
         }
-        Button("Share externally") {
+        Button(loc("Share externally")) {
           model.resolveExternalShare(shareExternalAttendees: true)
         }
         .buttonStyle(.borderedProminent)
@@ -569,7 +635,7 @@ private struct ExternalShareOverlay: View {
           Image(systemName: "xmark")
         }
         .buttonStyle(.borderless)
-        .help("Cancel")
+        .help(loc("Cancel"))
       }
       .font(.caption)
     }
@@ -582,7 +648,31 @@ private struct ExternalShareOverlay: View {
   }
 
   private var overflowText: String {
-    prompt.externalAttendees.count > 3 ? " and \(prompt.externalAttendees.count - 3) more" : ""
+    prompt.externalAttendees.count > 3 ? loc(" and %d more", prompt.externalAttendees.count - 3) : ""
+  }
+}
+
+/// Compact inline banner shown above the cached event list when a sync fails but
+/// events are still available. Mirrors `NoteErrorOverlay`'s visual language.
+private struct SyncErrorBanner: View {
+  var message: String
+
+  var body: some View {
+    HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+      Image(systemName: "exclamationmark.triangle.fill")
+        .foregroundStyle(.orange)
+      Text(message)
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .lineLimit(2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(Theme.Spacing.sm)
+    .background(Color.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
+    .overlay(
+      RoundedRectangle(cornerRadius: Theme.Radius.sm)
+        .strokeBorder(Color.orange.opacity(0.22))
+    )
   }
 }
 
@@ -599,7 +689,7 @@ private struct NoteErrorOverlay: View {
         .foregroundStyle(.secondary)
         .lineLimit(2)
       Spacer()
-      Button("Retry", action: retry)
+      Button(loc("Retry"), action: retry)
         .font(.caption)
     }
     .padding(Theme.Spacing.sm)
@@ -616,7 +706,8 @@ struct SettingsView: View {
     (key: "12", label: "12h", hours: 12),
     (key: "24", label: "24h", hours: 24),
     (key: "48", label: "48h", hours: 48),
-    (key: "168", label: "1w", hours: 168)
+    (key: "168", label: "1w", hours: 168),
+    (key: "336", label: "2w", hours: 336)
   ]
 
   /// The settings sections, shown as a sidebar instead of OS-standard tabs.
@@ -626,9 +717,9 @@ struct SettingsView: View {
 
     var label: String {
       switch self {
-      case .accounts: return "Accounts"
-      case .general: return "General"
-      case .filter: return "Filter"
+      case .accounts: return loc("Accounts")
+      case .general: return loc("General")
+      case .filter: return loc("Filter")
       }
     }
 
@@ -645,7 +736,6 @@ struct SettingsView: View {
   @State private var draft: AppConfig
   @State private var usesCustomFetchWindow: Bool
   @State private var saveTask: Task<Void, Never>?
-  @State private var folderPickerTarget: FolderPickerTarget?
   @State private var selection: Section? = .accounts
 
   init(model: AppModel) {
@@ -675,9 +765,6 @@ struct SettingsView: View {
       }
     }
     .onChange(of: draft) { scheduleSave($0) }
-    .sheet(item: $folderPickerTarget) { target in
-      DriveFolderPickerSheet(model: model, accountEmail: target.accountEmail)
-    }
   }
 
   // MARK: Auto-save
@@ -698,9 +785,7 @@ struct SettingsView: View {
 
   private var accountTab: some View {
     SettingsTab {
-      ConnectedAccountsPanel(model: model, draft: $draft) { accountEmail in
-        folderPickerTarget = FolderPickerTarget(accountEmail: accountEmail)
-      }
+      ConnectedAccountsPanel(model: model, draft: $draft)
     }
     .task {
       if model.calendars.isEmpty {
@@ -711,50 +796,112 @@ struct SettingsView: View {
 
   private var generalTab: some View {
     SettingsTab {
-      SettingsCard("Sync") {
-        stepperRow(
-          "Refresh interval",
-          subtitle: "How often to check Google Calendar for changes",
-          value: $draft.pollIntervalSeconds, range: 30...3600, step: 30, unit: "sec"
-        )
-        Divider()
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-          VStack(alignment: .leading, spacing: 2) {
-            Text("Fetch window")
-              .font(.callout)
-            Text("How far ahead to load events")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-          fetchWindowControls
+      SettingsCard(loc("App")) {
+        SettingRow(
+          loc("Launch at login"),
+          subtitle: model.launchAtLoginAvailable
+            ? loc("Start Until automatically when you log in")
+            : loc("Available when running as an app bundle")
+        ) {
+          Toggle("", isOn: Binding(
+            get: { model.launchAtLoginEnabled },
+            set: { model.setLaunchAtLogin($0) }
+          ))
+          .labelsHidden()
+          .disabled(!model.launchAtLoginAvailable)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        if let error = model.launchAtLoginError {
+          Text(error)
+            .font(.caption)
+            .foregroundStyle(.red)
+            .textSelection(.enabled)
+        }
+        Divider()
+        SettingRow(loc("Global shortcut"), subtitle: loc("Toggle the Until popover from anywhere")) {
+          HStack(spacing: Theme.Spacing.sm) {
+            Picker("", selection: $draft.hotkeyPreset) {
+              ForEach(HotkeyManager.presets) { preset in
+                Text(preset.label).tag(preset.id)
+              }
+            }
+            .labelsHidden()
+            .frame(width: 130)
+            .disabled(!draft.hotkeyEnabled)
+            Toggle("", isOn: $draft.hotkeyEnabled)
+              .labelsHidden()
+          }
+        }
+      }
+      .task {
+        model.refreshLaunchAtLoginState()
       }
 
-      SettingsCard("Menubar") {
+      SettingsCard(loc("Sync")) {
         stepperRow(
-          "Max title length",
-          subtitle: "Longer event titles are shortened with “…”",
-          value: $draft.maxTitleLength, range: 10...120, step: 1, unit: "characters"
+          loc("Refresh interval"),
+          subtitle: loc("How often to check Google Calendar for changes"),
+          value: $draft.pollIntervalSeconds, range: 30...3600, step: 30, unit: loc("sec")
         )
         Divider()
-        stepperRow(
-          "Show upcoming event",
-          subtitle: "How early the next event appears in the menubar",
-          value: $draft.menubarLeadMinutes, range: 0...720, step: 1, unit: "min before"
-        )
+        SettingRow(loc("Fetch window"), subtitle: loc("How far ahead to load events")) {
+          HStack(spacing: Theme.Spacing.md) {
+            Picker("", selection: fetchWindowSelection) {
+              ForEach(Self.fetchWindowPresets, id: \.key) { preset in
+                Text(preset.label).tag(preset.key)
+              }
+              Text(loc("Custom")).tag("custom")
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: 300)
+
+            if usesCustomFetchWindow {
+              Stepper(value: $draft.lookaheadHours, in: 1...336, step: 1) {
+                Text("\(draft.lookaheadHours)h")
+                  .monospacedDigit()
+                  .frame(minWidth: 36, alignment: .trailing)
+              }
+            }
+          }
+        }
       }
 
-      SettingsCard("Notifications") {
-        SettingRow("Event reminders", subtitle: "Send a notification before an event starts") {
+      SettingsCard(loc("Menubar")) {
+        stepperRow(
+          loc("Max title length"),
+          subtitle: loc("Longer event titles are shortened with “…”"),
+          value: $draft.maxTitleLength, range: 10...120, step: 1, unit: loc("characters")
+        )
+        Divider()
+        SettingRow(loc("Show upcoming event"), subtitle: loc("When the next event appears in the menubar")) {
+          Picker("", selection: $draft.menubarShowsNextAlways) {
+            Text(loc("Always")).tag(true)
+            Text(loc("Within lead time")).tag(false)
+          }
+          .pickerStyle(.segmented)
+          .labelsHidden()
+          .frame(width: 210)
+        }
+        if !draft.menubarShowsNextAlways {
+          Divider()
+          stepperRow(
+            loc("Lead time"),
+            subtitle: loc("How early the next event appears in the menubar"),
+            value: $draft.menubarLeadMinutes, range: 0...720, step: 1, unit: loc("min before")
+          )
+        }
+      }
+
+      SettingsCard(loc("Notifications")) {
+        SettingRow(loc("Event reminders"), subtitle: loc("Send a notification before an event starts")) {
           Toggle("", isOn: $draft.notifyEnabled)
             .labelsHidden()
         }
         Divider()
-        SettingRow("Remind me about") {
+        SettingRow(loc("Remind me about")) {
           Picker("", selection: $draft.notifyVideoOnly) {
-            Text("All events").tag(false)
-            Text("Video only").tag(true)
+            Text(loc("All events")).tag(false)
+            Text(loc("Video only")).tag(true)
           }
           .pickerStyle(.segmented)
           .labelsHidden()
@@ -763,19 +910,20 @@ struct SettingsView: View {
         .disabled(!draft.notifyEnabled)
         Divider()
         stepperRow(
-          "Reminder timing",
-          subtitle: "How long before an event the reminder fires",
-          value: $draft.notifyLeadMinutes, range: 0...120, step: 1, unit: "min before"
+          loc("Reminder timing"),
+          subtitle: loc("How long before an event the reminder fires"),
+          value: $draft.notifyLeadMinutes, range: 0...120, step: 1, unit: loc("min before")
         )
         .disabled(!draft.notifyEnabled)
 
         Divider()
 
-        SettingRow("Notification access", subtitle: "Granted in macOS System Settings") {
+        SettingRow(loc("Notification access"), subtitle: loc("Granted in macOS System Settings")) {
           HStack(spacing: Theme.Spacing.sm) {
             Circle()
               .fill(notificationAuthorizationColor(model.notificationAuthorizationState))
               .frame(width: 8, height: 8)
+              .accessibilityLabel(model.notificationAuthorizationState.label)
             Text(model.notificationAuthorizationState.label)
             Button {
               Task { await model.refreshNotificationAuthorizationState() }
@@ -783,12 +931,12 @@ struct SettingsView: View {
               Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            .help("Re-check permission")
+            .help(loc("Re-check permission"))
           }
         }
         Divider()
-        SettingRow("System Settings", subtitle: "Manage how reminders are delivered") {
-          Button("Open") { model.openNotificationSettings() }
+        SettingRow(loc("System Settings"), subtitle: loc("Manage how reminders are delivered")) {
+          Button(loc("Open")) { model.openNotificationSettings() }
         }
         Divider()
         HStack {
@@ -799,10 +947,10 @@ struct SettingsView: View {
               HStack(spacing: Theme.Spacing.xs) {
                 ProgressView()
                   .controlSize(.small)
-                Text("Sending test reminder")
+                Text(loc("Sending test reminder"))
               }
             } else {
-              Label("Send test reminder", systemImage: "bell.badge")
+              Label(loc("Send test reminder"), systemImage: "bell.badge")
             }
           }
           .disabled(model.isSendingTestNotification)
@@ -824,8 +972,8 @@ struct SettingsView: View {
   private var filtersTab: some View {
     let preview = model.filterPreview(for: draft.filterRules)
     return SettingsTab(maxColumnWidth: .infinity) {
-      SettingsCard("Filter", subtitle: "Only matching events appear in the menubar and list", accessory: {
-        Button("Reset to defaults") {
+      SettingsCard(loc("Filter"), subtitle: loc("Only matching events appear in the menubar and list"), accessory: {
+        Button(loc("Reset to defaults")) {
           draft.filterRules = AppConfig.default.filterRules
         }
       }, content: {
@@ -848,30 +996,6 @@ struct SettingsView: View {
       if model.calendars.isEmpty {
         await model.refreshCalendars()
       }
-    }
-  }
-
-  private var fetchWindowControls: some View {
-    HStack(spacing: Theme.Spacing.md) {
-      Picker("Fetch window", selection: fetchWindowSelection) {
-        ForEach(Self.fetchWindowPresets, id: \.key) { preset in
-          Text(preset.label).tag(preset.key)
-        }
-        Text("Custom").tag("custom")
-      }
-      .labelsHidden()
-      .pickerStyle(.segmented)
-      .frame(width: 250)
-
-      if usesCustomFetchWindow {
-        Stepper(value: $draft.lookaheadHours, in: 1...168, step: 1) {
-          Text("\(draft.lookaheadHours)h")
-            .monospacedDigit()
-            .frame(minWidth: 36, alignment: .trailing)
-        }
-      }
-
-      Spacer()
     }
   }
 
@@ -947,24 +1071,18 @@ private struct SettingsTab<Content: View>: View {
   }
 }
 
-private struct FolderPickerTarget: Identifiable {
-  var accountEmail: String
-  var id: String { accountEmail }
-}
-
 private struct ConnectedAccountsPanel: View {
   @ObservedObject var model: AppModel
   @Binding var draft: AppConfig
-  var openFolderPicker: (String) -> Void
 
   var body: some View {
-    SettingsCard("Google Accounts", accessory: {
+    SettingsCard(loc("Google Accounts"), accessory: {
       if !model.state.auth.accounts.isEmpty {
         HStack(spacing: Theme.Spacing.sm) {
           Button {
             Task { await model.refreshCalendars() }
           } label: {
-            Label("Refresh", systemImage: "arrow.clockwise")
+            Label(loc("Refresh"), systemImage: "arrow.clockwise")
           }
           addAccountButton
             .buttonStyle(.borderedProminent)
@@ -974,8 +1092,8 @@ private struct ConnectedAccountsPanel: View {
       if model.state.auth.accounts.isEmpty {
         EmptyStateView(
           systemImage: "person.crop.circle.badge.plus",
-          title: "No accounts connected",
-          detail: "Connect a Google account to see your calendar."
+          title: loc("No accounts connected"),
+          detail: loc("Connect a Google account to see your calendar.")
         ) {
           addAccountButton
             .buttonStyle(.borderedProminent)
@@ -989,8 +1107,7 @@ private struct ConnectedAccountsPanel: View {
               calendars: model.calendars.filter { $0.accountEmail == account.email },
               selectedFolder: model.meetingNotesFolder(for: account.email),
               model: model,
-              draft: $draft,
-              openFolderPicker: openFolderPicker
+              draft: $draft
             )
           }
         }
@@ -1000,7 +1117,7 @@ private struct ConnectedAccountsPanel: View {
         HStack(spacing: Theme.Spacing.sm) {
           ProgressView()
             .controlSize(.small)
-          Text("Opening Google sign-in...")
+          Text(loc("Opening Google sign-in..."))
             .foregroundStyle(.secondary)
         }
         .font(.callout)
@@ -1017,7 +1134,7 @@ private struct ConnectedAccountsPanel: View {
       model.saveConfig(draft)
       Task { await model.login() }
     } label: {
-      Label("Add Account", systemImage: "plus")
+      Label(loc("Add Account"), systemImage: "plus")
     }
     .disabled(model.isSigningIn)
   }
@@ -1029,7 +1146,6 @@ private struct AccountConfigurationCard: View {
   var selectedFolder: DriveFolderRef?
   @ObservedObject var model: AppModel
   @Binding var draft: AppConfig
-  var openFolderPicker: (String) -> Void
 
   /// Meeting Notes is collapsed by default — most accounts run on the defaults.
   /// It auto-expands on first appearance for accounts that have customized any
@@ -1071,13 +1187,13 @@ private struct AccountConfigurationCard: View {
         .lineLimit(1)
         .truncationMode(.middle)
       Spacer()
-      Button("Reauthorize") {
+      Button(loc("Reauthorize")) {
         model.saveConfig(draft)
         Task { await model.reauthorize(email: account.email) }
       }
       .buttonStyle(.borderless)
       .disabled(model.isSigningIn)
-      Button("Remove") {
+      Button(loc("Remove")) {
         Task { await model.logout(email: account.email) }
       }
       .buttonStyle(.borderless)
@@ -1089,12 +1205,12 @@ private struct AccountConfigurationCard: View {
 
   private var calendarsSection: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-      Text("Calendars")
+      Text(loc("Calendars"))
         .font(.caption.weight(.semibold))
         .foregroundStyle(.secondary)
 
       if calendars.isEmpty {
-        Text("No calendars loaded for this account.")
+        Text(loc("No calendars loaded for this account."))
           .font(.caption)
           .foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, alignment: .leading)
@@ -1112,17 +1228,11 @@ private struct AccountConfigurationCard: View {
   private var notesSection: some View {
     DisclosureGroup(isExpanded: $notesExpanded) {
       VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-        SettingRow("Folder", subtitle: selectedFolder?.displayPath ?? "My Drive / Meeting Notes") {
-          Button {
-            openFolderPicker(account.email)
-          } label: {
-            Label(selectedFolder == nil ? "Choose" : "Change", systemImage: "folder")
-          }
-        }
+        folderRow
 
         Divider()
 
-        SettingRow("Note title", subtitle: "{date} and {title} are filled in automatically") {
+        SettingRow(loc("Note title"), subtitle: loc("{date} and {title} are filled in automatically")) {
           TextField(AppConfig.defaultNoteTitleTemplate, text: dictBinding(\.meetingNotesTitleTemplatesByAccount))
             .textFieldStyle(.roundedBorder)
             .frame(width: 280)
@@ -1130,10 +1240,13 @@ private struct AccountConfigurationCard: View {
 
         Divider()
 
-        SettingRow("Template Doc", subtitle: "Start new notes from a Google Doc (URL or ID)") {
-          TextField("https://docs.google.com/document/d/...", text: dictBinding(\.meetingNotesTemplateDocsByAccount))
-            .textFieldStyle(.roundedBorder)
-            .frame(width: 280)
+        templateRow
+
+        if let error = model.templateError(for: account.email) {
+          Text(error)
+            .font(.caption)
+            .foregroundStyle(.red)
+            .textSelection(.enabled)
         }
 
         notesFootnote
@@ -1143,10 +1256,10 @@ private struct AccountConfigurationCard: View {
       HStack(spacing: Theme.Spacing.sm) {
         Image(systemName: "doc.text")
           .foregroundStyle(.secondary)
-        Text("Meeting Notes")
+        Text(loc("Meeting Notes"))
           .font(.callout.weight(.medium))
         if !notesExpanded {
-          Text("Optional — folder, title & template")
+          Text(loc("Optional — title & template"))
             .font(.caption)
             .foregroundStyle(.secondary)
         }
@@ -1154,12 +1267,68 @@ private struct AccountConfigurationCard: View {
     }
   }
 
+  // App-managed folder row. The folder is created (or renamed) automatically
+  // the next time a note is created; "Open in Drive" appears once an id is
+  // stored.
+  private var folderRow: some View {
+    SettingRow(
+      loc("Folder name"),
+      subtitle: loc("Created in My Drive; renamed when you change this")
+    ) {
+      HStack(spacing: Theme.Spacing.sm) {
+        TextField("Meeting Notes", text: dictBinding(\.meetingNotesFolderNamesByAccount))
+          .textFieldStyle(.roundedBorder)
+          .frame(width: 280)
+        if selectedFolder != nil {
+          Button {
+            model.openNotesFolder(for: account.email)
+          } label: {
+            Label(loc("Open in Drive"), systemImage: "arrow.up.right.square")
+          }
+        }
+      }
+    }
+  }
+
+  private var templateRow: some View {
+    let hasTemplate = model.meetingNotesTemplateDocId(for: account.email) != nil
+    let isCreating = model.isCreatingTemplate(for: account.email)
+    return SettingRow(loc("Template"), subtitle: loc("Start notes from an editable Google Doc")) {
+      HStack(spacing: Theme.Spacing.sm) {
+        if hasTemplate {
+          Button {
+            model.editTemplateDoc(for: account.email)
+          } label: {
+            Label(loc("Edit template"), systemImage: "square.and.pencil")
+          }
+          Button(loc("Reset")) {
+            model.removeTemplateDoc(for: account.email)
+          }
+          .foregroundStyle(.red)
+        } else if isCreating {
+          HStack(spacing: Theme.Spacing.xs) {
+            ProgressView()
+              .controlSize(.small)
+            Text(loc("Creating template…"))
+              .foregroundStyle(.secondary)
+          }
+        } else {
+          Button {
+            model.createTemplateDoc(for: account.email)
+          } label: {
+            Label(loc("Create template"), systemImage: "doc.badge.plus")
+          }
+        }
+      }
+      .disabled(isCreating)
+    }
+  }
+
   private var notesFootnote: some View {
-    Text(
-      "Every field is optional — leave any blank to use the default. "
-        + "Notes are saved to “My Drive / Meeting Notes” from a built-in template. "
-        + "Notes need Drive and Docs access — reconnect Google if creation fails."
-    )
+    let key = "The notes folder is created automatically in your Drive. Notes use a built-in template unless " +
+      "you create your own, which you can edit in Google Docs. Notes need Drive and Docs access — " +
+      "reconnect Google if creation fails."
+    return Text(loc(key))
       .font(.caption)
       .foregroundStyle(.secondary)
       .fixedSize(horizontal: false, vertical: true)
@@ -1168,6 +1337,7 @@ private struct AccountConfigurationCard: View {
 
   private var hasCustomNotes: Bool {
     selectedFolder != nil
+      || !(draft.meetingNotesFolderNamesByAccount[account.email] ?? "").isEmpty
       || !(draft.meetingNotesTitleTemplatesByAccount[account.email] ?? "").isEmpty
       || !(draft.meetingNotesTemplateDocsByAccount[account.email] ?? "").isEmpty
   }
@@ -1222,7 +1392,7 @@ private struct CalendarSelectionRow: View {
         Text(calendar.name)
           .font(.callout.weight(.medium))
           .lineLimit(1)
-        Text(calendar.primary ? "primary" : calendar.googleId)
+        Text(calendar.primary ? loc("primary") : calendar.googleId)
           .font(.caption)
           .foregroundStyle(.secondary)
           .lineLimit(1)
@@ -1230,209 +1400,6 @@ private struct CalendarSelectionRow: View {
       Spacer()
     }
     .padding(.vertical, Theme.Spacing.xs)
-  }
-}
-
-private struct DriveFolderPickerSheet: View {
-  @Environment(\.dismiss) private var dismiss
-  @ObservedObject var model: AppModel
-  var accountEmail: String
-
-  @State private var stack: [DriveFolderRef] = []
-  @State private var items: [DriveFolderRef] = []
-  @State private var isLoading = false
-  @State private var error: String?
-
-  var body: some View {
-    VStack(spacing: 0) {
-      header
-      Divider()
-      content
-      Divider()
-      footer
-    }
-    .frame(width: 560, height: 440)
-    .task {
-      await loadRoots()
-    }
-  }
-
-  private var header: some View {
-    HStack(spacing: Theme.Spacing.md) {
-      Image(systemName: "folder")
-        .font(.title3)
-        .foregroundStyle(.secondary)
-      VStack(alignment: .leading, spacing: 2) {
-        Text("Choose notes folder")
-          .font(.headline)
-        Text(accountEmail)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-      Spacer()
-      Button {
-        dismiss()
-      } label: {
-        Image(systemName: "xmark")
-      }
-      .buttonStyle(.borderless)
-      .help("Close")
-    }
-    .padding(Theme.Spacing.lg)
-  }
-
-  @ViewBuilder
-  private var content: some View {
-    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-      breadcrumb
-
-      if isLoading {
-        Spacer()
-        HStack {
-          Spacer()
-          ProgressView()
-          Spacer()
-        }
-        Spacer()
-      } else if let error {
-        InlineErrorView(message: error)
-        Spacer()
-      } else if items.isEmpty {
-        EmptyStateView(systemImage: "folder", title: "No folders here")
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else {
-        List(items) { folder in
-          DriveFolderRow(folder: folder, canSelect: canSelect(folder)) {
-            Task { await open(folder) }
-          } select: {
-            select(folder)
-          }
-        }
-        .listStyle(.inset)
-      }
-    }
-    .padding(Theme.Spacing.lg)
-  }
-
-  private var breadcrumb: some View {
-    HStack(spacing: Theme.Spacing.sm) {
-      Button {
-        Task { await loadRoots() }
-      } label: {
-        Label("Roots", systemImage: "externaldrive")
-      }
-      .buttonStyle(.borderless)
-
-      ForEach(stack) { folder in
-        Image(systemName: "chevron.right")
-          .font(.caption2)
-          .foregroundStyle(.secondary)
-        Button(folder.name) {
-          Task { await jump(to: folder) }
-        }
-        .buttonStyle(.borderless)
-      }
-      Spacer()
-    }
-    .font(.caption)
-  }
-
-  private var footer: some View {
-    HStack(spacing: Theme.Spacing.sm) {
-      if let current = stack.last, canSelect(current) {
-        Button {
-          select(current)
-        } label: {
-          Label("Choose Current Folder", systemImage: "checkmark")
-        }
-        .buttonStyle(.borderedProminent)
-      }
-      Spacer()
-      Button("Cancel") {
-        dismiss()
-      }
-    }
-    .padding(Theme.Spacing.lg)
-  }
-
-  private func loadRoots() async {
-    stack = []
-    await load {
-      try await model.driveRoots(for: accountEmail)
-    }
-  }
-
-  private func open(_ folder: DriveFolderRef) async {
-    stack.append(folder)
-    await load {
-      try await model.driveFolders(for: accountEmail, in: folder)
-    }
-  }
-
-  private func jump(to folder: DriveFolderRef) async {
-    guard let index = stack.firstIndex(of: folder) else { return }
-    stack = Array(stack.prefix(index + 1))
-    await load {
-      try await model.driveFolders(for: accountEmail, in: folder)
-    }
-  }
-
-  private func load(_ action: () async throws -> [DriveFolderRef]) async {
-    isLoading = true
-    error = nil
-    do {
-      items = try await action()
-    } catch {
-      self.error = error.localizedDescription
-      items = []
-    }
-    isLoading = false
-  }
-
-  private func select(_ folder: DriveFolderRef) {
-    model.setMeetingNotesFolder(folder, for: accountEmail)
-    dismiss()
-  }
-
-  private func canSelect(_ folder: DriveFolderRef) -> Bool {
-    !(folder.source == .sharedWithMe && folder.id == "shared-with-me")
-  }
-}
-
-private struct DriveFolderRow: View {
-  var folder: DriveFolderRef
-  var canSelect: Bool
-  var open: () -> Void
-  var select: () -> Void
-
-  var body: some View {
-    HStack(spacing: Theme.Spacing.md) {
-      Image(systemName: folder.source == .sharedDrive ? "externaldrive" : "folder")
-        .foregroundStyle(.secondary)
-      VStack(alignment: .leading, spacing: 2) {
-        Text(folder.name)
-          .font(.callout.weight(.medium))
-          .lineLimit(1)
-        Text(sourceLabel)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-      Spacer()
-      Button("Open", action: open)
-      if canSelect {
-        Button("Select", action: select)
-          .buttonStyle(.borderedProminent)
-      }
-    }
-    .padding(.vertical, Theme.Spacing.xs)
-  }
-
-  private var sourceLabel: String {
-    switch folder.source {
-    case .myDrive: return "My Drive"
-    case .sharedDrive: return "Shared drive"
-    case .sharedWithMe: return "Shared with me"
-    }
   }
 }
 
@@ -1441,10 +1408,10 @@ private struct FilterPreviewView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-      Text("\(result.matched) of \(result.total) events match")
+      Text(loc("%1$d of %2$d events match", result.matched, result.total))
         .foregroundStyle(result.total == 0 ? .secondary : .primary)
       if result.sample.isEmpty {
-        Text("No events loaded to preview yet.")
+        Text(loc("No events loaded to preview yet."))
           .foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, alignment: .leading)
       } else {
@@ -1469,11 +1436,15 @@ private struct FilterPreviewView: View {
     .card(.inset, padding: Theme.Spacing.md)
   }
 
-  private func previewClock(_ date: Date) -> String {
+  private static let previewClockFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateStyle = .short
     formatter.timeStyle = .short
-    return formatter.string(from: date)
+    return formatter
+  }()
+
+  private func previewClock(_ date: Date) -> String {
+    Self.previewClockFormatter.string(from: date)
   }
 }
 

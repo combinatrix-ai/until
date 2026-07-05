@@ -1,0 +1,289 @@
+/* English base strings for Until. Keys are the English source text.
+   Kept in sync with ja.lproj/Localizable.strings. */
+
+/* MARK: - Menubar status item (AppDelegate) */
+"all-day" = "all-day";
+"now" = "now";
+"%@ left" = "%@ left";
+"No events" = "No events";
+"No events to show" = "No events to show";
+"No current or imminent events" = "No current or imminent events";
+"%1$@ - %2$@" = "%1$@ - %2$@";
+"%@ - all-day" = "%@ - all-day";
+"%1$@ (%2$d more today)" = "%1$@ (%2$d more today)";
+
+/* MARK: - Right-click menu (AppDelegate) */
+"Refresh Now" = "Refresh Now";
+"Preferences..." = "Preferences...";
+"Quit" = "Quit";
+
+/* MARK: - Day headers (AppDelegate) */
+"Today" = "Today";
+"Tomorrow" = "Tomorrow";
+
+/* MARK: - Settings window (AppDelegate) */
+"Until Settings" = "Until Settings";
+
+/* MARK: - Panel (Views) */
+"Sync Error" = "Sync Error";
+"No Events" = "No Events";
+"No upcoming events match the selected calendars, fetch window, and filter." = "No upcoming events match the selected calendars, fetch window, and filter.";
+"Quit Until" = "Quit Until";
+"Quit Until?" = "Quit Until?";
+"Cancel" = "Cancel";
+"Refresh" = "Refresh";
+"Preferences" = "Preferences";
+"Not synced yet" = "Not synced yet";
+"Updated just now" = "Updated just now";
+"Updated %@ ago" = "Updated %@ ago";
+
+/* MARK: - Onboarding (Views) */
+"Your next Google Calendar event, always in the menubar." = "Your next Google Calendar event, always in the menubar.";
+"Glance at what's next" = "Glance at what's next";
+"Your upcoming meeting lives in the menubar." = "Your upcoming meeting lives in the menubar.";
+"Never miss a join" = "Never miss a join";
+"Native reminders before your video calls start." = "Native reminders before your video calls start.";
+"One-click meeting notes" = "One-click meeting notes";
+"Open or create notes straight from an event." = "Open or create notes straight from an event.";
+"Opening Google sign-in…" = "Opening Google sign-in…";
+"Sign in with Google" = "Sign in with Google";
+
+/* MARK: - Event row (Views) */
+"Meeting notes attached" = "Meeting notes attached";
+"Join video call" = "Join video call";
+"Create meeting notes" = "Create meeting notes";
+"Open meeting notes" = "Open meeting notes";
+"Add Google Meet" = "Add Google Meet";
+"Copy meeting link" = "Copy meeting link";
+"Open in Google Calendar" = "Open in Google Calendar";
+"Create meeting notes?" = "Create meeting notes?";
+"Create notes" = "Create notes";
+"Create a Google Doc for %@ and attach it to the calendar event." = "Create a Google Doc for %@ and attach it to the calendar event.";
+"Add Google Meet?" = "Add Google Meet?";
+"Add Meet" = "Add Meet";
+"Add a Google Meet video link to %@." = "Add a Google Meet video link to %@.";
+
+/* MARK: - Event detail (Views) */
+"Copy event details" = "Copy event details";
+"Copied event details" = "Copied event details";
+"Open in Calendar" = "Open in Calendar";
+"Location: %@" = "Location: %@";
+"Meet: %@" = "Meet: %@";
+"Calendar: %@" = "Calendar: %@";
+"Accepted" = "Accepted";
+"Declined" = "Declined";
+"Tentative" = "Tentative";
+"No response" = "No response";
+
+/* MARK: - External share overlay (Views) */
+"External attendees" = "External attendees";
+"Internal only" = "Internal only";
+"Share externally" = "Share externally";
+" and %d more" = " and %d more";
+
+/* MARK: - Error overlays (Views) */
+"Retry" = "Retry";
+
+/* MARK: - Settings sections (Views) */
+"Accounts" = "Accounts";
+"General" = "General";
+"Filter" = "Filter";
+
+/* MARK: - Settings: General tab (Views) */
+"App" = "App";
+"Launch at login" = "Launch at login";
+"Start Until automatically when you log in" = "Start Until automatically when you log in";
+"Available when running as an app bundle" = "Available when running as an app bundle";
+"Global shortcut" = "Global shortcut";
+"Toggle the Until popover from anywhere" = "Toggle the Until popover from anywhere";
+"Sync" = "Sync";
+"Refresh interval" = "Refresh interval";
+"How often to check Google Calendar for changes" = "How often to check Google Calendar for changes";
+"sec" = "sec";
+"Fetch window" = "Fetch window";
+"How far ahead to load events" = "How far ahead to load events";
+"Custom" = "Custom";
+"Menubar" = "Menubar";
+"Max title length" = "Max title length";
+"Longer event titles are shortened with “…”" = "Longer event titles are shortened with “…”";
+"characters" = "characters";
+"Show upcoming event" = "Show upcoming event";
+"When the next event appears in the menubar" = "When the next event appears in the menubar";
+"Always" = "Always";
+"Within lead time" = "Within lead time";
+"Lead time" = "Lead time";
+"How early the next event appears in the menubar" = "How early the next event appears in the menubar";
+"min before" = "min before";
+"Notifications" = "Notifications";
+"Event reminders" = "Event reminders";
+"Send a notification before an event starts" = "Send a notification before an event starts";
+"Remind me about" = "Remind me about";
+"All events" = "All events";
+"Video only" = "Video only";
+"Reminder timing" = "Reminder timing";
+"How long before an event the reminder fires" = "How long before an event the reminder fires";
+"Notification access" = "Notification access";
+"Granted in macOS System Settings" = "Granted in macOS System Settings";
+"Re-check permission" = "Re-check permission";
+"System Settings" = "System Settings";
+"Manage how reminders are delivered" = "Manage how reminders are delivered";
+"Open" = "Open";
+"Sending test reminder" = "Sending test reminder";
+"Send test reminder" = "Send test reminder";
+
+/* MARK: - Settings: Filter tab (Views) */
+"Only matching events appear in the menubar and list" = "Only matching events appear in the menubar and list";
+"Reset to defaults" = "Reset to defaults";
+"%1$d of %2$d events match" = "%1$d of %2$d events match";
+"No events loaded to preview yet." = "No events loaded to preview yet.";
+
+/* MARK: - Settings: Accounts tab (Views) */
+"Google Accounts" = "Google Accounts";
+"Add Account" = "Add Account";
+"No accounts connected" = "No accounts connected";
+"Connect a Google account to see your calendar." = "Connect a Google account to see your calendar.";
+"Opening Google sign-in..." = "Opening Google sign-in...";
+"Reauthorize" = "Reauthorize";
+"Remove" = "Remove";
+"Calendars" = "Calendars";
+"No calendars loaded for this account." = "No calendars loaded for this account.";
+"Folder name" = "Folder name";
+"Created in My Drive; renamed when you change this" = "Created in My Drive; renamed when you change this";
+"Open in Drive" = "Open in Drive";
+"Note title" = "Note title";
+"{date} and {title} are filled in automatically" = "{date} and {title} are filled in automatically";
+"Template" = "Template";
+"Start notes from an editable Google Doc" = "Start notes from an editable Google Doc";
+"Create template" = "Create template";
+"Edit template" = "Edit template";
+"Creating template…" = "Creating template…";
+"Reset" = "Reset";
+"Until Meeting Notes Template" = "Until Meeting Notes Template";
+"Your saved template couldn’t be opened, so built-in notes were used — try Create template." = "Your saved template couldn’t be opened, so built-in notes were used — try Create template.";
+"Meeting Notes" = "Meeting Notes";
+"Optional — title & template" = "Optional — title & template";
+"The notes folder is created automatically in your Drive. Notes use a built-in template unless you create your own, which you can edit in Google Docs. Notes need Drive and Docs access — reconnect Google if creation fails." = "The notes folder is created automatically in your Drive. Notes use a built-in template unless you create your own, which you can edit in Google Docs. Notes need Drive and Docs access — reconnect Google if creation fails.";
+"primary" = "primary";
+
+/* MARK: - Query builder (QueryBuilderView) */
+"Remove group" = "Remove group";
+"Events where" = "Events where";
+"All of" = "All of";
+"Any of" = "Any of";
+"Not all of" = "Not all of";
+"None of" = "None of";
+"No rules yet — this group matches every event." = "No rules yet — this group matches every event.";
+"Add rule" = "Add rule";
+"Add group" = "Add group";
+"Remove rule" = "Remove rule";
+"Value" = "Value";
+"to" = "to";
+"Min" = "Min";
+"Max" = "Max";
+"Select values" = "Select values";
+"Select calendars" = "Select calendars";
+"No calendars loaded" = "No calendars loaded";
+"Choose calendar" = "Choose calendar";
+"%d selected" = "%d selected";
+
+/* MARK: - Filter catalog: field labels (FilterCatalog) */
+"Title" = "Title";
+"Description" = "Description";
+"Location" = "Location";
+"Organizer email" = "Organizer email";
+"Calendar" = "Calendar";
+"My response" = "My response";
+"Status" = "Status";
+"Shows as" = "Shows as";
+"All-day" = "All-day";
+"Recurring" = "Recurring";
+"Has video call" = "Has video call";
+"Attendee count" = "Attendee count";
+"Duration" = "Duration";
+"Starts within" = "Starts within";
+"Starts at hour" = "Starts at hour";
+"Weekday" = "Weekday";
+"Attendee email" = "Attendee email";
+
+/* MARK: - Filter catalog: operator labels (FilterCatalog) */
+"is" = "is";
+"is not" = "is not";
+"is any of" = "is any of";
+"is none of" = "is none of";
+"contains" = "contains";
+"does not contain" = "does not contain";
+"starts with" = "starts with";
+"ends with" = "ends with";
+"is exactly" = "is exactly";
+"is not exactly" = "is not exactly";
+"matches regex" = "matches regex";
+"is empty" = "is empty";
+"is not empty" = "is not empty";
+"is set" = "is set";
+"between" = "between";
+"not between" = "not between";
+"within" = "within";
+"includes" = "includes";
+"excludes" = "excludes";
+"is true" = "is true";
+"is false" = "is false";
+
+/* MARK: - Filter catalog: enum value labels (FilterCatalog) */
+"Needs action" = "Needs action";
+"No response / not invited" = "No response / not invited";
+"Confirmed" = "Confirmed";
+"Cancelled" = "Cancelled";
+"Busy" = "Busy";
+"Free" = "Free";
+"Sunday" = "Sunday";
+"Monday" = "Monday";
+"Tuesday" = "Tuesday";
+"Wednesday" = "Wednesday";
+"Thursday" = "Thursday";
+"Friday" = "Friday";
+"Saturday" = "Saturday";
+
+/* MARK: - Filter catalog: units (FilterCatalog) */
+"min" = "min";
+"h" = "h";
+
+/* MARK: - Notification authorization state (Models) */
+"Unavailable" = "Unavailable";
+"Not Determined" = "Not Determined";
+"Denied" = "Denied";
+"Authorized" = "Authorized";
+"Provisional" = "Provisional";
+"Unknown" = "Unknown";
+
+/* MARK: - Notifications (EventNotifier) */
+"Open Event" = "Open Event";
+"Snooze 5 min" = "Snooze 5 min";
+"Open Video Call" = "Open Video Call";
+"Open Google Meet" = "Open Google Meet";
+"Open Zoom" = "Open Zoom";
+"Open Teams" = "Open Teams";
+"Open Webex" = "Open Webex";
+"Notifications are not authorized for Until." = "Notifications are not authorized for Until.";
+"Test Notification" = "Test Notification";
+"Until notifications are working." = "Until notifications are working.";
+"Starts at %@" = "Starts at %@";
+
+/* MARK: - Errors / messages (AppModel, GoogleAuth) */
+"Google sign-in is disabled in demo mode." = "Google sign-in is disabled in demo mode.";
+"Google account is not connected: %@" = "Google account is not connected: %@";
+"Failed to save settings: %@" = "Failed to save settings: %@";
+"Google OAuth Client ID is not configured." = "Google OAuth Client ID is not configured.";
+"Failed to build Google sign-in URL." = "Failed to build Google sign-in URL.";
+"Selected Google account %1$@ does not match %2$@." = "Selected Google account %1$@ does not match %2$@.";
+"Google did not return a refresh token. Try removing access for Until from your Google Account, then sign in again." = "Google did not return a refresh token. Try removing access for Until from your Google Account, then sign in again.";
+"Not authenticated." = "Not authenticated.";
+"Failed to revoke Google credentials." = "Failed to revoke Google credentials.";
+"Failed to fetch Google account email." = "Failed to fetch Google account email.";
+"Failed to open browser for Google sign-in: %@" = "Failed to open browser for Google sign-in: %@";
+"Failed to allocate loopback port." = "Failed to allocate loopback port.";
+
+/* MARK: - OAuth callback web page (GoogleAuth) */
+"You can close this tab" = "You can close this tab";
+"Return to Until." = "Return to Until.";
+"Login failed" = "Login failed";
+"No authorization code returned." = "No authorization code returned.";

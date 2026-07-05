@@ -50,9 +50,151 @@ struct CalendarEvent: Identifiable, Codable, Hashable {
   var transparency: String
   var htmlLink: String
 
-  var startDate: Date { ISO8601DateFormatter.shared.date(fromAnyInternetDate: startISO) ?? Date() }
-  var endDate: Date { ISO8601DateFormatter.shared.date(fromAnyInternetDate: endISO) ?? Date() }
+  // Parsed once at construction from `startISO`/`endISO`. These were previously
+  // computed properties that reparsed the ISO strings on every access; they are
+  // read O(n log n) times per UI tick (sort comparators, filters, day grouping),
+  // so caching avoids repeated `ISO8601DateFormatter` work.
+  var startDate: Date
+  var endDate: Date
+
   var actionKey: String { "\(account.email)::\(calendar.googleId)::\(id)" }
+
+  /// Designated init taking the ISO strings; dates are parsed exactly once here.
+  /// Returns nil if either bound fails to parse, so callers can drop the event
+  /// instead of substituting a bogus date (which would render as "happening now").
+  init?(
+    id: String,
+    title: String,
+    description: String,
+    location: String,
+    startISO: String,
+    endISO: String,
+    allDay: Bool,
+    status: String,
+    startMinutesFromNow: Int,
+    durationMinutes: Int,
+    calendar: CalendarRef,
+    account: AccountRef,
+    attendees: [Attendee],
+    attendeeCount: Int,
+    organizer: String,
+    creator: String,
+    selfResponse: String,
+    isRecurring: Bool,
+    hangoutLink: String,
+    conferenceUrl: String,
+    notesUrl: String,
+    notesFileId: String,
+    visibility: String,
+    colorId: String,
+    transparency: String,
+    htmlLink: String
+  ) {
+    guard let start = ISO8601DateFormatter.shared.date(fromAnyInternetDate: startISO),
+          let end = ISO8601DateFormatter.shared.date(fromAnyInternetDate: endISO) else {
+      return nil
+    }
+    self.id = id
+    self.title = title
+    self.description = description
+    self.location = location
+    self.startISO = startISO
+    self.endISO = endISO
+    self.allDay = allDay
+    self.status = status
+    self.startMinutesFromNow = startMinutesFromNow
+    self.durationMinutes = durationMinutes
+    self.calendar = calendar
+    self.account = account
+    self.attendees = attendees
+    self.attendeeCount = attendeeCount
+    self.organizer = organizer
+    self.creator = creator
+    self.selfResponse = selfResponse
+    self.isRecurring = isRecurring
+    self.hangoutLink = hangoutLink
+    self.conferenceUrl = conferenceUrl
+    self.notesUrl = notesUrl
+    self.notesFileId = notesFileId
+    self.visibility = visibility
+    self.colorId = colorId
+    self.transparency = transparency
+    self.htmlLink = htmlLink
+    self.startDate = start
+    self.endDate = end
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case id, title, description, location, startISO, endISO, allDay, status
+    case startMinutesFromNow, durationMinutes, calendar, account, attendees
+    case attendeeCount, organizer, creator, selfResponse, isRecurring
+    case hangoutLink, conferenceUrl, notesUrl, notesFileId, visibility
+    case colorId, transparency, htmlLink
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(String.self, forKey: .id)
+    title = try container.decode(String.self, forKey: .title)
+    description = try container.decode(String.self, forKey: .description)
+    location = try container.decode(String.self, forKey: .location)
+    startISO = try container.decode(String.self, forKey: .startISO)
+    endISO = try container.decode(String.self, forKey: .endISO)
+    allDay = try container.decode(Bool.self, forKey: .allDay)
+    status = try container.decode(String.self, forKey: .status)
+    startMinutesFromNow = try container.decode(Int.self, forKey: .startMinutesFromNow)
+    durationMinutes = try container.decode(Int.self, forKey: .durationMinutes)
+    calendar = try container.decode(CalendarRef.self, forKey: .calendar)
+    account = try container.decode(AccountRef.self, forKey: .account)
+    attendees = try container.decode([Attendee].self, forKey: .attendees)
+    attendeeCount = try container.decode(Int.self, forKey: .attendeeCount)
+    organizer = try container.decode(String.self, forKey: .organizer)
+    creator = try container.decode(String.self, forKey: .creator)
+    selfResponse = try container.decode(String.self, forKey: .selfResponse)
+    isRecurring = try container.decode(Bool.self, forKey: .isRecurring)
+    hangoutLink = try container.decode(String.self, forKey: .hangoutLink)
+    conferenceUrl = try container.decode(String.self, forKey: .conferenceUrl)
+    notesUrl = try container.decode(String.self, forKey: .notesUrl)
+    notesFileId = try container.decode(String.self, forKey: .notesFileId)
+    visibility = try container.decode(String.self, forKey: .visibility)
+    colorId = try container.decode(String.self, forKey: .colorId)
+    transparency = try container.decode(String.self, forKey: .transparency)
+    htmlLink = try container.decode(String.self, forKey: .htmlLink)
+    // Parse once on decode; fall back to `.distantPast` so a corrupt persisted
+    // value never renders as "happening now".
+    startDate = ISO8601DateFormatter.shared.date(fromAnyInternetDate: startISO) ?? .distantPast
+    endDate = ISO8601DateFormatter.shared.date(fromAnyInternetDate: endISO) ?? .distantPast
+  }
+
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(id, forKey: .id)
+    try container.encode(title, forKey: .title)
+    try container.encode(description, forKey: .description)
+    try container.encode(location, forKey: .location)
+    try container.encode(startISO, forKey: .startISO)
+    try container.encode(endISO, forKey: .endISO)
+    try container.encode(allDay, forKey: .allDay)
+    try container.encode(status, forKey: .status)
+    try container.encode(startMinutesFromNow, forKey: .startMinutesFromNow)
+    try container.encode(durationMinutes, forKey: .durationMinutes)
+    try container.encode(calendar, forKey: .calendar)
+    try container.encode(account, forKey: .account)
+    try container.encode(attendees, forKey: .attendees)
+    try container.encode(attendeeCount, forKey: .attendeeCount)
+    try container.encode(organizer, forKey: .organizer)
+    try container.encode(creator, forKey: .creator)
+    try container.encode(selfResponse, forKey: .selfResponse)
+    try container.encode(isRecurring, forKey: .isRecurring)
+    try container.encode(hangoutLink, forKey: .hangoutLink)
+    try container.encode(conferenceUrl, forKey: .conferenceUrl)
+    try container.encode(notesUrl, forKey: .notesUrl)
+    try container.encode(notesFileId, forKey: .notesFileId)
+    try container.encode(visibility, forKey: .visibility)
+    try container.encode(colorId, forKey: .colorId)
+    try container.encode(transparency, forKey: .transparency)
+    try container.encode(htmlLink, forKey: .htmlLink)
+  }
 }
 
 /// One event as it appears on a specific day. A multi-day all-day event yields
@@ -80,6 +222,21 @@ struct MeetingNoteResult: Codable, Hashable {
   var sharedWith: [String]
   var skippedExternal: [String]
   var reused: Bool
+  /// When set, the notes folder was (re)resolved to an app-managed folder — the
+  /// stored one was missing or inaccessible. Callers persist this into config.
+  var resolvedFolder: DriveFolderRef?
+  /// When set, the configured template couldn't be copied and the built-in
+  /// template was used for this note; surfaced to the user as a per-event note.
+  var templateError: String?
+}
+
+/// Result of creating an app-managed template Google Doc under `drive.file`.
+struct TemplateDocResult: Hashable {
+  var id: String
+  var webViewLink: String
+  /// Set when the notes folder had to be (re)created while resolving where to
+  /// put the template; callers persist it into config.
+  var resolvedFolder: DriveFolderRef?
 }
 
 enum DriveFolderSource: String, Codable, Hashable {
@@ -149,12 +306,12 @@ enum NotificationAuthorizationState: Hashable {
 
   var label: String {
     switch self {
-    case .unavailable: return "Unavailable"
-    case .notDetermined: return "Not Determined"
-    case .denied: return "Denied"
-    case .authorized: return "Authorized"
-    case .provisional: return "Provisional"
-    case .unknown: return "Unknown"
+    case .unavailable: return loc("Unavailable")
+    case .notDetermined: return loc("Not Determined")
+    case .denied: return loc("Denied")
+    case .authorized: return loc("Authorized")
+    case .provisional: return loc("Provisional")
+    case .unknown: return loc("Unknown")
     }
   }
 }
@@ -347,10 +504,14 @@ struct AppConfig: Codable, Hashable {
   var pollIntervalSeconds: Int
   var maxTitleLength: Int
   var menubarLeadMinutes: Int
+  var menubarShowsNextAlways: Bool
   var notifyEnabled: Bool
   var notifyVideoOnly: Bool
   var notifyLeadMinutes: Int
+  var hotkeyEnabled: Bool
+  var hotkeyPreset: String
   var meetingNotesFoldersByAccount: [String: DriveFolderRef]
+  var meetingNotesFolderNamesByAccount: [String: String]
   var meetingNotesTitleTemplatesByAccount: [String: String]
   var meetingNotesTemplateDocsByAccount: [String: String]
 
@@ -385,11 +546,15 @@ struct AppConfig: Codable, Hashable {
     lookaheadHours: 24,
     pollIntervalSeconds: 120,
     maxTitleLength: 40,
-    menubarLeadMinutes: 5,
+    menubarLeadMinutes: 720,
+    menubarShowsNextAlways: true,
     notifyEnabled: true,
     notifyVideoOnly: false,
     notifyLeadMinutes: 5,
+    hotkeyEnabled: false,
+    hotkeyPreset: "ctrl-opt-u",
     meetingNotesFoldersByAccount: [:],
+    meetingNotesFolderNamesByAccount: [:],
     meetingNotesTitleTemplatesByAccount: [:],
     meetingNotesTemplateDocsByAccount: [:]
   )
@@ -397,8 +562,11 @@ struct AppConfig: Codable, Hashable {
   enum CodingKeys: String, CodingKey {
     case oauth, filterRules, selectedCalendarIds
     case lookaheadHours, pollIntervalSeconds, maxTitleLength, menubarLeadMinutes
+    case menubarShowsNextAlways
     case notifyEnabled, notifyVideoOnly, notifyLeadMinutes
+    case hotkeyEnabled, hotkeyPreset
     case meetingNotesFoldersByAccount
+    case meetingNotesFolderNamesByAccount
     case meetingNotesTitleTemplatesByAccount
     case meetingNotesTemplateDocsByAccount
   }
@@ -416,10 +584,14 @@ struct AppConfig: Codable, Hashable {
     pollIntervalSeconds: Int,
     maxTitleLength: Int,
     menubarLeadMinutes: Int,
+    menubarShowsNextAlways: Bool = true,
     notifyEnabled: Bool,
     notifyVideoOnly: Bool,
     notifyLeadMinutes: Int,
+    hotkeyEnabled: Bool = false,
+    hotkeyPreset: String = "ctrl-opt-u",
     meetingNotesFoldersByAccount: [String: DriveFolderRef],
+    meetingNotesFolderNamesByAccount: [String: String] = [:],
     meetingNotesTitleTemplatesByAccount: [String: String],
     meetingNotesTemplateDocsByAccount: [String: String]
   ) {
@@ -431,10 +603,14 @@ struct AppConfig: Codable, Hashable {
     self.pollIntervalSeconds = pollIntervalSeconds
     self.maxTitleLength = maxTitleLength
     self.menubarLeadMinutes = menubarLeadMinutes
+    self.menubarShowsNextAlways = menubarShowsNextAlways
     self.notifyEnabled = notifyEnabled
     self.notifyVideoOnly = notifyVideoOnly
     self.notifyLeadMinutes = notifyLeadMinutes
+    self.hotkeyEnabled = hotkeyEnabled
+    self.hotkeyPreset = hotkeyPreset
     self.meetingNotesFoldersByAccount = meetingNotesFoldersByAccount
+    self.meetingNotesFolderNamesByAccount = meetingNotesFolderNamesByAccount
     self.meetingNotesTitleTemplatesByAccount = meetingNotesTitleTemplatesByAccount
     self.meetingNotesTemplateDocsByAccount = meetingNotesTemplateDocsByAccount
   }
@@ -462,12 +638,19 @@ struct AppConfig: Codable, Hashable {
     pollIntervalSeconds = try container.decode(.pollIntervalSeconds, default: defaults.pollIntervalSeconds)
     maxTitleLength = try container.decode(.maxTitleLength, default: defaults.maxTitleLength)
     menubarLeadMinutes = try container.decode(.menubarLeadMinutes, default: defaults.menubarLeadMinutes)
+    menubarShowsNextAlways = try container.decode(.menubarShowsNextAlways, default: defaults.menubarShowsNextAlways)
     notifyEnabled = try container.decode(.notifyEnabled, default: defaults.notifyEnabled)
     notifyVideoOnly = try container.decode(.notifyVideoOnly, default: defaults.notifyVideoOnly)
     notifyLeadMinutes = try container.decode(.notifyLeadMinutes, default: defaults.notifyLeadMinutes)
+    hotkeyEnabled = try container.decode(.hotkeyEnabled, default: defaults.hotkeyEnabled)
+    hotkeyPreset = try container.decode(.hotkeyPreset, default: defaults.hotkeyPreset)
     meetingNotesFoldersByAccount = try container.decode(
       .meetingNotesFoldersByAccount,
       default: defaults.meetingNotesFoldersByAccount
+    )
+    meetingNotesFolderNamesByAccount = try container.decode(
+      .meetingNotesFolderNamesByAccount,
+      default: defaults.meetingNotesFolderNamesByAccount
     )
     meetingNotesTitleTemplatesByAccount = try container.decode(
       .meetingNotesTitleTemplatesByAccount,
@@ -483,17 +666,23 @@ struct AppConfig: Codable, Hashable {
     var container = encoder.container(keyedBy: CodingKeys.self)
     var oauth = container.nestedContainer(keyedBy: OAuthKeys.self, forKey: .oauth)
     try oauth.encode(oauthClientId, forKey: .clientId)
-    try oauth.encode(oauthClientSecret, forKey: .clientSecret)
+    // The OAuth client secret is no longer persisted in config.json; it lives in
+    // the Keychain (see KeychainStore / ConfigStore). Encoding it here would
+    // re-leak it into plaintext on the next save, so we deliberately omit it.
     try container.encode(filterRules, forKey: .filterRules)
     try container.encode(selectedCalendarIds, forKey: .selectedCalendarIds)
     try container.encode(lookaheadHours, forKey: .lookaheadHours)
     try container.encode(pollIntervalSeconds, forKey: .pollIntervalSeconds)
     try container.encode(maxTitleLength, forKey: .maxTitleLength)
     try container.encode(menubarLeadMinutes, forKey: .menubarLeadMinutes)
+    try container.encode(menubarShowsNextAlways, forKey: .menubarShowsNextAlways)
     try container.encode(notifyEnabled, forKey: .notifyEnabled)
     try container.encode(notifyVideoOnly, forKey: .notifyVideoOnly)
     try container.encode(notifyLeadMinutes, forKey: .notifyLeadMinutes)
+    try container.encode(hotkeyEnabled, forKey: .hotkeyEnabled)
+    try container.encode(hotkeyPreset, forKey: .hotkeyPreset)
     try container.encode(meetingNotesFoldersByAccount, forKey: .meetingNotesFoldersByAccount)
+    try container.encode(meetingNotesFolderNamesByAccount, forKey: .meetingNotesFolderNamesByAccount)
     try container.encode(meetingNotesTitleTemplatesByAccount, forKey: .meetingNotesTitleTemplatesByAccount)
     try container.encode(meetingNotesTemplateDocsByAccount, forKey: .meetingNotesTemplateDocsByAccount)
   }
@@ -507,8 +696,7 @@ private extension KeyedDecodingContainer where Key == AppConfig.CodingKeys {
 
 private let defaultFilterRules = Rule.group(.and, [
   .condition("selfResponse", "is_not", .string("declined")),
-  .condition("status", "is_not", .string("cancelled")),
-  .condition("startsWithin", "within", .number(720))
+  .condition("status", "is_not", .string("cancelled"))
 ])
 
 extension ISO8601DateFormatter {

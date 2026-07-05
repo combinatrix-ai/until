@@ -55,14 +55,19 @@ enum EventLinks {
   static func meetingProvider(for rawValue: String) -> MeetingProvider? {
     guard !rawValue.isEmpty, let host = URL(string: rawValue)?.host?.lowercased() else { return nil }
     if host == "meet.google.com" { return .googleMeet }
-    if host == "zoom.us" || host.hasSuffix(".zoom.us") { return .zoom }
-    if host == "teams.microsoft.com" || host.hasSuffix(".teams.microsoft.com") { return .teams }
-    if host.hasSuffix(".webex.com") { return .webex }
-    if host.hasSuffix(".bluejeans.com") { return .blueJeans }
-    if host.hasSuffix(".gotomeeting.com") || host.hasSuffix(".goto.com") { return .goToMeeting }
-    if host.hasSuffix(".whereby.com") { return .whereby }
-    if host.hasSuffix(".around.co") { return .around }
+    if matches(host, "zoom.us") { return .zoom }
+    if matches(host, "teams.microsoft.com") { return .teams }
+    if matches(host, "webex.com") { return .webex }
+    if matches(host, "bluejeans.com") { return .blueJeans }
+    if matches(host, "gotomeeting.com") || matches(host, "goto.com") { return .goToMeeting }
+    if matches(host, "whereby.com") { return .whereby }
+    if matches(host, "around.co") { return .around }
     return nil
+  }
+
+  /// True when `host` is exactly `domain` or a subdomain of it (`*.domain`).
+  private static func matches(_ host: String, _ domain: String) -> Bool {
+    host == domain || host.hasSuffix("." + domain)
   }
 
   private static func authenticatedGoogleURL(from rawValue: String, accountEmail: String) -> URL? {

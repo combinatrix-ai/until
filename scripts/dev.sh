@@ -7,6 +7,8 @@ set -euo pipefail
 #   scripts/dev.sh            rebuild + launch, keeping existing credentials
 #   scripts/dev.sh --fresh    also wipe config + OAuth tokens to reproduce a
 #                             clean first launch (onboarding / sign-in flow)
+#   scripts/dev.sh --demo-mode
+#                             launch with demo calendars/events for screenshots
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-debug}"
 APP_NAME="Until"
@@ -18,9 +20,11 @@ KEYCHAIN_SERVICE="app.until"
 KEYCHAIN_ACCOUNT="google-oauth"
 
 FRESH=0
+DEMO_MODE=0
 for arg in "$@"; do
   case "$arg" in
     --fresh|-f) FRESH=1 ;;
+    --demo-mode) DEMO_MODE=1 ;;
     *) echo "Unknown argument: $arg" >&2; exit 2 ;;
   esac
 done
@@ -40,9 +44,18 @@ fi
 # package-app.sh exits non-zero on failure and aborts the script via `set -e`.
 CONFIGURATION="$CONFIGURATION" "$ROOT/scripts/package-app.sh"
 
-open "$APP_DIR"
-if [[ "$FRESH" == "1" ]]; then
+if [[ "$DEMO_MODE" == "1" ]]; then
+  open "$APP_DIR" --args --demo-mode
+else
+  open "$APP_DIR"
+fi
+
+if [[ "$FRESH" == "1" && "$DEMO_MODE" == "1" ]]; then
+  echo "Launched: $APP_DIR (fresh, demo mode)"
+elif [[ "$FRESH" == "1" ]]; then
   echo "Launched: $APP_DIR (fresh)"
+elif [[ "$DEMO_MODE" == "1" ]]; then
+  echo "Launched: $APP_DIR (demo mode)"
 else
   echo "Launched: $APP_DIR"
 fi

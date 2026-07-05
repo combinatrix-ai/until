@@ -30,6 +30,18 @@ rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "$EXECUTABLE" "$APP_DIR/Contents/MacOS/Until"
 
+# SwiftPM localized resources (en.lproj / ja.lproj) are compiled into
+# Until_Until.bundle. At runtime the app resolves them via
+# Localization.swift's `localizationBundle`, which looks in Contents/Resources
+# (the conventional, codesign-clean location). Copy the bundle there. Without
+# this, every localized string would silently fall back to its English key.
+RESOURCE_BUNDLE="$ROOT/.build/$CONFIGURATION/Until_Until.bundle"
+if [[ -d "$RESOURCE_BUNDLE" ]]; then
+  cp -R "$RESOURCE_BUNDLE" "$APP_DIR/Contents/Resources/Until_Until.bundle"
+else
+  echo "Warning: $RESOURCE_BUNDLE not found; localized strings will fall back to English." >&2
+fi
+
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"

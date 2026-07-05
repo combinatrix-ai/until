@@ -1,5 +1,16 @@
 import Foundation
 
+/// Per-call options for `MeetingNotesClient.createNote`, grouping the
+/// account's stored meeting-notes configuration plus the caller's sharing
+/// choice for this note.
+struct NoteCreationOptions {
+  var folder: DriveFolderRef?
+  var folderName: String?
+  var titleTemplate: String?
+  var templateDocId: String?
+  var shareExternalAttendees: Bool
+}
+
 @MainActor
 final class MeetingNotesClient {
   private let auth: GoogleAuth
@@ -11,12 +22,18 @@ final class MeetingNotesClient {
     self.auth = auth
   }
 
+  /// Creates (or reuses) a meeting-notes doc for `event`.
+  ///
+  /// Under the `drive.file` scope the app can only touch files/folders it
+  /// created, so this resolves an app-managed notes folder (creating it on
+  /// demand) and, when a stored folder or template turns out inaccessible —
+  /// e.g. a legacy item chosen under the old full-drive scope — falls back
+  /// gracefully instead of failing the whole operation. The returned
+  /// `resolvedFolder` and `templateError` let the caller persist the freshly
+  /// resolved folder and surface a per-event template message.
   func createNote(
     for event: CalendarEvent,
-    folder: DriveFolderRef?,
-    titleTemplate: String?,
-    templateDocId: String?,
-    shareExternalAttendees: Bool
+    options: NoteCreationOptions
   ) async throws -> MeetingNoteResult {
     let latest = try await fetchEvent(calendarId: event.calendar.googleId, eventId: event.id)
     if let existingNote = findExistingNote(latest) {
@@ -27,41 +44,38 @@ final class MeetingNotesClient {
         folderId: "",
         sharedWith: [],
         skippedExternal: [],
-        reused: true
+        reused: true,
+        resolvedFolder: nil,
+        templateError: nil
       )
     }
 
-    let folderId = try await resolveFolderId(folder: folder)
     let attendeeEmails = attendeeEmails(from: latest)
-    let fileName = createFileName(for: latest, template: titleTemplate)
+    let fileName = createFileName(for: latest, template: options.titleTemplate)
 
-    // Copy the configured template if one is set; if it can't be accessed
-    // (missing, deleted, or no permission), fall back to the built-in template
-    // so note creation still succeeds.
-    var usedCopiedTemplate = false
-    let file: DriveFile
-    if let templateId = templateDocId?.nilIfEmpty {
-      if let copied = try? await createDocument(fileName: fileName, folderId: folderId, templateDocId: templateId) {
-        file = copied
-        usedCopiedTemplate = true
-      } else {
-        file = try await createDocument(fileName: fileName, folderId: folderId, templateDocId: nil)
-      }
-    } else {
-      file = try await createDocument(fileName: fileName, folderId: folderId, templateDocId: nil)
-    }
+    // Resolve the destination folder. Prefer the stored app-managed folder id,
+    // but if it's no longer accessible (403/404 — e.g. a legacy full-drive
+    // folder) fall back to find-or-create and report the freshly resolved
+    // folder so the caller can update stored config.
+    let resolution = try await resolveFolder(
+      stored: options.folder,
+      desiredName: desiredFolderName(options.folderName)
+    )
+    let folderId = resolution.folderId
 
-    if usedCopiedTemplate {
-      try await populateCopiedTemplate(documentId: file.id, event: latest, attendeeEmails: attendeeEmails)
-    } else {
-      try await populateBuiltInTemplate(documentId: file.id, event: latest, attendeeEmails: attendeeEmails)
-    }
+    let (file, templateError) = try await createFileFromTemplate(
+      fileName: fileName,
+      folderId: folderId,
+      templateDocId: options.templateDocId,
+      event: latest,
+      attendeeEmails: attendeeEmails
+    )
 
     let shareResult = await shareWithAttendees(
       fileId: file.id,
       emails: attendeeEmails,
       ownerDomain: emailDomain(auth.email),
-      shareExternalAttendees: shareExternalAttendees
+      shareExternalAttendees: options.shareExternalAttendees
     )
     try await attachToEvent(calendarId: event.calendar.googleId, event: latest, file: file)
 
@@ -72,65 +86,73 @@ final class MeetingNotesClient {
       folderId: folderId,
       sharedWith: shareResult.sharedWith,
       skippedExternal: shareResult.skippedExternal,
-      reused: false
+      reused: false,
+      resolvedFolder: resolution.updatedFolder,
+      templateError: templateError
     )
   }
 
-  func listDriveRoots() async throws -> [DriveFolderRef] {
-    let url = driveBase
-      .appending(path: "drives")
-      .appending(queryItems: [URLQueryItem(name: "fields", value: "drives(id,name)")])
-    let sharedDrives: SharedDriveList = try await api(url)
-    return [
-      DriveFolderRef(id: "root", name: "My Drive", source: .myDrive, driveId: nil, path: ["My Drive"]),
-      DriveFolderRef(
-        id: "shared-with-me",
-        name: "Shared with me",
-        source: .sharedWithMe,
-        driveId: nil,
-        path: ["Shared with me"]
-      )
-    ] + sharedDrives.drives.compactMap { drive in
-      guard !drive.id.isEmpty, !drive.name.isEmpty else { return nil }
-      return DriveFolderRef(
-        id: drive.id,
-        name: drive.name,
-        source: .sharedDrive,
-        driveId: drive.id,
-        path: [drive.name]
-      )
-    }
-  }
-
-  func listDriveFolders(in parent: DriveFolderRef) async throws -> [DriveFolderRef] {
-    let source = parent.source
-    let query = buildFolderListQuery(parent: parent)
-    var items = [
-      URLQueryItem(name: "q", value: query),
-      URLQueryItem(name: "fields", value: "files(id,name,driveId)"),
-      URLQueryItem(name: "spaces", value: "drive"),
-      URLQueryItem(name: "pageSize", value: "100"),
-      URLQueryItem(name: "supportsAllDrives", value: "true"),
-      URLQueryItem(name: "includeItemsFromAllDrives", value: "true")
-    ]
-    if source == .sharedDrive, let driveId = parent.driveId {
-      items.append(URLQueryItem(name: "corpora", value: "drive"))
-      items.append(URLQueryItem(name: "driveId", value: driveId))
-    }
-    let url = driveBase.appending(path: "files").appending(queryItems: items)
-    let listed: DriveFileList = try await api(url)
-    return listed.files
-      .filter { !$0.id.isEmpty && !$0.name.isEmpty }
-      .map { file in
-        DriveFolderRef(
-          id: file.id,
-          name: file.name,
-          source: source,
-          driveId: file.driveId ?? parent.driveId,
-          path: parent.path + [file.name]
+  /// Creates the notes doc, copying the configured (app-created) template
+  /// when one is set. If it can't be accessed — a legacy arbitrary doc under
+  /// the old scope, or a deleted doc — falls back to the built-in template
+  /// for this note and returns a message so the UI can nudge the user to
+  /// create a new template.
+  private func createFileFromTemplate(
+    fileName: String,
+    folderId: String,
+    templateDocId: String?,
+    event: GoogleEvent,
+    attendeeEmails: [String]
+  ) async throws -> (file: DriveFile, templateError: String?) {
+    var usedCopiedTemplate = false
+    var templateError: String?
+    let file: DriveFile
+    if let templateId = templateDocId?.nilIfEmpty {
+      if let copied = try? await createDocument(fileName: fileName, folderId: folderId, templateDocId: templateId) {
+        file = copied
+        usedCopiedTemplate = true
+      } else {
+        file = try await createDocument(fileName: fileName, folderId: folderId, templateDocId: nil)
+        templateError = loc(
+          "Your saved template couldn’t be opened, so built-in notes were used — try Create template."
         )
       }
-      .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    } else {
+      file = try await createDocument(fileName: fileName, folderId: folderId, templateDocId: nil)
+    }
+
+    if usedCopiedTemplate {
+      try await populateCopiedTemplate(documentId: file.id, event: event, attendeeEmails: attendeeEmails)
+    } else {
+      try await populateBuiltInTemplate(documentId: file.id, event: event, attendeeEmails: attendeeEmails)
+    }
+
+    return (file, templateError)
+  }
+
+  /// Creates a Google Doc named "Until Meeting Notes Template" inside the
+  /// app-managed notes folder, populated with the built-in template so the user
+  /// starts from something sensible, and returns it. The doc is app-created, so
+  /// it stays accessible under `drive.file` and can be copied for future notes.
+  func createTemplateDoc(folder: DriveFolderRef?, folderName: String?) async throws -> TemplateDocResult {
+    let folderResolution = try await resolveFolder(stored: folder, desiredName: desiredFolderName(folderName))
+    let doc = try await createDocument(
+      fileName: loc("Until Meeting Notes Template"),
+      folderId: folderResolution.folderId,
+      templateDocId: nil
+    )
+    try await populateTemplateDoc(documentId: doc.id)
+    return TemplateDocResult(
+      id: doc.id,
+      webViewLink: doc.webViewLink,
+      resolvedFolder: folderResolution.updatedFolder
+    )
+  }
+
+  /// The configured per-account folder name, trimmed, falling back to the
+  /// built-in default when unset or blank.
+  private func desiredFolderName(_ folderName: String?) -> String {
+    folderName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? defaultMeetingNotesFolderName
   }
 
   private func fetchEvent(calendarId: String, eventId: String) async throws -> GoogleEvent {
@@ -143,11 +165,78 @@ final class MeetingNotesClient {
     return try await api(url)
   }
 
-  private func resolveFolderId(folder: DriveFolderRef?) async throws -> String {
-    if let folder, folder.id != "shared-with-me" {
-      return folder.id
+  /// Result of resolving the notes folder: the id to write into, plus a
+  /// `DriveFolderRef` to persist when the stored id was missing or had to be
+  /// re-created (nil when the stored folder was reused unchanged).
+  private struct FolderResolution {
+    var folderId: String
+    var updatedFolder: DriveFolderRef?
+  }
+
+  private func resolveFolder(stored: DriveFolderRef?, desiredName: String) async throws -> FolderResolution {
+    // Reuse a stored, still-accessible app-managed folder, renaming it lazily
+    // when the configured name has changed since the folder was created.
+    if let storedRef = stored, let storedId = storedRef.id.nilIfEmpty {
+      if let verified = try? await verifyFolder(id: storedId) {
+        if storedRef.name == desiredName {
+          return FolderResolution(folderId: verified, updatedFolder: nil)
+        }
+        // A failed rename shouldn't sink note creation — keep using the folder
+        // under its old name and try again next time.
+        if (try? await renameFolder(id: verified, name: desiredName)) != nil {
+          var renamed = storedRef
+          renamed.name = desiredName
+          if !renamed.path.isEmpty {
+            renamed.path[renamed.path.count - 1] = desiredName
+          }
+          return FolderResolution(folderId: verified, updatedFolder: renamed)
+        }
+        return FolderResolution(folderId: verified, updatedFolder: nil)
+      }
+      // Stored id is inaccessible (legacy full-drive folder after re-auth, or
+      // deleted): fall through to find-or-create and report the new folder.
     }
-    return try await findOrCreateFolder(name: defaultMeetingNotesFolderName)
+    let created = try await findOrCreateFolderRef(name: desiredName)
+    return FolderResolution(folderId: created.id, updatedFolder: created)
+  }
+
+  /// Renames an app-created Drive folder in place.
+  private func renameFolder(id: String, name: String) async throws {
+    let url = driveBase
+      .appending(path: "files")
+      .appending(path: id)
+      .appending(queryItems: [
+        URLQueryItem(name: "supportsAllDrives", value: "true"),
+        URLQueryItem(name: "fields", value: "id,name")
+      ])
+    let _: DriveFileMeta = try await api(url, method: "PATCH", body: ["name": name])
+  }
+
+  /// Confirms an app-created folder id is still readable, returning it on
+  /// success. Throws (so callers can fall back) when it 403/404s.
+  private func verifyFolder(id: String) async throws -> String {
+    let url = driveBase
+      .appending(path: "files")
+      .appending(path: id)
+      .appending(queryItems: [URLQueryItem(name: "fields", value: "id,trashed")])
+    let file: DriveFileMeta = try await api(url)
+    guard !file.id.isEmpty, file.trashed != true else {
+      throw AppError.message("Stored Google Drive folder is not accessible.")
+    }
+    return file.id
+  }
+
+  /// Finds or creates the app-managed notes folder and returns a full ref
+  /// (with a `My Drive / <name>` path) for persisting into config.
+  private func findOrCreateFolderRef(name: String) async throws -> DriveFolderRef {
+    let id = try await findOrCreateFolder(name: name)
+    return DriveFolderRef(
+      id: id,
+      name: name,
+      source: .myDrive,
+      driveId: nil,
+      path: ["My Drive", name]
+    )
   }
 
   private func findOrCreateFolder(name: String) async throws -> String {
@@ -254,6 +343,41 @@ final class MeetingNotesClient {
 
     Attendees
     \(attendees)
+
+    Notes
+
+    Decisions
+
+    Action items
+    - [ ]
+
+    """
+    try await batchUpdate(documentId: documentId, requests: [
+      [
+        "insertText": [
+          "location": ["index": 1],
+          "text": text
+        ]
+      ]
+    ])
+  }
+
+  /// Seeds a freshly created template doc with the built-in note layout, using
+  /// `{{token}}` placeholders that `populateCopiedTemplate` fills in per event.
+  /// This gives the user an editable starting point mirroring the built-in
+  /// template's structure.
+  private func populateTemplateDoc(documentId: String) async throws {
+    let text = """
+    {{title}}
+
+    Time
+    {{datetime}}
+
+    Calendar
+    {{calendar_url}}
+
+    Attendees
+    {{attendees}}
 
     Notes
 
@@ -493,22 +617,19 @@ private struct DriveFile: Decodable {
   }
 }
 
-private struct SharedDriveList: Decodable {
-  var drives: [SharedDrive] = []
-}
-
-private struct SharedDrive: Decodable {
+/// Minimal file metadata used to confirm a stored folder is still accessible.
+private struct DriveFileMeta: Decodable {
   var id: String
-  var name: String
+  var trashed: Bool?
 
   enum CodingKeys: String, CodingKey {
-    case id, name
+    case id, trashed
   }
 
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     id = try container.decodeIfPresent(String.self, forKey: .id) ?? ""
-    name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+    trashed = try container.decodeIfPresent(Bool.self, forKey: .trashed)
   }
 }
 
@@ -630,14 +751,6 @@ private func isExternalEmail(_ email: String, ownerDomain: String?) -> Bool {
 
 private func escapeDriveQuery(_ value: String) -> String {
   value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'")
-}
-
-private func buildFolderListQuery(parent: DriveFolderRef) -> String {
-  let base = "mimeType='\(folderMimeType)' and trashed=false"
-  if parent.source == .sharedWithMe, parent.id == "shared-with-me" {
-    return "\(base) and sharedWithMe=true"
-  }
-  return "\(base) and '\(escapeDriveQuery(parent.id))' in parents"
 }
 
 private extension String {

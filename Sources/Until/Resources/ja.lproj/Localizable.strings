@@ -1,0 +1,289 @@
+/* Japanese strings for Until. Keys are the English source text.
+   Kept in sync with en.lproj/Localizable.strings. */
+
+/* MARK: - Menubar status item (AppDelegate) */
+"all-day" = "終日";
+"now" = "今";
+"%@ left" = "残り%@";
+"No events" = "予定なし";
+"No events to show" = "表示する予定はありません";
+"No current or imminent events" = "現在または直近の予定はありません";
+"%1$@ - %2$@" = "%1$@ - %2$@";
+"%@ - all-day" = "%@ - 終日";
+"%1$@ (%2$d more today)" = "%1$@ (本日あと%2$d件)";
+
+/* MARK: - Right-click menu (AppDelegate) */
+"Refresh Now" = "今すぐ更新";
+"Preferences..." = "環境設定...";
+"Quit" = "終了";
+
+/* MARK: - Day headers (AppDelegate) */
+"Today" = "今日";
+"Tomorrow" = "明日";
+
+/* MARK: - Settings window (AppDelegate) */
+"Until Settings" = "Until 設定";
+
+/* MARK: - Panel (Views) */
+"Sync Error" = "同期エラー";
+"No Events" = "予定なし";
+"No upcoming events match the selected calendars, fetch window, and filter." = "選択中のカレンダー・取得範囲・フィルターに一致する今後の予定はありません。";
+"Quit Until" = "Untilを終了";
+"Quit Until?" = "Untilを終了しますか?";
+"Cancel" = "キャンセル";
+"Refresh" = "更新";
+"Preferences" = "環境設定";
+"Not synced yet" = "未同期";
+"Updated just now" = "たった今更新";
+"Updated %@ ago" = "%@前に更新";
+
+/* MARK: - Onboarding (Views) */
+"Your next Google Calendar event, always in the menubar." = "次のGoogleカレンダーの予定を、いつでもメニューバーに。";
+"Glance at what's next" = "次の予定をひと目で";
+"Your upcoming meeting lives in the menubar." = "次の会議がメニューバーに常に表示されます。";
+"Never miss a join" = "参加を逃さない";
+"Native reminders before your video calls start." = "ビデオ会議が始まる前にネイティブ通知でお知らせします。";
+"One-click meeting notes" = "ワンクリックで議事録";
+"Open or create notes straight from an event." = "予定から直接、議事録を開いたり作成したりできます。";
+"Opening Google sign-in…" = "Googleサインインを開いています…";
+"Sign in with Google" = "Googleでサインイン";
+
+/* MARK: - Event row (Views) */
+"Meeting notes attached" = "議事録が添付されています";
+"Join video call" = "ビデオ会議に参加";
+"Create meeting notes" = "議事録を作成";
+"Open meeting notes" = "議事録を開く";
+"Add Google Meet" = "Google Meetを追加";
+"Copy meeting link" = "会議リンクをコピー";
+"Open in Google Calendar" = "Googleカレンダーで開く";
+"Create meeting notes?" = "議事録を作成しますか?";
+"Create notes" = "議事録を作成";
+"Create a Google Doc for %@ and attach it to the calendar event." = "「%@」のGoogleドキュメントを作成し、カレンダーの予定に添付します。";
+"Add Google Meet?" = "Google Meetを追加しますか?";
+"Add Meet" = "Meetを追加";
+"Add a Google Meet video link to %@." = "「%@」にGoogle Meetのビデオリンクを追加します。";
+
+/* MARK: - Event detail (Views) */
+"Copy event details" = "予定の詳細をコピー";
+"Copied event details" = "予定の詳細をコピーしました";
+"Open in Calendar" = "カレンダーで開く";
+"Location: %@" = "場所: %@";
+"Meet: %@" = "Meet: %@";
+"Calendar: %@" = "カレンダー: %@";
+"Accepted" = "承諾";
+"Declined" = "辞退";
+"Tentative" = "未定";
+"No response" = "未回答";
+
+/* MARK: - External share overlay (Views) */
+"External attendees" = "社外の参加者";
+"Internal only" = "社内のみ";
+"Share externally" = "社外にも共有";
+" and %d more" = " ほか%d名";
+
+/* MARK: - Error overlays (Views) */
+"Retry" = "再試行";
+
+/* MARK: - Settings sections (Views) */
+"Accounts" = "アカウント";
+"General" = "一般";
+"Filter" = "フィルター";
+
+/* MARK: - Settings: General tab (Views) */
+"App" = "アプリ";
+"Launch at login" = "ログイン時に起動";
+"Start Until automatically when you log in" = "ログイン時にUntilを自動的に起動します";
+"Available when running as an app bundle" = "アプリとして実行しているときに利用できます";
+"Global shortcut" = "グローバルショートカット";
+"Toggle the Until popover from anywhere" = "どこからでもUntilのポップオーバーを開閉します";
+"Sync" = "同期";
+"Refresh interval" = "更新間隔";
+"How often to check Google Calendar for changes" = "Googleカレンダーの変更を確認する頻度";
+"sec" = "秒";
+"Fetch window" = "取得範囲";
+"How far ahead to load events" = "どれくらい先の予定まで読み込むか";
+"Custom" = "カスタム";
+"Menubar" = "メニューバー";
+"Max title length" = "タイトルの最大文字数";
+"Longer event titles are shortened with “…”" = "長い予定のタイトルは「…」で省略されます";
+"characters" = "文字";
+"Show upcoming event" = "次の予定を表示";
+"When the next event appears in the menubar" = "次の予定をメニューバーに表示するタイミング";
+"Always" = "常に";
+"Within lead time" = "通知時間内";
+"Lead time" = "表示開始時間";
+"How early the next event appears in the menubar" = "次の予定をどれくらい前からメニューバーに表示するか";
+"min before" = "分前";
+"Notifications" = "通知";
+"Event reminders" = "イベント通知";
+"Send a notification before an event starts" = "予定が始まる前に通知を送信します";
+"Remind me about" = "通知の対象";
+"All events" = "すべての予定";
+"Video only" = "ビデオ会議のみ";
+"Reminder timing" = "通知のタイミング";
+"How long before an event the reminder fires" = "予定のどれくらい前に通知するか";
+"Notification access" = "通知の許可";
+"Granted in macOS System Settings" = "macOSのシステム設定で許可します";
+"Re-check permission" = "許可を再確認";
+"System Settings" = "システム設定";
+"Manage how reminders are delivered" = "通知の配信方法を管理します";
+"Open" = "開く";
+"Sending test reminder" = "テスト通知を送信中";
+"Send test reminder" = "テスト通知を送信";
+
+/* MARK: - Settings: Filter tab (Views) */
+"Only matching events appear in the menubar and list" = "一致する予定のみがメニューバーと一覧に表示されます";
+"Reset to defaults" = "デフォルトに戻す";
+"%1$d of %2$d events match" = "%2$d件中%1$d件が一致";
+"No events loaded to preview yet." = "プレビューできる予定がまだ読み込まれていません。";
+
+/* MARK: - Settings: Accounts tab (Views) */
+"Google Accounts" = "Googleアカウント";
+"Add Account" = "アカウントを追加";
+"No accounts connected" = "接続済みのアカウントがありません";
+"Connect a Google account to see your calendar." = "Googleアカウントを接続してカレンダーを表示します。";
+"Opening Google sign-in..." = "Googleサインインを開いています...";
+"Reauthorize" = "再認証";
+"Remove" = "削除";
+"Calendars" = "カレンダー";
+"No calendars loaded for this account." = "このアカウントのカレンダーが読み込まれていません。";
+"Folder name" = "フォルダ名";
+"Created in My Drive; renamed when you change this" = "My Drive内に作成されます。変更するとDrive上のフォルダ名も変わります";
+"Open in Drive" = "Driveで開く";
+"Note title" = "議事録のタイトル";
+"{date} and {title} are filled in automatically" = "{date} と {title} は自動的に入力されます";
+"Template" = "テンプレート";
+"Start notes from an editable Google Doc" = "編集可能なGoogleドキュメントから議事録を作成します";
+"Create template" = "テンプレートを作成";
+"Edit template" = "テンプレートを編集";
+"Creating template…" = "テンプレートを作成中…";
+"Reset" = "リセット";
+"Until Meeting Notes Template" = "Until 議事録テンプレート";
+"Your saved template couldn’t be opened, so built-in notes were used — try Create template." = "保存済みのテンプレートを開けなかったため、組み込みの議事録を使用しました。テンプレートを作成し直してください。";
+"Meeting Notes" = "議事録";
+"Optional — title & template" = "任意 — タイトル・テンプレート";
+"The notes folder is created automatically in your Drive. Notes use a built-in template unless you create your own, which you can edit in Google Docs. Notes need Drive and Docs access — reconnect Google if creation fails." = "議事録フォルダはDrive内に自動的に作成されます。独自のテンプレートを作成しない限り、議事録は組み込みテンプレートを使用します。作成したテンプレートはGoogleドキュメントで編集できます。作成にはDriveとDocsへのアクセスが必要です。作成に失敗する場合はGoogleに再接続してください。";
+"primary" = "メイン";
+
+/* MARK: - Query builder (QueryBuilderView) */
+"Remove group" = "グループを削除";
+"Events where" = "次の条件の予定";
+"All of" = "すべてに一致";
+"Any of" = "いずれかに一致";
+"Not all of" = "すべてには一致しない";
+"None of" = "いずれにも一致しない";
+"No rules yet — this group matches every event." = "ルールがありません — このグループはすべての予定に一致します。";
+"Add rule" = "ルールを追加";
+"Add group" = "グループを追加";
+"Remove rule" = "ルールを削除";
+"Value" = "値";
+"to" = "〜";
+"Min" = "最小";
+"Max" = "最大";
+"Select values" = "値を選択";
+"Select calendars" = "カレンダーを選択";
+"No calendars loaded" = "カレンダーが読み込まれていません";
+"Choose calendar" = "カレンダーを選択";
+"%d selected" = "%d件選択中";
+
+/* MARK: - Filter catalog: field labels (FilterCatalog) */
+"Title" = "タイトル";
+"Description" = "説明";
+"Location" = "場所";
+"Organizer email" = "主催者のメール";
+"Calendar" = "カレンダー";
+"My response" = "自分の回答";
+"Status" = "ステータス";
+"Shows as" = "表示";
+"All-day" = "終日";
+"Recurring" = "繰り返し";
+"Has video call" = "ビデオ会議あり";
+"Attendee count" = "参加者数";
+"Duration" = "所要時間";
+"Starts within" = "開始まで";
+"Starts at hour" = "開始時刻(時)";
+"Weekday" = "曜日";
+"Attendee email" = "参加者のメール";
+
+/* MARK: - Filter catalog: operator labels (FilterCatalog) */
+"is" = "が次に一致";
+"is not" = "が次に一致しない";
+"is any of" = "がいずれかに一致";
+"is none of" = "がいずれにも一致しない";
+"contains" = "を含む";
+"does not contain" = "を含まない";
+"starts with" = "で始まる";
+"ends with" = "で終わる";
+"is exactly" = "が次と完全一致";
+"is not exactly" = "が次と完全一致しない";
+"matches regex" = "が正規表現に一致";
+"is empty" = "が空である";
+"is not empty" = "が空でない";
+"is set" = "が設定されている";
+"between" = "が次の範囲内";
+"not between" = "が次の範囲外";
+"within" = "以内";
+"includes" = "を含む";
+"excludes" = "を含まない";
+"is true" = "である";
+"is false" = "でない";
+
+/* MARK: - Filter catalog: enum value labels (FilterCatalog) */
+"Needs action" = "要対応";
+"No response / not invited" = "未回答 / 未招待";
+"Confirmed" = "確定";
+"Cancelled" = "キャンセル済み";
+"Busy" = "予定あり";
+"Free" = "予定なし";
+"Sunday" = "日曜日";
+"Monday" = "月曜日";
+"Tuesday" = "火曜日";
+"Wednesday" = "水曜日";
+"Thursday" = "木曜日";
+"Friday" = "金曜日";
+"Saturday" = "土曜日";
+
+/* MARK: - Filter catalog: units (FilterCatalog) */
+"min" = "分";
+"h" = "時";
+
+/* MARK: - Notification authorization state (Models) */
+"Unavailable" = "利用不可";
+"Not Determined" = "未設定";
+"Denied" = "拒否";
+"Authorized" = "許可済み";
+"Provisional" = "暫定的";
+"Unknown" = "不明";
+
+/* MARK: - Notifications (EventNotifier) */
+"Open Event" = "予定を開く";
+"Snooze 5 min" = "5分後に再通知";
+"Open Video Call" = "ビデオ会議を開く";
+"Open Google Meet" = "Google Meetを開く";
+"Open Zoom" = "Zoomを開く";
+"Open Teams" = "Teamsを開く";
+"Open Webex" = "Webexを開く";
+"Notifications are not authorized for Until." = "Untilの通知が許可されていません。";
+"Test Notification" = "テスト通知";
+"Until notifications are working." = "Untilの通知は正常に動作しています。";
+"Starts at %@" = "%@に開始";
+
+/* MARK: - Errors / messages (AppModel, GoogleAuth) */
+"Google sign-in is disabled in demo mode." = "デモモードではGoogleサインインは無効です。";
+"Google account is not connected: %@" = "Googleアカウントが接続されていません: %@";
+"Failed to save settings: %@" = "設定の保存に失敗しました: %@";
+"Google OAuth Client ID is not configured." = "Google OAuthのクライアントIDが設定されていません。";
+"Failed to build Google sign-in URL." = "Googleサインインのビルドに失敗しました。";
+"Selected Google account %1$@ does not match %2$@." = "選択したGoogleアカウント %1$@ は %2$@ と一致しません。";
+"Google did not return a refresh token. Try removing access for Until from your Google Account, then sign in again." = "Googleがリフレッシュトークンを返しませんでした。GoogleアカウントからUntilのアクセスを解除してから、もう一度サインインしてください。";
+"Not authenticated." = "認証されていません。";
+"Failed to revoke Google credentials." = "Google認証情報の取り消しに失敗しました。";
+"Failed to fetch Google account email." = "Googleアカウントのメールアドレスの取得に失敗しました。";
+"Failed to open browser for Google sign-in: %@" = "Googleサインインのためのブラウザを開けませんでした: %@";
+"Failed to allocate loopback port." = "ループバックポートの確保に失敗しました。";
+
+/* MARK: - OAuth callback web page (GoogleAuth) */
+"You can close this tab" = "このタブを閉じても大丈夫です";
+"Return to Until." = "Untilに戻ってください。";
+"Login failed" = "ログインに失敗しました";
+"No authorization code returned." = "認証コードが返されませんでした。";
