@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos:
+    name: Build macOS app
+    runs-on: macos-15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build app bundle
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          : "${GOOGLE_OAUTH_CLIENT_ID:?Missing GOOGLE_OAUTH_CLIENT_ID secret}"
+          : "${GOOGLE_OAUTH_CLIENT_SECRET:?Missing GOOGLE_OAUTH_CLIENT_SECRET secret}"
+          CONFIGURATION=release scripts/package-app.sh
+
+      - name: Archive app bundle
+        run: |
+          ditto -c -k --keepParent .build/release/Until.app Until-${GITHUB_SHA}.zip
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Until-${{ github.sha }}
+          path: Until-${{ github.sha }}.zip
+          if-no-files-found: error
