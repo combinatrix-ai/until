@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy - Until</title>
+    <meta
+      name="description"
+      content="How Until handles your data: it runs on your Mac, talks directly to Google, stores tokens in the macOS Keychain, and collects nothing."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,780&family=Manrope:wght@400;520;620;720;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css?v=20260705-refresh-1" />
+  </head>
+  <body>
+    <main id="top">
+      <article class="legal">
+        <a class="legal-back" href="index.html">
+          <span class="brand-mark small"><span></span><i></i></span>
+          Until
+        </a>
+
+        <header class="legal-head">
+          <h1>Privacy Policy</h1>
+          <p class="legal-date">Last updated: July 5, 2026</p>
+        </header>
+
+        <p class="legal-lead">
+          Until is a macOS menubar app that shows your next Google Calendar
+          event and helps you join meetings and take notes. It runs entirely on
+          your Mac and talks directly to Google. There is no Until server, no
+          account with us, and nothing to collect. This page explains exactly
+          what the app touches and what it does not.
+        </p>
+
+        <section>
+          <h2>What data the app accesses</h2>
+          <p>
+            When you sign in with Google, Until asks for only what it needs to
+            do its job:
+          </p>
+          <ul>
+            <li>
+              <strong>Calendar events and your calendar list</strong> &mdash; to
+              show your upcoming events in the menubar and let you filter them.
+            </li>
+            <li>
+              <strong>Files it creates in Google Drive</strong> &mdash; using
+              Google's <code>drive.file</code> scope. This scope only grants
+              access to files and folders the app itself creates (your meeting
+              notes and the folder that holds them). Until cannot see, read, or
+              list anything else in your Drive.
+            </li>
+            <li>
+              <strong>Your Google account email address</strong> &mdash; to show
+              which account is connected and to share notes with attendees.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Where your data lives</h2>
+          <ul>
+            <li>
+              Everything happens <strong>on your Mac</strong>. Calendar and
+              event data is fetched on demand and kept in memory or local app
+              storage on your device.
+            </li>
+            <li>
+              Your Google sign-in tokens are stored in the
+              <strong>macOS Keychain</strong>, protected by the operating system
+              like any other credential.
+            </li>
+            <li>
+              Your settings and filters are stored
+              <strong>locally</strong> on your Mac.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>What is transmitted</h2>
+          <p>
+            The only network requests Until makes are
+            <strong>direct API calls to Google</strong> (Calendar, Drive, and
+            sign-in) to fetch your events and create or share the documents you
+            ask for. Nothing is routed through a server operated by us or any
+            third party.
+          </p>
+        </section>
+
+        <section>
+          <h2>What Until does not do</h2>
+          <ul>
+            <li>No analytics, telemetry, or usage tracking.</li>
+            <li>No third-party servers, ad networks, or trackers.</li>
+            <li>No selling, renting, or sharing of your data with anyone.</li>
+            <li>
+              No access to your Drive beyond the files the app itself creates.
+            </li>
+            <li>No use of your data to train any model.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Google API Services User Data Policy</h2>
+          <p>
+            Until's use of information received from Google APIs adheres to the
+            <a
+              href="https://developers.google.com/terms/api-services-user-data-policy"
+              rel="noopener"
+              >Google API Services User Data Policy</a
+            >, including the Limited Use requirements. Data obtained from Google
+            is used only to provide the app's user-facing features described
+            above, and is never transferred to others except as needed to
+            provide those features at your direction (for example, sharing a
+            meeting-notes document with the attendees you choose).
+          </p>
+        </section>
+
+        <section>
+          <h2>How to revoke access</h2>
+          <p>You can disconnect Until at any time:</p>
+          <ul>
+            <li>
+              In the app, open <strong>Settings &rarr; Accounts</strong> and
+              choose <strong>Remove</strong> to sign out and clear the stored
+              tokens from your Keychain.
+            </li>
+            <li>
+              From your Google Account, visit
+              <a
+                href="https://myaccount.google.com/permissions"
+                rel="noopener"
+                >Google Account permissions</a
+              >
+              and remove Until's access.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Contact</h2>
+          <p>
+            Questions or concerns? Open an issue on
+            <a
+              href="https://github.com/combinatrix-ai/until/issues"
+              rel="noopener"
+              >GitHub</a
+            >.
+          </p>
+        </section>
+
+        <footer class="legal-foot">
+          <a href="index.html">&larr; Back to Until</a>
+        </footer>
+      </article>
+    </main>
+  </body>
+</html>

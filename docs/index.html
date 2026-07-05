@@ -8,13 +8,31 @@
       name="description"
       content="Until keeps your next Google Calendar event in the macOS menubar, with quick join links, meeting notes, reminders, and precise event filters."
     />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Until - Google Calendar in your macOS menubar" />
+    <meta
+      property="og:description"
+      content="Your next Google Calendar event, always in the menubar. One-click join, meeting notes, native reminders, precise filters. Private by design, and free."
+    />
+    <meta property="og:image" content="https://combinatrix-ai.github.io/until/site-preview-desktop.png" />
+    <meta property="og:image:width" content="1440" />
+    <meta property="og:image:height" content="1400" />
+    <meta property="og:url" content="https://combinatrix-ai.github.io/until/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Until - Google Calendar in your macOS menubar" />
+    <meta
+      name="twitter:description"
+      content="Your next Google Calendar event, always in the menubar. One-click join, meeting notes, native reminders, precise filters. Private by design."
+    />
+    <meta name="twitter:image" content="https://combinatrix-ai.github.io/until/site-preview-desktop.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,780&family=Manrope:wght@400;520;620;720;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260629-hero-mobile-center-2" />
+    <link rel="stylesheet" href="styles.css?v=20260705-refresh-2" />
+    <script>document.documentElement.classList.add("js");</script>
   </head>
   <body>
     <main id="top">
@@ -72,7 +90,7 @@
               <div class="mini-menubar">
                 <span class="status-pill">
                   <span class="brand-mark micro"><span></span><i></i></span>
-                  <b>8m</b>
+                  <b>23m</b>
                   Design Review
                 </span>
               </div>
@@ -95,7 +113,7 @@
               </div>
             </div>
             <h3>Glance</h3>
-            <p>Your next event and start time stay in the menubar, updating from Google Calendar.</p>
+            <p>Your next event stays in the menubar all day with a live countdown, then shows the time left once the meeting starts.</p>
           </article>
           <article>
             <div class="feature-visual remind-visual" aria-hidden="true">
@@ -112,11 +130,12 @@
                 <div class="notification-actions">
                   <span>Join</span>
                   <span>Notes</span>
+                  <span class="ghost">Snooze 5m</span>
                 </div>
               </div>
             </div>
             <h3>Remind</h3>
-            <p>Get a native reminder before the call, then jump straight to the meeting link.</p>
+            <p>Get a native reminder before the call, then join in a click or snooze it for five minutes.</p>
           </article>
           <article>
             <div class="feature-visual prepare-visual" aria-hidden="true">
@@ -137,8 +156,8 @@
                 </div>
               </div>
             </div>
-            <h3>Share</h3>
-            <p>Share meeting notes with attendees in one click, then keep the document attached to the event.</p>
+            <h3>Notes</h3>
+            <p>One click creates a Google Doc from your template, shares it with attendees, and attaches it to the event.</p>
           </article>
           <article>
             <div class="feature-visual join-visual" aria-hidden="true">
@@ -153,7 +172,7 @@
               </div>
             </div>
             <h3>Join</h3>
-            <p>Open the video call from the event row without digging through Calendar.</p>
+            <p>Open the video call from the event row in one click, without digging through Calendar.</p>
           </article>
           <article>
             <div class="feature-visual filter-visual" aria-hidden="true">
@@ -174,6 +193,53 @@
             <h3>Filter</h3>
             <p>Hide low-signal calendars, all-day holds, and events that do not need your attention.</p>
           </article>
+          <article>
+            <div class="feature-visual access-visual" aria-hidden="true">
+              <div class="mini-menubar">
+                <span class="status-pill">
+                  <span class="brand-mark micro"><span></span><i></i></span>
+                  <b>23m</b>
+                  Design Review
+                </span>
+                <span class="pill-alt">⌥ join</span>
+              </div>
+              <div class="keycap-row">
+                <kbd>⌃</kbd>
+                <kbd>⌥</kbd>
+                <kbd>U</kbd>
+                <span>toggle Until</span>
+              </div>
+            </div>
+            <h3>Quick access</h3>
+            <p>Option-click the icon to join the next meeting instantly, set a global shortcut to flip the popover open, and launch at login.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+        <div class="privacy-inner">
+          <div class="section-copy">
+            <h2 id="privacy-title">Private by design.</h2>
+            <p>
+              Until runs entirely on your Mac and talks straight to Google. No
+              account with us, no middle server, nothing to collect.
+            </p>
+          </div>
+          <ul class="privacy-points">
+            <li>
+              <strong>Only its own files.</strong>
+              <span>Until uses Google's <code>drive.file</code> scope, so it can only see the notes and folders it created &mdash; never the rest of your Drive.</span>
+            </li>
+            <li>
+              <strong>Tokens in the Keychain.</strong>
+              <span>Your Google sign-in stays in the macOS Keychain, protected by the system like any other credential.</span>
+            </li>
+            <li>
+              <strong>No servers in between.</strong>
+              <span>The app calls Google's APIs directly from your machine. Nothing is sent anywhere else, and nothing is tracked.</span>
+            </li>
+          </ul>
+          <a class="privacy-link" href="privacy.html">Read the full privacy policy &rarr;</a>
         </div>
       </section>
 
@@ -194,8 +260,24 @@
               </svg>
             </a>
           </div>
+          <p class="lang-note">Fully localized &mdash; English / 日本語.</p>
         </div>
       </section>
+
+      <footer class="site-footer">
+        <div class="footer-inner">
+          <a class="footer-brand" href="#top">
+            <span class="brand-mark small"><span></span><i></i></span>
+            Until
+          </a>
+          <nav class="footer-links" aria-label="Footer">
+            <a href="https://github.com/combinatrix-ai/until">GitHub</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="https://github.com/combinatrix-ai/until/releases/latest">Latest release</a>
+          </nav>
+          <p class="footer-made">Made by <a href="https://combinatrix.ai">combinatrix.ai</a></p>
+        </div>
+      </footer>
 
     </main>
 
