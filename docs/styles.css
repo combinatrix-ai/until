@@ -440,18 +440,20 @@ time {
 .workflow-grid article {
   --accent: var(--blue);
   display: grid;
-  grid-template-columns: minmax(280px, 0.48fr) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
   grid-template-rows: auto auto;
   column-gap: clamp(26px, 4vw, 54px);
   row-gap: 8px;
   align-items: center;
   min-height: 222px;
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
   padding: 24px clamp(24px, 4vw, 44px);
   background: var(--white);
 }
 
 .workflow-grid article:nth-child(even) {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.48fr);
   background:
     linear-gradient(90deg, color-mix(in oklch, var(--accent) 7%, transparent), transparent 38%),
     var(--white);
@@ -506,6 +508,7 @@ time {
   grid-column: 1;
   grid-row: 1 / span 2;
   width: 100%;
+  max-width: 380px;
   margin: 0;
   border: 1px solid color-mix(in oklch, var(--accent) 20%, transparent);
   background:
@@ -519,8 +522,13 @@ time {
   grid-column: 2;
 }
 
+.workflow-grid article .feature-visual {
+  justify-self: start;
+}
+
 .workflow-grid article:nth-child(even) .feature-visual {
   grid-column: 2;
+  justify-self: end;
 }
 
 .workflow-grid article:nth-child(even) h3,
