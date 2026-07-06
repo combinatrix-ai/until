@@ -37,8 +37,8 @@ Privacy policy: <https://combinatrix-ai.github.io/until/privacy.html>
 ## Install
 
 Download the latest notarized build from
-[Releases](https://github.com/combinatrix-ai/until/releases/latest), unzip,
-and drag `Until.app` into `/Applications`.
+[Releases](https://github.com/combinatrix-ai/until/releases/latest), open the
+`.dmg`, and drag `Until.app` into `/Applications`.
 
 Requires macOS 13 or later.
 
