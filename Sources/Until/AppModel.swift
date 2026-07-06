@@ -96,10 +96,14 @@ final class AppModel: ObservableObject {
     do {
       let auth = GoogleAuth(config: config)
       try await auth.login()
+      let isNewAccount = !accounts.contains { $0.email.caseInsensitiveCompare(auth.email) == .orderedSame }
       accounts.removeAll { $0.email.caseInsensitiveCompare(auth.email) == .orderedSame }
       accounts.append(auth)
       updateAuthState()
       await refreshCalendars()
+      if isNewAccount {
+        selectPrimaryCalendar(forNewAccountEmail: auth.email)
+      }
       await refresh()
     } catch {
       signInError = error.localizedDescription
@@ -305,6 +309,38 @@ final class AppModel: ObservableObject {
     var next = config
     next.selectedCalendarIds = Array(ids).sorted()
     saveConfig(next)
+  }
+
+  /// When a brand-new account is added, its primary calendar should end up
+  /// selected.
+  private func selectPrimaryCalendar(forNewAccountEmail email: String) {
+    guard let next = Self.selectedCalendarIds(
+      config.selectedCalendarIds,
+      addingPrimaryFrom: calendars,
+      forAccountEmail: email
+    ) else { return }
+    var nextConfig = config
+    nextConfig.selectedCalendarIds = next
+    saveConfig(nextConfig)
+  }
+
+  /// Pure helper: returns the new sorted selection with the given account's
+  /// primary calendar id added, or nil if there's nothing to change. Selection
+  /// is left unchanged when it's already "all" (empty array), when there's no
+  /// matching primary calendar, or when it's already selected.
+  static func selectedCalendarIds(
+    _ selectedCalendarIds: [String],
+    addingPrimaryFrom calendars: [CalendarSummary],
+    forAccountEmail email: String
+  ) -> [String]? {
+    guard !selectedCalendarIds.isEmpty else { return nil }
+    guard let primary = calendars.first(where: {
+      $0.primary && $0.accountEmail.caseInsensitiveCompare(email) == .orderedSame
+    }) else { return nil }
+    var ids = Set(selectedCalendarIds)
+    guard !ids.contains(primary.id) else { return nil }
+    ids.insert(primary.id)
+    return Array(ids).sorted()
   }
 
   func open(_ event: CalendarEvent) {
