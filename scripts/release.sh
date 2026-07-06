@@ -5,11 +5,10 @@ set -euo pipefail
 #
 # One-time prerequisites:
 #   1. A "Developer ID Application" certificate in the login keychain.
-#      (Currently: Example Corp — team YOUR_TEAM_ID.)
 #   2. notarytool credentials saved as a keychain profile, e.g.:
 #        xcrun notarytool store-credentials until-notary \
 #          --apple-id "<your-apple-id-email>" \
-#          --team-id YOUR_TEAM_ID \
+#          --team-id "<your-team-id>" \
 #          --password "<app-specific-password>"
 #      Create the app-specific password at https://account.apple.com
 #      (Sign-In and Security -> App-Specific Passwords).
@@ -19,15 +18,15 @@ set -euo pipefail
 #   NOTARIZE=0 scripts/release.sh     # build + Developer ID sign only
 #
 # Env overrides:
-#   CODESIGN_IDENTITY   signing identity (default: Developer ID)
+#   CODESIGN_IDENTITY   signing identity, e.g. "Developer ID Application: Example Corp (TEAMID)"
 #   NOTARY_PROFILE      notarytool keychain profile (default: until-notary)
-#   TEAM_ID             Developer Team ID (default: YOUR_TEAM_ID)
+#   TEAM_ID             Developer Team ID
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TEAM_ID="${TEAM_ID:-YOUR_TEAM_ID}"
+TEAM_ID="${TEAM_ID:?Set TEAM_ID to your Apple Developer Team ID.}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-until-notary}"
 NOTARIZE="${NOTARIZE:-1}"
-CODESIGN_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Example Corp (${TEAM_ID})}"
+CODESIGN_IDENTITY="${CODESIGN_IDENTITY:?Set CODESIGN_IDENTITY to your Developer ID Application signing identity.}"
 
 # Build + bundle with distribution signing (Developer ID + hardened runtime +
 # secure timestamp). package-app.sh prints the bundle path on its last line.
