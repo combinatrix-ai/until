@@ -102,7 +102,7 @@ final class AppModel: ObservableObject {
       updateAuthState()
       await refreshCalendars()
       if isNewAccount {
-        selectPrimaryCalendar(forNewAccountEmail: auth.email)
+        selectAccountCalendars(forNewAccountEmail: auth.email)
       }
       await refresh()
     } catch {
@@ -311,12 +311,12 @@ final class AppModel: ObservableObject {
     saveConfig(next)
   }
 
-  /// When a brand-new account is added, its primary calendar should end up
+  /// When a brand-new account is added, all of its calendars should end up
   /// selected.
-  private func selectPrimaryCalendar(forNewAccountEmail email: String) {
+  private func selectAccountCalendars(forNewAccountEmail email: String) {
     guard let next = Self.selectedCalendarIds(
       config.selectedCalendarIds,
-      addingPrimaryFrom: calendars,
+      addingCalendarsFrom: calendars,
       forAccountEmail: email
     ) else { return }
     var nextConfig = config
@@ -324,22 +324,24 @@ final class AppModel: ObservableObject {
     saveConfig(nextConfig)
   }
 
-  /// Pure helper: returns the new sorted selection with the given account's
-  /// primary calendar id added, or nil if there's nothing to change. Selection
-  /// is left unchanged when it's already "all" (empty array), when there's no
-  /// matching primary calendar, or when it's already selected.
+  /// Pure helper: returns the new sorted selection with all of the given
+  /// account's calendar ids added, or nil if there's nothing to change.
+  /// Selection is left unchanged when it's already "all" (empty array), when
+  /// there are no matching calendars, or when they're all already selected.
   static func selectedCalendarIds(
     _ selectedCalendarIds: [String],
-    addingPrimaryFrom calendars: [CalendarSummary],
+    addingCalendarsFrom calendars: [CalendarSummary],
     forAccountEmail email: String
   ) -> [String]? {
     guard !selectedCalendarIds.isEmpty else { return nil }
-    guard let primary = calendars.first(where: {
-      $0.primary && $0.accountEmail.caseInsensitiveCompare(email) == .orderedSame
-    }) else { return nil }
+    let accountCalendarIds = calendars
+      .filter { $0.accountEmail.caseInsensitiveCompare(email) == .orderedSame }
+      .map(\.id)
+    guard !accountCalendarIds.isEmpty else { return nil }
     var ids = Set(selectedCalendarIds)
-    guard !ids.contains(primary.id) else { return nil }
-    ids.insert(primary.id)
+    let sizeBefore = ids.count
+    ids.formUnion(accountCalendarIds)
+    guard ids.count != sizeBefore else { return nil }
     return Array(ids).sorted()
   }
 
