@@ -11,6 +11,10 @@ close at hand.
 Website: <https://combinatrix-ai.github.io/until/> ·
 Privacy policy: <https://combinatrix-ai.github.io/until/privacy.html>
 
+<p align="center">
+  <img src="docs/anka-until-demo-popover-neutral.png" alt="Until menubar countdown and event list popover" width="720" />
+</p>
+
 ## Features
 
 - **Menubar countdown** — the next event stays in the menubar all day with a
