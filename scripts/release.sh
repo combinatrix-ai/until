@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build, Developer ID-sign, notarize, and staple a distributable .app + .zip + .dmg.
+# Build, Developer ID-sign, notarize, and staple a distributable .app + .dmg.
 #
 # One-time prerequisites:
 #   1. A "Developer ID Application" certificate in the login keychain.
@@ -57,18 +57,18 @@ xcrun notarytool submit "$ZIP_PATH" \
   --keychain-profile "$NOTARY_PROFILE" \
   --wait
 
-# Staple the ticket onto the .app so it validates offline, then re-zip.
+# Staple the ticket onto the .app so it validates offline. The zip was only
+# a vehicle for the notarization submission above; drop it now.
 xcrun stapler staple "$APP_DIR"
 rm -f "$ZIP_PATH"
-ditto -c -k --keepParent "$APP_DIR" "$ZIP_PATH"
 
 # Build the distributable .dmg: a staged folder with the .app and an
 # /Applications symlink (so Finder shows the familiar drag-to-install UI),
 # compressed into a UDZO image, then Developer ID-signed and notarized
-# separately from the .app/.zip above (the notary service treats each
-# submitted artifact independently).
+# separately from the .app above (the notary service treats each submitted
+# artifact independently).
 STAGING="$(mktemp -d)"
-ditto "$APP_DIR" "$STAGING/Until.app"
+cp -R "$APP_DIR" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
 
 DMG_PATH="${APP_DIR%.app}.dmg"
@@ -76,7 +76,7 @@ rm -f "$DMG_PATH"
 hdiutil create -volname "Until" -srcfolder "$STAGING" -ov -format UDZO "$DMG_PATH"
 rm -rf "$STAGING"
 
-codesign --force --sign "$CODESIGN_IDENTITY" --timestamp "$DMG_PATH"
+codesign --sign "$CODESIGN_IDENTITY" --timestamp "$DMG_PATH"
 
 # We only reach here when NOTARIZE=1 (see the early exit above).
 echo "Submitting dmg to Apple notary service (this can take a few minutes)..."
@@ -91,5 +91,4 @@ echo "Gatekeeper assessment:"
 spctl --assess --type execute --verbose=2 "$APP_DIR" || true
 echo
 echo "Distributable bundle: $APP_DIR"
-echo "Distributable zip:    $ZIP_PATH"
 echo "Distributable dmg:    $DMG_PATH"
