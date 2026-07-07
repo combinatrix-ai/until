@@ -45,6 +45,7 @@ final class AppModel: ObservableObject {
     config = options.demoMode ? DemoCalendarData.config() : store.load()
     observeWake()
     refreshLaunchAtLoginState()
+    applyDefaultLaunchAtLoginIfNeeded()
     if runtimeOptions.demoMode {
       notificationAuthorizationState = .unavailable
       loadDemoData(now: Date())
@@ -360,6 +361,30 @@ final class AppModel: ObservableObject {
       return
     }
     launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+  }
+
+  /// Registers launch-at-login the first time a real .app build starts, then
+  /// records the fact so the user's later choice is never overridden. Runs at
+  /// init and is a no-op in demo mode, when the bundle can't register, or once
+  /// the default has already been applied.
+  private func applyDefaultLaunchAtLoginIfNeeded() {
+    guard !runtimeOptions.demoMode, launchAtLoginAvailable else { return }
+    guard AppModel.shouldApplyDefaultLaunchAtLogin(
+      alreadyApplied: config.didApplyDefaultLaunchAtLogin
+    ) else { return }
+    // Register only if not already enabled; a registration failure still marks
+    // the default applied (we try exactly once) and surfaces via launchAtLoginError.
+    if !launchAtLoginEnabled {
+      setLaunchAtLogin(true)
+    }
+    config.didApplyDefaultLaunchAtLogin = true
+    persistConfig()
+  }
+
+  /// Pure decision: apply the launch-at-login default only when it has never
+  /// been applied before. Availability/demo gating lives at the call site.
+  nonisolated static func shouldApplyDefaultLaunchAtLogin(alreadyApplied: Bool) -> Bool {
+    !alreadyApplied
   }
 
   func setLaunchAtLogin(_ enabled: Bool) {

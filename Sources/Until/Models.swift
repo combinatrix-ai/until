@@ -514,6 +514,9 @@ struct AppConfig: Codable, Hashable {
   var meetingNotesFolderNamesByAccount: [String: String]
   var meetingNotesTitleTemplatesByAccount: [String: String]
   var meetingNotesTemplateDocsByAccount: [String: String]
+  /// Set once the launch-at-login default has been applied so it never
+  /// overrides the user's later choice. Absent in legacy configs (decodes false).
+  var didApplyDefaultLaunchAtLogin: Bool
 
   // Google OAuth client credentials, injected at build/package time rather than
   // committed to source. Packaged builds read them from Info.plist (written by
@@ -556,7 +559,8 @@ struct AppConfig: Codable, Hashable {
     meetingNotesFoldersByAccount: [:],
     meetingNotesFolderNamesByAccount: [:],
     meetingNotesTitleTemplatesByAccount: [:],
-    meetingNotesTemplateDocsByAccount: [:]
+    meetingNotesTemplateDocsByAccount: [:],
+    didApplyDefaultLaunchAtLogin: false
   )
 
   enum CodingKeys: String, CodingKey {
@@ -569,6 +573,7 @@ struct AppConfig: Codable, Hashable {
     case meetingNotesFolderNamesByAccount
     case meetingNotesTitleTemplatesByAccount
     case meetingNotesTemplateDocsByAccount
+    case didApplyDefaultLaunchAtLogin
   }
 
   enum OAuthKeys: String, CodingKey {
@@ -593,7 +598,8 @@ struct AppConfig: Codable, Hashable {
     meetingNotesFoldersByAccount: [String: DriveFolderRef],
     meetingNotesFolderNamesByAccount: [String: String] = [:],
     meetingNotesTitleTemplatesByAccount: [String: String],
-    meetingNotesTemplateDocsByAccount: [String: String]
+    meetingNotesTemplateDocsByAccount: [String: String],
+    didApplyDefaultLaunchAtLogin: Bool = false
   ) {
     self.oauthClientId = oauthClientId
     self.oauthClientSecret = oauthClientSecret
@@ -613,6 +619,7 @@ struct AppConfig: Codable, Hashable {
     self.meetingNotesFolderNamesByAccount = meetingNotesFolderNamesByAccount
     self.meetingNotesTitleTemplatesByAccount = meetingNotesTitleTemplatesByAccount
     self.meetingNotesTemplateDocsByAccount = meetingNotesTemplateDocsByAccount
+    self.didApplyDefaultLaunchAtLogin = didApplyDefaultLaunchAtLogin
   }
 
   init(from decoder: Decoder) throws {
@@ -660,6 +667,10 @@ struct AppConfig: Codable, Hashable {
       .meetingNotesTemplateDocsByAccount,
       default: defaults.meetingNotesTemplateDocsByAccount
     )
+    didApplyDefaultLaunchAtLogin = try container.decode(
+      .didApplyDefaultLaunchAtLogin,
+      default: defaults.didApplyDefaultLaunchAtLogin
+    )
   }
 
   func encode(to encoder: Encoder) throws {
@@ -685,6 +696,7 @@ struct AppConfig: Codable, Hashable {
     try container.encode(meetingNotesFolderNamesByAccount, forKey: .meetingNotesFolderNamesByAccount)
     try container.encode(meetingNotesTitleTemplatesByAccount, forKey: .meetingNotesTitleTemplatesByAccount)
     try container.encode(meetingNotesTemplateDocsByAccount, forKey: .meetingNotesTemplateDocsByAccount)
+    try container.encode(didApplyDefaultLaunchAtLogin, forKey: .didApplyDefaultLaunchAtLogin)
   }
 }
 
