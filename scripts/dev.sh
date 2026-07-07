@@ -16,7 +16,7 @@ APP_DIR="$ROOT/.build/$CONFIGURATION/$APP_NAME.app"
 
 # Credential locations (kept in sync with ConfigStore.swift / KeychainStore.swift).
 CONFIG_DIR="$HOME/Library/Application Support/Until"
-KEYCHAIN_SERVICE="app.until"
+KEYCHAIN_SERVICE="ai.combinatrix.until"
 KEYCHAIN_ACCOUNT="google-oauth"
 
 FRESH=0

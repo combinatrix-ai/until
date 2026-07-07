@@ -622,7 +622,7 @@ final class AppModel: ObservableObject {
   }
 
   func openNotificationSettings() {
-    let bundleIdentifier = Bundle.main.bundleIdentifier ?? "app.until"
+    let bundleIdentifier = Bundle.main.bundleIdentifier ?? "ai.combinatrix.until"
     let urls = [
       "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(bundleIdentifier)",
       "x-apple.systempreferences:com.apple.Notifications-Settings.extension"

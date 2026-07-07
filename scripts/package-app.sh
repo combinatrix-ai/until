@@ -55,7 +55,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key>
   <string>Until</string>
   <key>CFBundleIdentifier</key>
-  <string>app.until</string>
+  <string>ai.combinatrix.until</string>
   <key>CFBundleName</key>
   <string>Until</string>
   <key>CFBundleDisplayName</key>

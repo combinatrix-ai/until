@@ -41,7 +41,7 @@ struct StoredToken: Codable, Hashable {
 }
 
 enum KeychainStore {
-  private static let service = "app.until"
+  private static let service = "ai.combinatrix.until"
   private static let account = "google-oauth"
   private static let clientSecretAccount = "oauth-client-secret"
 
