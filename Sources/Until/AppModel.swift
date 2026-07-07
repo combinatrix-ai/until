@@ -16,7 +16,7 @@ final class AppModel: ObservableObject {
   @Published private(set) var notificationAuthorizationState: NotificationAuthorizationState = .unknown
   @Published private(set) var expandedEventKey: String?
   @Published private(set) var noteResults: [String: MeetingNoteResult] = [:]
-  @Published private(set) var noteErrors: [String: String] = [:]
+  @Published private(set) var noteErrors: [String: NoteIssue] = [:]
   @Published private(set) var creatingNoteKey: String?
   @Published private(set) var conferenceErrors: [String: String] = [:]
   @Published private(set) var addingConferenceKey: String?
@@ -423,8 +423,18 @@ final class AppModel: ObservableObject {
     creatingNoteKey == event.actionKey
   }
 
-  func noteError(for event: CalendarEvent) -> String? {
+  func noteError(for event: CalendarEvent) -> NoteIssue? {
     noteErrors[event.actionKey]
+  }
+
+  /// Returns true when the event's account is known to lack the Drive scope
+  /// required to create notes (i.e. the user unchecked it at consent time).
+  /// Unknown grant sets (existing users) return false — no warning.
+  func lacksDriveScope(for accountEmail: String) -> Bool {
+    guard let account = accounts.first(
+      where: { $0.email.caseInsensitiveCompare(accountEmail) == .orderedSame }
+    ) else { return false }
+    return !account.hasScope(driveFileScope)
   }
 
   func isAddingConference(for event: CalendarEvent) -> Bool {
@@ -801,6 +811,12 @@ final class AppModel: ObservableObject {
       ) else {
         throw AppError.message("Google account is not connected: \(event.account.email)")
       }
+      // Fail fast when Drive access is known-not-granted, surfacing a
+      // reauthorize prompt instead of an opaque 403 from the API.
+      guard account.hasScope(driveFileScope) else {
+        noteErrors[key] = NoteIssue.missingDriveScope(email: event.account.email)
+        return
+      }
       let client = MeetingNotesClient(auth: account)
       // The stored value is now an app-created doc id; tolerate a legacy URL by
       // extracting the id from it.
@@ -823,12 +839,19 @@ final class AppModel: ObservableObject {
       }
       // Surface a non-fatal template fallback as a per-event note error.
       if let templateError = result.templateError {
-        noteErrors[key] = templateError
+        noteErrors[key] = NoteIssue(message: templateError, kind: .retry)
       }
       await refresh()
       openNote(url: result.webViewLink, accountEmail: event.account.email)
     } catch {
-      noteErrors[key] = error.localizedDescription
+      let message = error.localizedDescription
+      // A post-grant revocation surfaces as an insufficient-scope 403; convert
+      // it to the same friendly reauthorize prompt as the known-not-granted case.
+      if isInsufficientScopeError(message) {
+        noteErrors[key] = NoteIssue.missingDriveScope(email: event.account.email)
+      } else {
+        noteErrors[key] = NoteIssue(message: message, kind: .retry)
+      }
     }
   }
 
@@ -920,6 +943,26 @@ final class AppModel: ObservableObject {
       let trimmed = pair.value.trimmingCharacters(in: .whitespacesAndNewlines)
       if !trimmed.isEmpty { result[pair.key] = trimmed }
     }
+  }
+}
+
+/// A per-event note-creation problem plus the recovery action its overlay
+/// should offer. Most failures are transient and offer `.retry`; a missing
+/// Drive grant offers `.reauthorize` so the user can re-consent instead.
+struct NoteIssue: Equatable {
+  enum Kind: Equatable {
+    case retry
+    case reauthorize(email: String)
+  }
+
+  var message: String
+  var kind: Kind
+
+  /// The friendly, reauthorize-kind issue shown when Drive access is missing.
+  static func missingDriveScope(email: String) -> NoteIssue {
+    let key = "Google Drive permission isn't granted. Creating notes docs requires Drive access — " +
+      "reauthorize and check the Google Drive checkbox."
+    return NoteIssue(message: loc(key), kind: .reauthorize(email: email))
   }
 }
 

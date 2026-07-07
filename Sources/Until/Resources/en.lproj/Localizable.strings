@@ -83,6 +83,7 @@
 
 /* MARK: - Error overlays (Views) */
 "Retry" = "Retry";
+"Google Drive permission isn't granted. Creating notes docs requires Drive access — reauthorize and check the Google Drive checkbox." = "Google Drive permission isn't granted. Creating notes docs requires Drive access — reauthorize and check the Google Drive checkbox.";
 
 /* MARK: - Settings sections (Views) */
 "Accounts" = "Accounts";
@@ -147,6 +148,7 @@
 "Remove" = "Remove";
 "Calendars" = "Calendars";
 "No calendars loaded for this account." = "No calendars loaded for this account.";
+"Drive permission not granted — notes creation is unavailable." = "Drive permission not granted — notes creation is unavailable.";
 "Folder name" = "Folder name";
 "Created in My Drive; renamed when you change this" = "Created in My Drive; renamed when you change this";
 "Open in Drive" = "Open in Drive";

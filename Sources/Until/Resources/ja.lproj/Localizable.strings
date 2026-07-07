@@ -83,6 +83,7 @@
 
 /* MARK: - Error overlays (Views) */
 "Retry" = "再試行";
+"Google Drive permission isn't granted. Creating notes docs requires Drive access — reauthorize and check the Google Drive checkbox." = "Google Drive の権限が許可されていません。メモ作成には Drive へのアクセスが必要です。再認可して「Google ドライブ」にチェックを入れてください。";
 
 /* MARK: - Settings sections (Views) */
 "Accounts" = "アカウント";
@@ -147,6 +148,7 @@
 "Remove" = "削除";
 "Calendars" = "カレンダー";
 "No calendars loaded for this account." = "このアカウントのカレンダーが読み込まれていません。";
+"Drive permission not granted — notes creation is unavailable." = "Drive 権限が未許可 — メモ作成は使えません。";
 "Folder name" = "フォルダ名";
 "Created in My Drive; renamed when you change this" = "My Drive内に作成されます。変更するとDrive上のフォルダ名も変わります";
 "Open in Drive" = "Driveで開く";

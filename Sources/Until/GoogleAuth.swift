@@ -11,6 +11,26 @@ private let googleScopes = [
   "openid"
 ]
 
+/// The Drive scope required to create meeting-notes docs. Users can uncheck it
+/// on Google's consent screen, so its grant is tracked and checked before Drive
+/// operations.
+let driveFileScope = "https://www.googleapis.com/auth/drive.file"
+
+/// Parses Google's space-separated `scope` field into a set. A nil or blank
+/// input yields an empty set.
+func parseGrantedScopes(_ raw: String?) -> Set<String> {
+  guard let raw else { return [] }
+  return Set(raw.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" }).map(String.init))
+}
+
+/// Detects Google's "insufficient scope" 403 in a raw error message body. This
+/// happens when Drive access was granted at consent time but later revoked, so
+/// the app can't know upfront — the API call fails with one of these markers.
+func isInsufficientScopeError(_ message: String) -> Bool {
+  message.contains("insufficientPermissions")
+    || message.contains("ACCESS_TOKEN_SCOPE_INSUFFICIENT")
+}
+
 @MainActor
 final class GoogleAuth: Identifiable {
   let id = UUID()
@@ -19,6 +39,14 @@ final class GoogleAuth: Identifiable {
 
   var email: String { token?.email ?? "" }
   var isAuthenticated: Bool { token?.refreshToken.isEmpty == false }
+
+  /// Returns true when `scope` was granted OR the grant set is unknown (empty/
+  /// nil — e.g. a token stored before scopes were tracked). Unknown is treated
+  /// as granted so existing users see no spurious warnings until they re-auth.
+  func hasScope(_ scope: String) -> Bool {
+    guard let granted = token?.grantedScopes, !granted.isEmpty else { return true }
+    return granted.contains(scope)
+  }
 
   init(config: AppConfig, token: StoredToken? = nil) {
     self.config = config
@@ -78,7 +106,8 @@ final class GoogleAuth: Identifiable {
       accessToken: exchanged.accessToken,
       refreshToken: exchanged.refreshToken,
       expiryDate: Date().addingTimeInterval(TimeInterval(exchanged.expiresIn)),
-      tokenType: exchanged.tokenType
+      tokenType: exchanged.tokenType,
+      grantedScopes: exchanged.scope.map { Array(parseGrantedScopes($0)).sorted() }
     )
     try KeychainStore.upsert(stored)
     token = stored
@@ -107,6 +136,11 @@ final class GoogleAuth: Identifiable {
     token.accessToken = refreshed.accessToken
     token.expiryDate = Date().addingTimeInterval(TimeInterval(refreshed.expiresIn))
     token.tokenType = refreshed.tokenType
+    // Refresh responses may omit `scope`; only overwrite when present so we
+    // don't clobber the grant set with an unknown value.
+    if let scope = refreshed.scope {
+      token.grantedScopes = Array(parseGrantedScopes(scope)).sorted()
+    }
     try KeychainStore.upsert(token)
     self.token = token
     return token.accessToken
@@ -206,12 +240,16 @@ private struct TokenResponse: Decodable {
   var expiresIn: Int
   var refreshToken: String
   var tokenType: String
+  /// Google's space-separated granted scopes. Absent from some refresh
+  /// responses, in which case the caller keeps the previously stored value.
+  var scope: String?
 
   enum CodingKeys: String, CodingKey {
     case accessToken = "access_token"
     case expiresIn = "expires_in"
     case refreshToken = "refresh_token"
     case tokenType = "token_type"
+    case scope
   }
 
   init(from decoder: Decoder) throws {
@@ -220,6 +258,7 @@ private struct TokenResponse: Decodable {
     expiresIn = try container.decodeIfPresent(Int.self, forKey: .expiresIn) ?? 3600
     refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshToken) ?? ""
     tokenType = try container.decodeIfPresent(String.self, forKey: .tokenType) ?? "Bearer"
+    scope = try container.decodeIfPresent(String.self, forKey: .scope)
   }
 }
 

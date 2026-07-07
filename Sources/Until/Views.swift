@@ -285,15 +285,20 @@ struct EventRow: View {
           .padding(.leading, Self.detailIndent)
       }
 
-      if let error = model.noteError(for: event) {
-        NoteErrorOverlay(message: error) {
-          model.createOrOpenNote(for: event)
+      if let issue = model.noteError(for: event) {
+        NoteErrorOverlay(issue: issue) {
+          switch issue.kind {
+          case .retry:
+            model.createOrOpenNote(for: event)
+          case .reauthorize(let email):
+            Task { await model.reauthorize(email: email) }
+          }
         }
         .padding(.leading, Self.detailIndent)
       }
 
       if let error = model.conferenceError(for: event) {
-        NoteErrorOverlay(message: error) {
+        NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
           model.addConference(for: event)
         }
         .padding(.leading, Self.detailIndent)
@@ -677,19 +682,27 @@ private struct SyncErrorBanner: View {
 }
 
 private struct NoteErrorOverlay: View {
-  var message: String
-  var retry: () -> Void
+  var issue: NoteIssue
+  /// Invoked when the action button is tapped; the label depends on `issue.kind`.
+  var action: () -> Void
+
+  private var buttonLabel: String {
+    switch issue.kind {
+    case .retry: return loc("Retry")
+    case .reauthorize: return loc("Reauthorize")
+    }
+  }
 
   var body: some View {
     HStack(spacing: Theme.Spacing.sm) {
       Image(systemName: "exclamationmark.triangle")
         .foregroundStyle(.red)
-      Text(message)
+      Text(issue.message)
         .font(.caption2)
         .foregroundStyle(.secondary)
         .lineLimit(2)
       Spacer()
-      Button(loc("Retry"), action: retry)
+      Button(buttonLabel, action: action)
         .font(.caption)
     }
     .padding(Theme.Spacing.sm)
@@ -1157,6 +1170,10 @@ private struct AccountConfigurationCard: View {
     VStack(alignment: .leading, spacing: Theme.Spacing.md) {
       header
 
+      if model.lacksDriveScope(for: account.email) {
+        driveScopeWarning
+      }
+
       Divider()
 
       calendarsSection
@@ -1199,6 +1216,20 @@ private struct AccountConfigurationCard: View {
       .buttonStyle(.borderless)
       .foregroundStyle(.red)
     }
+  }
+
+  /// Caption warning shown when the account's grant is known to lack Drive
+  /// access. The Reauthorize button in the header is the fix, so no extra
+  /// button is needed here.
+  private var driveScopeWarning: some View {
+    HStack(alignment: .top, spacing: Theme.Spacing.xs) {
+      Image(systemName: "exclamationmark.triangle.fill")
+        .foregroundStyle(.orange)
+      Text(loc("Drive permission not granted — notes creation is unavailable."))
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .font(.caption)
   }
 
   // MARK: Calendars (calendar-scoped — the reason to connect an account)
