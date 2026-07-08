@@ -150,7 +150,7 @@ struct OnboardingView: View {
 
       VStack(spacing: Theme.Spacing.sm) {
         Button {
-          Task { await model.login() }
+          model.startLogin()
         } label: {
           HStack(spacing: Theme.Spacing.sm) {
             if model.isSigningIn {
@@ -166,6 +166,13 @@ struct OnboardingView: View {
         .controlSize(.large)
         .buttonStyle(.borderedProminent)
         .disabled(model.isSigningIn)
+
+        if model.isSigningIn {
+          Button(loc("Cancel")) {
+            model.cancelSignIn()
+          }
+          .buttonStyle(.borderless)
+        }
       }
       .frame(maxWidth: 300)
 
@@ -291,7 +298,7 @@ struct EventRow: View {
           case .retry:
             model.createOrOpenNote(for: event)
           case .reauthorize(let email):
-            Task { await model.reauthorize(email: email) }
+            model.startReauthorize(email: email)
           }
         }
         .padding(.leading, Self.detailIndent)
@@ -1132,6 +1139,10 @@ private struct ConnectedAccountsPanel: View {
             .controlSize(.small)
           Text(loc("Opening Google sign-in..."))
             .foregroundStyle(.secondary)
+          Button(loc("Cancel")) {
+            model.cancelSignIn()
+          }
+          .buttonStyle(.borderless)
         }
         .font(.callout)
       }
@@ -1145,7 +1156,7 @@ private struct ConnectedAccountsPanel: View {
   private var addAccountButton: some View {
     Button {
       model.saveConfig(draft)
-      Task { await model.login() }
+      model.startLogin()
     } label: {
       Label(loc("Add Account"), systemImage: "plus")
     }
@@ -1206,7 +1217,7 @@ private struct AccountConfigurationCard: View {
       Spacer()
       Button(loc("Reauthorize")) {
         model.saveConfig(draft)
-        Task { await model.reauthorize(email: account.email) }
+        model.startReauthorize(email: account.email)
       }
       .buttonStyle(.borderless)
       .disabled(model.isSigningIn)

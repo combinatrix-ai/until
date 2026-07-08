@@ -509,6 +509,7 @@ private final class LoopbackServer {
   }
 
   private func stop() {
+    finish(.failure(CancellationError()))
     source?.cancel()
     source = nil
   }

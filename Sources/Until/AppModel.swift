@@ -39,6 +39,7 @@ final class AppModel: ObservableObject {
   private var refreshTimer: Timer?
   private var clockTimer: Timer?
   private var wakeObserver: NSObjectProtocol?
+  private var signInTask: Task<Void, Never>?
 
   init(options: AppRuntimeOptions = .fromProcess()) {
     runtimeOptions = options
@@ -83,7 +84,33 @@ final class AppModel: ObservableObject {
     }
   }
 
-  func login() async {
+  /// Starts (or restarts) the sign-in flow for a new account. Cancels any
+  /// in-flight sign-in first so only one OAuth loopback server runs at a
+  /// time.
+  func startLogin() {
+    signInTask?.cancel()
+    signInTask = Task { [weak self] in
+      await self?.login()
+    }
+  }
+
+  /// Starts (or restarts) the reauthorization flow for an existing account.
+  /// Cancels any in-flight sign-in first so only one OAuth loopback server
+  /// runs at a time.
+  func startReauthorize(email: String) {
+    signInTask?.cancel()
+    signInTask = Task { [weak self] in
+      await self?.reauthorize(email: email)
+    }
+  }
+
+  /// Cancels an in-flight sign-in/reauthorization started via `startLogin()`
+  /// or `startReauthorize(email:)`.
+  func cancelSignIn() {
+    signInTask?.cancel()
+  }
+
+  private func login() async {
     guard !runtimeOptions.demoMode else {
       signInError = loc("Google sign-in is disabled in demo mode.")
       return
@@ -107,6 +134,7 @@ final class AppModel: ObservableObject {
       }
       await refresh()
     } catch {
+      if error is CancellationError || Task.isCancelled { return }
       signInError = error.localizedDescription
       if accounts.isEmpty {
         state.lastError = error.localizedDescription
@@ -114,7 +142,7 @@ final class AppModel: ObservableObject {
     }
   }
 
-  func reauthorize(email: String) async {
+  private func reauthorize(email: String) async {
     guard !runtimeOptions.demoMode else {
       signInError = loc("Google sign-in is disabled in demo mode.")
       return
@@ -134,6 +162,7 @@ final class AppModel: ObservableObject {
       await refreshCalendars()
       await refresh()
     } catch {
+      if error is CancellationError || Task.isCancelled { return }
       signInError = error.localizedDescription
     }
   }
