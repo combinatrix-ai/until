@@ -254,6 +254,32 @@ func clock(_ date: Date) -> String {
   clockFormatter.string(from: date)
 }
 
+/// Width of the time column in the event list, measured from the widest string
+/// that can actually appear there in the current locale (a 12-hour "10:00 PM"
+/// is far wider than a 24-hour "22:00", and the all-day label shares the same
+/// column). Sizing to the real content avoids a fixed width that leaves dead
+/// space between the time and the event title in 24-hour locales.
+func clockColumnWidth() -> CGFloat {
+  let font = NSFont.monospacedSystemFont(
+    ofSize: NSFont.preferredFont(forTextStyle: .caption1).pointSize,
+    weight: .regular)
+  // A morning and an evening time so the widest AM/PM form is covered, plus the
+  // all-day label which renders in the same column.
+  var candidates = [loc("all-day")]
+  var components = DateComponents()
+  components.year = 2000; components.month = 1; components.day = 1; components.minute = 0
+  for hour in [10, 22] {
+    components.hour = hour
+    if let date = Calendar.current.date(from: components) {
+      candidates.append(clock(date))
+    }
+  }
+  let widest = candidates
+    .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
+    .max() ?? 0
+  return ceil(widest) + Theme.Spacing.xs
+}
+
 func dayHeader(_ day: Date, now: Date = Date()) -> String {
   let calendar = Calendar.current
   if calendar.isDate(day, inSameDayAs: now) { return loc("Today") }

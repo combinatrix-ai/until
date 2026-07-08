@@ -213,7 +213,7 @@ private struct FeatureRow: View {
 
 struct EventRow: View {
   private static let colorBarWidth: CGFloat = 3
-  private static let timeColumnWidth: CGFloat = 64
+  private static let timeColumnWidth: CGFloat = clockColumnWidth()
   private static let detailIndent = colorBarWidth + Theme.Spacing.sm + timeColumnWidth + Theme.Spacing.sm
 
   var event: CalendarEvent
