@@ -15,6 +15,7 @@
 /* MARK: - Right-click menu (AppDelegate) */
 "Refresh Now" = "今すぐ更新";
 "Preferences..." = "環境設定...";
+"Check for Updates..." = "アップデートを確認...";
 "Quit" = "終了";
 
 /* MARK: - Day headers (AppDelegate) */

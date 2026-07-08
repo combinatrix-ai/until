@@ -15,6 +15,7 @@
 /* MARK: - Right-click menu (AppDelegate) */
 "Refresh Now" = "Refresh Now";
 "Preferences..." = "Preferences...";
+"Check for Updates..." = "Check for Updates...";
 "Quit" = "Quit";
 
 /* MARK: - Day headers (AppDelegate) */

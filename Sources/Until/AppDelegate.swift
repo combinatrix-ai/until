@@ -22,13 +22,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @MainActor
-final class StatusBarController: NSObject, NSPopoverDelegate {
+final class StatusBarController: NSObject, NSPopoverDelegate, NSMenuItemValidation {
   private let model: AppModel
   private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
   private let popover = NSPopover()
   private var cancellables = Set<AnyCancellable>()
   private var settingsWindow: NSWindow?
   private var hotkeyManager: HotkeyManager?
+  private let updater = UpdaterController()
 
   init(model: AppModel) {
     self.model = model
@@ -111,6 +112,12 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     menu.addItem(withTitle: loc("Refresh Now"), action: #selector(refresh), keyEquivalent: "")
     menu.addItem(withTitle: loc("Preferences..."), action: #selector(showSettingsAction), keyEquivalent: ",")
     menu.addItem(.separator())
+    menu.addItem(
+      withTitle: loc("Check for Updates..."),
+      action: #selector(checkForUpdates),
+      keyEquivalent: ""
+    )
+    menu.addItem(.separator())
     menu.addItem(withTitle: loc("Quit"), action: #selector(quit), keyEquivalent: "q")
     menu.items.forEach { $0.target = self }
     item.menu = menu
@@ -167,6 +174,20 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
   @objc private func refresh() {
     Task { await model.refresh() }
+  }
+
+  @objc private func checkForUpdates() {
+    updater.checkForUpdates()
+  }
+
+  // Grey out "Check for Updates..." while a check/install is already in flight.
+  // The status-item menu autoenables items, so gating must go through validation
+  // rather than a one-shot `isEnabled` set at build time.
+  func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+    if menuItem.action == #selector(checkForUpdates) {
+      return updater.canCheckForUpdates
+    }
+    return true
   }
 
   @objc private func showSettingsAction() {

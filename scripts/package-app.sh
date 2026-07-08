@@ -78,6 +78,14 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <string>${GOOGLE_OAUTH_CLIENT_ID}</string>
   <key>GoogleOAuthClientSecret</key>
   <string>${GOOGLE_OAUTH_CLIENT_SECRET}</string>
+  <key>SUFeedURL</key>
+  <string>https://github.com/combinatrix-ai/until/releases/latest/download/appcast.xml</string>
+  <key>SUPublicEDKey</key>
+  <string>u+Q8/UjDUddA0GV7hkaAaLr6erPJohhGGopaFdv+x2I=</string>
+  <key>SUEnableAutomaticChecks</key>
+  <true/>
+  <key>SUScheduledCheckInterval</key>
+  <integer>86400</integer>
 </dict>
 </plist>
 PLIST
@@ -89,6 +97,20 @@ if [[ ! -f "$ICON_SRC" ]]; then
   swift "$ROOT/scripts/make-icon.swift" >/dev/null
 fi
 cp "$ICON_SRC" "$APP_DIR/Contents/Resources/Until.icns"
+
+# Embed Sparkle.framework (auto-update). SwiftPM links against the xcframework
+# but does not copy it into our hand-built bundle, so do it here. The framework's
+# install name is @rpath/Sparkle.framework/..., and the executable's only rpath
+# is @loader_path (Contents/MacOS); add @loader_path/../Frameworks so the loader
+# finds the framework in the conventional Contents/Frameworks location.
+SPARKLE_SRC="$ROOT/.build/$CONFIGURATION/Sparkle.framework"
+if [[ -d "$SPARKLE_SRC" ]]; then
+  mkdir -p "$APP_DIR/Contents/Frameworks"
+  cp -R "$SPARKLE_SRC" "$APP_DIR/Contents/Frameworks/Sparkle.framework"
+  install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_DIR/Contents/MacOS/Until"
+else
+  echo "Warning: $SPARKLE_SRC not found; auto-update (Sparkle) will be unavailable. Run 'swift build' first." >&2
+fi
 
 # Signing.
 # - Dev (default): an Apple Development identity, no secure timestamp, so
@@ -119,6 +141,26 @@ if [[ -n "$codesign_identity" ]]; then
   else
     codesign_args+=(--timestamp=none)
   fi
+
+  # Sparkle ships nested helper code (XPC services, the Autoupdate CLI, and the
+  # Updater UI app) that codesign will NOT reach when sealing the outer app
+  # without --deep. Sign them explicitly, inside-out, with the SAME identity +
+  # options as the app, so the whole bundle is uniformly Developer ID-signed and
+  # notarizable. Order matters: deepest nested code first, framework last, then
+  # the app below.
+  SPARKLE_FW="$APP_DIR/Contents/Frameworks/Sparkle.framework"
+  if [[ -d "$SPARKLE_FW" ]]; then
+    V="$SPARKLE_FW/Versions/B"
+    for nested in \
+      "$V/XPCServices/Downloader.xpc" \
+      "$V/XPCServices/Installer.xpc" \
+      "$V/Autoupdate" \
+      "$V/Updater.app"; do
+      [[ -e "$nested" ]] && codesign "${codesign_args[@]}" "$nested" >/dev/null
+    done
+    codesign "${codesign_args[@]}" "$SPARKLE_FW" >/dev/null
+  fi
+
   codesign "${codesign_args[@]}" "$APP_DIR" >/dev/null
   echo "Signed with: $codesign_identity"
 elif [[ "$DISTRIBUTION" == "1" ]]; then
