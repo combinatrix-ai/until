@@ -995,7 +995,7 @@ final class AppModel: ObservableObject {
     next.lookaheadHours = max(1, min(24 * 14, next.lookaheadHours))
     next.pollIntervalSeconds = max(30, min(3600, next.pollIntervalSeconds))
     next.maxTitleLength = max(10, min(120, next.maxTitleLength))
-    next.menubarLeadMinutes = max(0, min(720, next.menubarLeadMinutes))
+    next.menubarLeadMinutes = AppConfig.snappedMenubarLead(next.menubarLeadMinutes)
     next.notifyLeadMinutes = max(0, min(120, next.notifyLeadMinutes))
     next.meetingNotesTemplateDocsByAccount = trimmedNonEmpty(next.meetingNotesTemplateDocsByAccount)
     next.meetingNotesFolderNamesByAccount = trimmedNonEmpty(next.meetingNotesFolderNamesByAccount)

@@ -542,6 +542,25 @@ struct AppConfig: Codable, Hashable {
   /// Default note title pattern. Supports `{date}` and `{title}` tokens.
   static let defaultNoteTitleTemplate = "Meeting notes - {date} - {title}"
 
+  /// The menu-picker presets for `menubarLeadMinutes` (see `SettingsView`'s
+  /// "Show upcoming event" picker). Kept here so both the config-loading path
+  /// (`init(from:)`) and `AppModel.normalized()` snap legacy/arbitrary values
+  /// onto the same set.
+  static let menubarLeadPresetsMinutes = [60, 180, 360, 720, 1440]
+
+  /// Snaps an arbitrary minute value to the nearest entry in
+  /// `menubarLeadPresetsMinutes`; ties prefer the larger preset.
+  static func snappedMenubarLead(_ minutes: Int) -> Int {
+    menubarLeadPresetsMinutes.reduce(menubarLeadPresetsMinutes[0]) { best, preset in
+      let bestDiff = abs(minutes - best)
+      let presetDiff = abs(minutes - preset)
+      if presetDiff < bestDiff || (presetDiff == bestDiff && preset > best) {
+        return preset
+      }
+      return best
+    }
+  }
+
   static let `default` = AppConfig(
     oauthClientId: bundledGoogleClientId,
     oauthClientSecret: bundledGoogleClientSecret,
@@ -649,7 +668,9 @@ struct AppConfig: Codable, Hashable {
     lookaheadHours = try container.decode(.lookaheadHours, default: defaults.lookaheadHours)
     pollIntervalSeconds = try container.decode(.pollIntervalSeconds, default: defaults.pollIntervalSeconds)
     maxTitleLength = try container.decode(.maxTitleLength, default: defaults.maxTitleLength)
-    menubarLeadMinutes = try container.decode(.menubarLeadMinutes, default: defaults.menubarLeadMinutes)
+    menubarLeadMinutes = AppConfig.snappedMenubarLead(
+      try container.decode(.menubarLeadMinutes, default: defaults.menubarLeadMinutes)
+    )
     menubarShowsNextAlways = try container.decode(.menubarShowsNextAlways, default: defaults.menubarShowsNextAlways)
     menubarPrefersImminentNext = try container.decode(
       .menubarPrefersImminentNext,

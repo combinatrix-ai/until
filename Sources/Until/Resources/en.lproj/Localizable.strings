@@ -110,10 +110,12 @@
 "characters" = "characters";
 "Show upcoming event" = "Show upcoming event";
 "When the next event appears in the menubar" = "When the next event appears in the menubar";
-"Always" = "Always";
-"Within lead time" = "Within lead time";
-"Lead time" = "Lead time";
-"How early the next event appears in the menubar" = "How early the next event appears in the menubar";
+"Within 1 hour" = "Within 1 hour";
+"Within 3 hours" = "Within 3 hours";
+"Within 6 hours" = "Within 6 hours";
+"Within 12 hours" = "Within 12 hours";
+"Within 24 hours" = "Within 24 hours";
+"Same as fetch window" = "Same as fetch window";
 "min before" = "min before";
 "Switch to next event early" = "Switch to next event early";
 "Show the next event instead of the current one once its reminder time is reached" = "Show the next event instead of the current one once its reminder time is reached";

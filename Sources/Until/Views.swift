@@ -730,6 +730,14 @@ struct SettingsView: View {
     (key: "336", label: "2w", hours: 336)
   ]
 
+  private static let menubarWindowPresets = [
+    (key: "60", label: loc("Within 1 hour"), minutes: 60),
+    (key: "180", label: loc("Within 3 hours"), minutes: 180),
+    (key: "360", label: loc("Within 6 hours"), minutes: 360),
+    (key: "720", label: loc("Within 12 hours"), minutes: 720),
+    (key: "1440", label: loc("Within 24 hours"), minutes: 1440)
+  ]
+
   /// The settings sections, shown as a sidebar instead of OS-standard tabs.
   private enum Section: String, CaseIterable, Identifiable {
     case accounts, general, filter
@@ -894,21 +902,15 @@ struct SettingsView: View {
         )
         Divider()
         SettingRow(loc("Show upcoming event"), subtitle: loc("When the next event appears in the menubar")) {
-          Picker("", selection: $draft.menubarShowsNextAlways) {
-            Text(loc("Always")).tag(true)
-            Text(loc("Within lead time")).tag(false)
+          Picker("", selection: menubarWindowSelection) {
+            ForEach(Self.menubarWindowPresets, id: \.key) { preset in
+              Text(preset.label).tag(preset.key)
+            }
+            Text(loc("Same as fetch window")).tag("always")
           }
-          .pickerStyle(.segmented)
+          .pickerStyle(.menu)
           .labelsHidden()
           .frame(width: 210)
-        }
-        if !draft.menubarShowsNextAlways {
-          Divider()
-          stepperRow(
-            loc("Lead time"),
-            subtitle: loc("How early the next event appears in the menubar"),
-            value: $draft.menubarLeadMinutes, range: 0...720, step: 1, unit: loc("min before")
-          )
         }
         Divider()
         SettingRow(
@@ -1071,6 +1073,29 @@ struct SettingsView: View {
 
   private static func isPresetFetchWindow(_ hours: Int) -> Bool {
     fetchWindowPresets.contains { $0.hours == hours }
+  }
+
+  private var menubarWindowSelection: Binding<String> {
+    Binding(
+      get: {
+        guard !draft.menubarShowsNextAlways else { return "always" }
+        // Snap to the nearest preset (same rule as AppConfig.snappedMenubarLead)
+        // so legacy/arbitrary minute values still resolve to a sensible menu
+        // selection.
+        let snapped = AppConfig.snappedMenubarLead(draft.menubarLeadMinutes)
+        return Self.menubarWindowPresets.first { $0.minutes == snapped }?.key
+          ?? Self.menubarWindowPresets.last!.key
+      },
+      set: { key in
+        guard key != "always" else {
+          draft.menubarShowsNextAlways = true
+          return
+        }
+        guard let preset = Self.menubarWindowPresets.first(where: { $0.key == key }) else { return }
+        draft.menubarShowsNextAlways = false
+        draft.menubarLeadMinutes = preset.minutes
+      }
+    )
   }
 }
 
