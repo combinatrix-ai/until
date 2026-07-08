@@ -505,6 +505,7 @@ struct AppConfig: Codable, Hashable {
   var maxTitleLength: Int
   var menubarLeadMinutes: Int
   var menubarShowsNextAlways: Bool
+  var menubarPrefersImminentNext: Bool
   var notifyEnabled: Bool
   var notifyVideoOnly: Bool
   var notifyLeadMinutes: Int
@@ -551,6 +552,7 @@ struct AppConfig: Codable, Hashable {
     maxTitleLength: 40,
     menubarLeadMinutes: 720,
     menubarShowsNextAlways: true,
+    menubarPrefersImminentNext: true,
     notifyEnabled: true,
     notifyVideoOnly: false,
     notifyLeadMinutes: 5,
@@ -567,6 +569,7 @@ struct AppConfig: Codable, Hashable {
     case oauth, filterRules, selectedCalendarIds
     case lookaheadHours, pollIntervalSeconds, maxTitleLength, menubarLeadMinutes
     case menubarShowsNextAlways
+    case menubarPrefersImminentNext
     case notifyEnabled, notifyVideoOnly, notifyLeadMinutes
     case hotkeyEnabled, hotkeyPreset
     case meetingNotesFoldersByAccount
@@ -590,6 +593,7 @@ struct AppConfig: Codable, Hashable {
     maxTitleLength: Int,
     menubarLeadMinutes: Int,
     menubarShowsNextAlways: Bool = true,
+    menubarPrefersImminentNext: Bool = true,
     notifyEnabled: Bool,
     notifyVideoOnly: Bool,
     notifyLeadMinutes: Int,
@@ -610,6 +614,7 @@ struct AppConfig: Codable, Hashable {
     self.maxTitleLength = maxTitleLength
     self.menubarLeadMinutes = menubarLeadMinutes
     self.menubarShowsNextAlways = menubarShowsNextAlways
+    self.menubarPrefersImminentNext = menubarPrefersImminentNext
     self.notifyEnabled = notifyEnabled
     self.notifyVideoOnly = notifyVideoOnly
     self.notifyLeadMinutes = notifyLeadMinutes
@@ -646,6 +651,10 @@ struct AppConfig: Codable, Hashable {
     maxTitleLength = try container.decode(.maxTitleLength, default: defaults.maxTitleLength)
     menubarLeadMinutes = try container.decode(.menubarLeadMinutes, default: defaults.menubarLeadMinutes)
     menubarShowsNextAlways = try container.decode(.menubarShowsNextAlways, default: defaults.menubarShowsNextAlways)
+    menubarPrefersImminentNext = try container.decode(
+      .menubarPrefersImminentNext,
+      default: defaults.menubarPrefersImminentNext
+    )
     notifyEnabled = try container.decode(.notifyEnabled, default: defaults.notifyEnabled)
     notifyVideoOnly = try container.decode(.notifyVideoOnly, default: defaults.notifyVideoOnly)
     notifyLeadMinutes = try container.decode(.notifyLeadMinutes, default: defaults.notifyLeadMinutes)
@@ -687,6 +696,7 @@ struct AppConfig: Codable, Hashable {
     try container.encode(maxTitleLength, forKey: .maxTitleLength)
     try container.encode(menubarLeadMinutes, forKey: .menubarLeadMinutes)
     try container.encode(menubarShowsNextAlways, forKey: .menubarShowsNextAlways)
+    try container.encode(menubarPrefersImminentNext, forKey: .menubarPrefersImminentNext)
     try container.encode(notifyEnabled, forKey: .notifyEnabled)
     try container.encode(notifyVideoOnly, forKey: .notifyVideoOnly)
     try container.encode(notifyLeadMinutes, forKey: .notifyLeadMinutes)

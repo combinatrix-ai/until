@@ -910,6 +910,14 @@ struct SettingsView: View {
             value: $draft.menubarLeadMinutes, range: 0...720, step: 1, unit: loc("min before")
           )
         }
+        Divider()
+        SettingRow(
+          loc("Switch to next event early"),
+          subtitle: loc("Show the next event instead of the current one once its reminder time is reached")
+        ) {
+          Toggle("", isOn: $draft.menubarPrefersImminentNext)
+            .labelsHidden()
+        }
       }
 
       SettingsCard(loc("Notifications")) {

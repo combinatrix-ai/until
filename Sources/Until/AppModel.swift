@@ -757,11 +757,29 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// `events` is assumed sorted by start date.
+  ///
+  /// When `menubarPrefersImminentNext` is on, this deliberately reuses
+  /// `notifyLeadMinutes` (even if notifications are disabled) so the menubar
+  /// switches to the next event at the same moment its reminder notification
+  /// fires, rather than waiting for the current event to end. This also
+  /// applies when no event is currently ongoing — in that case it behaves
+  /// identically to the existing upcoming-event branches below once the
+  /// next event enters its lead window, so no special-casing is needed.
   private func pickMenubarEvent(
     timed events: [CalendarEvent],
     allDay allDayEvents: [CalendarEvent],
     now: Date
   ) -> CalendarEvent? {
+    if config.menubarPrefersImminentNext {
+      let lead = TimeInterval(max(0, config.notifyLeadMinutes) * 60)
+      if let imminent = events.first(where: { event in
+        let startsIn = event.startDate.timeIntervalSince(now)
+        return startsIn >= 0 && startsIn <= lead
+      }) {
+        return imminent
+      }
+    }
     if let current = events.first(where: { $0.startDate <= now && $0.endDate > now }) {
       return current
     }

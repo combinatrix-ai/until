@@ -115,6 +115,8 @@
 "Lead time" = "Lead time";
 "How early the next event appears in the menubar" = "How early the next event appears in the menubar";
 "min before" = "min before";
+"Switch to next event early" = "Switch to next event early";
+"Show the next event instead of the current one once its reminder time is reached" = "Show the next event instead of the current one once its reminder time is reached";
 "Notifications" = "Notifications";
 "Event reminders" = "Event reminders";
 "Send a notification before an event starts" = "Send a notification before an event starts";

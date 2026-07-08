@@ -115,6 +115,8 @@
 "Lead time" = "表示開始時間";
 "How early the next event appears in the menubar" = "次の予定をどれくらい前からメニューバーに表示するか";
 "min before" = "分前";
+"Switch to next event early" = "次の予定へ早めに切り替え";
+"Show the next event instead of the current one once its reminder time is reached" = "リマインダーのタイミングになったら、進行中の予定より次の予定を表示します";
 "Notifications" = "通知";
 "Event reminders" = "イベント通知";
 "Send a notification before an event starts" = "予定が始まる前に通知を送信します";
