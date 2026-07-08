@@ -760,6 +760,15 @@ struct SettingsView: View {
     }
   }
 
+  /// "Version 1.0.2" from the bundle's marketing version, or "Version dev" for
+  /// the plain `swift run` executable (no Info.plist). The internal build number
+  /// (CFBundleVersion) is deliberately omitted — it's just the CI run counter
+  /// and means nothing to users.
+  private static let appVersionLabel: String = {
+    let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
+    return loc("Version %@", short)
+  }()
+
   @ObservedObject var model: AppModel
   @State private var draft: AppConfig
   @State private var usesCustomFetchWindow: Bool
@@ -779,6 +788,14 @@ struct SettingsView: View {
           .tag(section)
       }
       .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
+      .safeAreaInset(edge: .bottom) {
+        Text(Self.appVersionLabel)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.horizontal, 12)
+          .padding(.vertical, 8)
+      }
     } detail: {
       switch selection ?? .accounts {
       case .accounts: accountTab
