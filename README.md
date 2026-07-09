@@ -27,7 +27,8 @@ Privacy policy: <https://combinatrix-ai.github.io/until/privacy.html>
   organized in an app-managed Drive folder.
 - **Precise filters** — a structured rule builder decides which events count
   (by calendar, title, attendees, response status, and more).
-- **Quick access** — global hotkey, launch at login, event context menus.
+- **Quick access** — global hotkey, launch at login, right-click the menubar
+  icon to hide the event text, event context menus.
 - **Localized** — English and Japanese.
 - **Private by design** — OAuth tokens live in the macOS Keychain, the Drive
   scope is the non-sensitive `drive.file` tier (the app only sees files it
