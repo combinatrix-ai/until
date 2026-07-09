@@ -22,14 +22,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @MainActor
-final class StatusBarController: NSObject, NSPopoverDelegate, NSMenuItemValidation {
+final class StatusBarController: NSObject, NSPopoverDelegate {
   private let model: AppModel
   private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
   private let popover = NSPopover()
   private var cancellables = Set<AnyCancellable>()
   private var settingsWindow: NSWindow?
   private var hotkeyManager: HotkeyManager?
-  private let updater = UpdaterController()
+  /// When true the menubar shows only the icon, hiding the event text. Toggled by
+  /// right-clicking the status item; in-memory only (resets on relaunch).
+  private var collapsed = false
 
   init(model: AppModel) {
     self.model = model
@@ -72,16 +74,35 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSMenuItemValidati
   }
 
   @objc private func togglePopover(_ sender: NSStatusBarButton) {
+    // Right-click hides/reveals the event text, leaving just the icon — a quick
+    // way to reclaim menubar width when the next event's title runs long.
     if NSApp.currentEvent?.type == .rightMouseUp {
-      showMenu()
+      collapsed.toggle()
+      updateStatus(state: model.state, config: model.config)
       return
     }
-    // ⌥-click on the icon joins the next meeting instead of opening the popover.
+    // ⌥-click joins the meeting shown in the menubar instead of opening the
+    // popover. If it has no conference URL, shake the icon rather than silently
+    // opening a different meeting or the popover.
     if NSApp.currentEvent?.modifierFlags.contains(.option) == true {
-      if model.joinNextMeeting() { return }
-      // Nothing joinable — fall through to the normal popover toggle.
+      if !model.joinMenubarMeeting() { shakeStatusItem() }
+      return
     }
     togglePopover(relativeTo: sender)
+  }
+
+  /// A quick left-right shake of the status item — feedback for an ⌥-click when
+  /// the shown meeting has nothing to join.
+  private func shakeStatusItem() {
+    guard let button = item.button else { return }
+    button.wantsLayer = true
+    guard let layer = button.layer else { return }
+    let shake = CAKeyframeAnimation(keyPath: "transform.translation.x")
+    shake.values = [0, -4, 4, -3, 3, -2, 2, 0]
+    shake.keyTimes = [0, 0.14, 0.28, 0.42, 0.56, 0.70, 0.85, 1]
+    shake.duration = 0.42
+    shake.isAdditive = true
+    layer.add(shake, forKey: "shake")
   }
 
   private func togglePopover(relativeTo sender: NSStatusBarButton) {
@@ -107,24 +128,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSMenuItemValidati
     }
   }
 
-  private func showMenu() {
-    let menu = NSMenu()
-    menu.addItem(withTitle: loc("Refresh Now"), action: #selector(refresh), keyEquivalent: "")
-    menu.addItem(withTitle: loc("Preferences..."), action: #selector(showSettingsAction), keyEquivalent: ",")
-    menu.addItem(.separator())
-    menu.addItem(
-      withTitle: loc("Check for Updates..."),
-      action: #selector(checkForUpdates),
-      keyEquivalent: ""
-    )
-    menu.addItem(.separator())
-    menu.addItem(withTitle: loc("Quit"), action: #selector(quit), keyEquivalent: "q")
-    menu.items.forEach { $0.target = self }
-    item.menu = menu
-    item.button?.performClick(nil)
-    item.menu = nil
-  }
-
   private func updateStatus(state: AppState, config: AppConfig) {
     guard let button = item.button else { return }
     let now = Date()
@@ -148,6 +151,13 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSMenuItemValidati
     } else {
       button.title = ""
     }
+    // Collapsed: drop the text, keep just the icon (dimmed so it reads as
+    // "hidden" rather than "no events"). The tooltip below still reflects the
+    // next event, so hovering reveals it without un-collapsing.
+    if collapsed {
+      button.title = ""
+    }
+    button.appearsDisabled = collapsed
     button.toolTip = state.lastError
       ?? state.next.map { tooltip(for: $0, state: state, now: now) }
       ?? (
@@ -170,28 +180,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSMenuItemValidati
         && other.actionKey != event.actionKey
     }.count
     return moreToday > 0 ? loc("%1$@ (%2$d more today)", base, moreToday) : base
-  }
-
-  @objc private func refresh() {
-    Task { await model.refresh() }
-  }
-
-  @objc private func checkForUpdates() {
-    updater.checkForUpdates()
-  }
-
-  // Grey out "Check for Updates..." while a check/install is already in flight.
-  // The status-item menu autoenables items, so gating must go through validation
-  // rather than a one-shot `isEnabled` set at build time.
-  func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-    if menuItem.action == #selector(checkForUpdates) {
-      return updater.canCheckForUpdates
-    }
-    return true
-  }
-
-  @objc private func showSettingsAction() {
-    showSettings()
   }
 
   private func showSettings() {
@@ -220,10 +208,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSMenuItemValidati
     DispatchQueue.main.async {
       window.makeFirstResponder(nil)
     }
-  }
-
-  @objc private func quit() {
-    NSApp.terminate(nil)
   }
 }
 

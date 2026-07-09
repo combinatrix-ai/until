@@ -876,6 +876,14 @@ struct SettingsView: View {
               .labelsHidden()
           }
         }
+        Divider()
+        SettingRow(
+          loc("Software updates"),
+          subtitle: loc("Until updates automatically; check now to update sooner")
+        ) {
+          Button(loc("Check for Updates...")) { model.updater.checkForUpdates() }
+            .disabled(!model.updater.canCheckForUpdates)
+        }
       }
       .task {
         model.refreshLaunchAtLoginState()
@@ -937,6 +945,12 @@ struct SettingsView: View {
           Toggle("", isOn: $draft.menubarPrefersImminentNext)
             .labelsHidden()
         }
+        Divider()
+        Text(loc("Right-click the icon to hide the event text; ⌥-click to join the next meeting."))
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
 
       SettingsCard(loc("Notifications")) {

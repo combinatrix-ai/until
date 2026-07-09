@@ -13,8 +13,6 @@
 "%1$@ (%2$d more today)" = "%1$@ (%2$d more today)";
 
 /* MARK: - Right-click menu (AppDelegate) */
-"Refresh Now" = "Refresh Now";
-"Preferences..." = "Preferences...";
 "Check for Updates..." = "Check for Updates...";
 "Version %@" = "Version %@";
 "Quit" = "Quit";
@@ -99,6 +97,9 @@
 "Available when running as an app bundle" = "Available when running as an app bundle";
 "Global shortcut" = "Global shortcut";
 "Toggle the Until popover from anywhere" = "Toggle the Until popover from anywhere";
+"Right-click the icon to hide the event text; ⌥-click to join the next meeting." = "Right-click the icon to hide the event text; ⌥-click to join the next meeting.";
+"Software updates" = "Software updates";
+"Until updates automatically; check now to update sooner" = "Until updates automatically; check now to update sooner";
 "Sync" = "Sync";
 "Refresh interval" = "Refresh interval";
 "How often to check Google Calendar for changes" = "How often to check Google Calendar for changes";

@@ -31,6 +31,11 @@ final class AppModel: ObservableObject {
   /// `EventNotifier` uses to pick its notification backend.
   let launchAtLoginAvailable = Bundle.main.bundleURL.pathExtension == "app"
 
+  /// Sparkle updater. Lives on the model so the Settings "Check for Updates"
+  /// button can drive it (the status item no longer has a menu). `startingUpdater`
+  /// fires on init, so creating it here also kicks off scheduled background checks.
+  let updater = UpdaterController()
+
   private let runtimeOptions: AppRuntimeOptions
   private let store = ConfigStore()
   private let notifier = EventNotifier()
@@ -437,10 +442,12 @@ final class AppModel: ObservableObject {
   /// conference URL, otherwise the first upcoming timed event that does.
   /// Returns false when nothing is joinable so callers can fall back.
   @discardableResult
-  func joinNextMeeting() -> Bool {
-    let candidate = state.next.flatMap { $0.conferenceUrl.isEmpty ? nil : $0 }
-      ?? state.events.first { !$0.allDay && !$0.conferenceUrl.isEmpty }
-    guard let event = candidate else { return false }
+  /// Join the meeting currently shown in the menubar (`state.next`). Returns
+  /// false when there's nothing shown or it has no conference URL — the caller
+  /// signals that (a status-item shake) rather than silently opening some other
+  /// meeting the user can't see.
+  func joinMenubarMeeting() -> Bool {
+    guard let event = state.next, EventLinks.conferenceURL(for: event) != nil else { return false }
     join(event)
     return true
   }

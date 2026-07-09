@@ -13,8 +13,6 @@
 "%1$@ (%2$d more today)" = "%1$@ (本日あと%2$d件)";
 
 /* MARK: - Right-click menu (AppDelegate) */
-"Refresh Now" = "今すぐ更新";
-"Preferences..." = "環境設定...";
 "Check for Updates..." = "アップデートを確認...";
 "Version %@" = "バージョン %@";
 "Quit" = "終了";
@@ -99,6 +97,9 @@
 "Available when running as an app bundle" = "アプリとして実行しているときに利用できます";
 "Global shortcut" = "グローバルショートカット";
 "Toggle the Until popover from anywhere" = "どこからでもUntilのポップオーバーを開閉します";
+"Right-click the icon to hide the event text; ⌥-click to join the next meeting." = "アイコンを右クリックで予定テキストを隠せます。⌥クリックで次の会議に参加します。";
+"Software updates" = "ソフトウェアアップデート";
+"Until updates automatically; check now to update sooner" = "Untilは自動で更新されます。今すぐ確認すると早く更新できます";
 "Sync" = "同期";
 "Refresh interval" = "更新間隔";
 "How often to check Google Calendar for changes" = "Googleカレンダーの変更を確認する頻度";
