@@ -14,20 +14,33 @@ import Sparkle
 /// just can't apply an update because the download signature won't validate,
 /// which is the desired behavior for local runs.
 @MainActor
-final class UpdaterController {
-  private let controller: SPUStandardUpdaterController
+final class UpdaterController: NSObject, SPUStandardUserDriverDelegate {
+  private var controller: SPUStandardUpdaterController!
 
-  init() {
+  override init() {
+    super.init()
     // startingUpdater: true kicks off the scheduled-check machinery immediately;
     // it reads the Info.plist keys and schedules the first check per
-    // SUScheduledCheckInterval. No delegate needed for the default UX (Sparkle
-    // shows its own "update available" window; the menubar item below is just an
-    // explicit entry point).
+    // SUScheduledCheckInterval.
+    //
+    // We register as the user-driver delegate purely to bring the app forward
+    // around Sparkle's modal alerts: Until is an .accessory (LSUIElement) app,
+    // so when a user-initiated check finds no update Sparkle's plain "You're
+    // up to date!" NSAlert would otherwise appear unfocused/behind other apps'
+    // windows and read as "nothing happened".
     controller = SPUStandardUpdaterController(
       startingUpdater: true,
       updaterDelegate: nil,
-      userDriverDelegate: nil
+      userDriverDelegate: self
     )
+  }
+
+  // MARK: SPUStandardUserDriverDelegate
+
+  nonisolated func standardUserDriverWillShowModalAlert() {
+    Task { @MainActor in
+      NSApp.activate(ignoringOtherApps: true)
+    }
   }
 
   /// Whether a user-initiated check can run right now (false mid-check/-install).
