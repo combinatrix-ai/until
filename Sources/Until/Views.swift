@@ -946,7 +946,7 @@ struct SettingsView: View {
             .labelsHidden()
         }
         Divider()
-        Text(loc("Right-click the icon to hide the event text; ⌥-click to join the next meeting."))
+        Text(loc("Right-click the icon to hide the event text; ⌥-click to join the meeting shown in the menubar."))
           .font(.caption)
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)

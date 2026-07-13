@@ -20,7 +20,7 @@ Privacy policy: <https://combinatrix-ai.github.io/until/privacy.html>
 - **Menubar countdown** — the next event stays in the menubar all day with a
   live countdown, then shows the time remaining once the meeting starts.
 - **One-click join** — click an event's meeting link, or option-click the
-  menubar item to join the next meeting instantly (Meet, Zoom, Teams,
+  menubar item to join the meeting it's showing (Meet, Zoom, Teams,
   Whereby, and friends).
 - **Native reminders** — sleep-safe notifications before events, with snooze.
 - **Meeting notes** — create a Google Doc per meeting from your own templates,

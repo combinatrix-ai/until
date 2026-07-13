@@ -97,7 +97,7 @@
 "Available when running as an app bundle" = "Available when running as an app bundle";
 "Global shortcut" = "Global shortcut";
 "Toggle the Until popover from anywhere" = "Toggle the Until popover from anywhere";
-"Right-click the icon to hide the event text; ⌥-click to join the next meeting." = "Right-click the icon to hide the event text; ⌥-click to join the next meeting.";
+"Right-click the icon to hide the event text; ⌥-click to join the meeting shown in the menubar." = "Right-click the icon to hide the event text; ⌥-click to join the meeting shown in the menubar.";
 "Software updates" = "Software updates";
 "Until updates automatically; check now to update sooner" = "Until updates automatically; check now to update sooner";
 "Sync" = "Sync";

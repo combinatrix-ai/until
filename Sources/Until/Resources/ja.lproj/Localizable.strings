@@ -97,7 +97,7 @@
 "Available when running as an app bundle" = "アプリとして実行しているときに利用できます";
 "Global shortcut" = "グローバルショートカット";
 "Toggle the Until popover from anywhere" = "どこからでもUntilのポップオーバーを開閉します";
-"Right-click the icon to hide the event text; ⌥-click to join the next meeting." = "アイコンを右クリックで予定テキストを隠せます。⌥クリックで次の会議に参加します。";
+"Right-click the icon to hide the event text; ⌥-click to join the meeting shown in the menubar." = "アイコンを右クリックで予定テキストを隠せます。⌥クリックで表示中の会議に参加します。";
 "Software updates" = "ソフトウェアアップデート";
 "Until updates automatically; check now to update sooner" = "Untilは自動で更新されます。今すぐ確認すると早く更新できます";
 "Sync" = "同期";
