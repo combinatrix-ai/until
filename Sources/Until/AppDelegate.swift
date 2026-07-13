@@ -28,6 +28,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 @MainActor
 final class StatusBarController: NSObject, NSPopoverDelegate {
+  private enum StatusContent: Equatable {
+    case event(when: String, title: String, maximumTitleCharacters: Int)
+    case plain(String)
+    case empty
+  }
+
+  private enum AutomaticCompression: Equatable {
+    case expanded
+    /// Zero keeps only the event time; positive values keep that many title
+    /// characters (including the ellipsis when truncation is needed).
+    case titleLimit(Int)
+    case iconOnly
+  }
+
+  private static let automaticTitleReductionStep = 4
+  private static let occlusionCheckDelay: TimeInterval = 0.08
+
   private let model: AppModel
   private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
   private let popover = NSPopover()
@@ -37,6 +54,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
   /// When true the menubar shows only the icon, hiding the event text. Toggled by
   /// right-clicking the status item; in-memory only (resets on relaunch).
   private var collapsed = false
+  private var statusContent = StatusContent.empty
+  private var automaticCompression = AutomaticCompression.expanded
+  private var occlusionCheckGeneration = 0
 
   init(model: AppModel) {
     self.model = model
@@ -69,6 +89,34 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         self?.applyHotkey(enabled: enabled, preset: preset)
       }
       .store(in: &cancellables)
+    observeMenubarAvailability()
+  }
+
+  private func observeMenubarAvailability() {
+    NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] notification in
+        guard
+          let self,
+          let window = notification.object as? NSWindow,
+          window === self.item.button?.window,
+          !window.occlusionState.contains(.visible)
+        else { return }
+        self.scheduleOcclusionCheck()
+      }
+      .store(in: &cancellables)
+    NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] _ in
+        self?.retryExpandedStatus()
+      }
+      .store(in: &cancellables)
+    NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] _ in
+        self?.retryExpandedStatus()
+      }
+      .store(in: &cancellables)
   }
 
   private func applyHotkey(enabled: Bool, preset: String) {
@@ -84,6 +132,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     // way to reclaim menubar width when the next event's title runs long.
     if NSApp.currentEvent?.type == .rightMouseUp {
       collapsed.toggle()
+      if !collapsed {
+        automaticCompression = .expanded
+      }
       updateStatus(state: model.state, config: model.config)
       return
     }
@@ -135,12 +186,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
   }
 
   private func updateStatus(state: AppState, config: AppConfig) {
-    guard let button = item.button else { return }
     let now = Date()
+    let nextContent: StatusContent
     if let next = state.next {
-      let title = next.title.count > config.maxTitleLength
-        ? String(next.title.prefix(max(1, config.maxTitleLength - 1))) + "…"
-        : next.title
       let when: String
       if next.allDay {
         when = loc("all-day")
@@ -151,19 +199,22 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
       } else {
         when = relativeWhen(next.startMinutesFromNow)
       }
-      button.title = "\(when) \(title)"
+      nextContent = .event(
+        when: when,
+        title: next.title,
+        maximumTitleCharacters: config.maxTitleLength
+      )
     } else if state.auth.authenticated && state.events.isEmpty && state.allDayEvents.isEmpty && state.lastError == nil {
-      button.title = loc("No events")
+      nextContent = .plain(loc("No events"))
     } else {
-      button.title = ""
+      nextContent = .empty
     }
-    // Collapsed: drop the text, keep just the icon (dimmed so it reads as
-    // "hidden" rather than "no events"). The tooltip below still reflects the
-    // next event, so hovering reveals it without un-collapsing.
-    if collapsed {
-      button.title = ""
+    if nextContent != statusContent {
+      statusContent = nextContent
+      automaticCompression = .expanded
     }
-    button.appearsDisabled = collapsed
+    applyStatusTitle()
+    guard let button = item.button else { return }
     button.toolTip = state.lastError
       ?? state.next.map { tooltip(for: $0, state: state, now: now) }
       ?? (
@@ -171,6 +222,86 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
           ? loc("No events to show")
           : loc("No current or imminent events")
       )
+    scheduleOcclusionCheck()
+  }
+
+  private func applyStatusTitle() {
+    guard let button = item.button else { return }
+    // A manual collapse always wins over automatic fitting. It is intentionally
+    // dimmed; an automatic icon-only fallback stays visually active.
+    guard !collapsed else {
+      button.title = ""
+      button.appearsDisabled = true
+      return
+    }
+
+    button.appearsDisabled = false
+    switch (statusContent, automaticCompression) {
+    case (_, .iconOnly), (.empty, _):
+      button.title = ""
+    case let (.plain(text), _):
+      button.title = text
+    case let (.event(when, title, maximumTitleCharacters), .expanded):
+      let renderedTitle = truncatedMenubarTitle(title, maximumCharacters: maximumTitleCharacters)
+      button.title = renderedTitle.isEmpty ? when : "\(when) \(renderedTitle)"
+    case let (.event(when, title, maximumTitleCharacters), .titleLimit(limit)):
+      let renderedTitle = truncatedMenubarTitle(
+        title,
+        maximumCharacters: min(maximumTitleCharacters, limit)
+      )
+      button.title = renderedTitle.isEmpty ? when : "\(when) \(renderedTitle)"
+    }
+  }
+
+  private func retryExpandedStatus() {
+    guard !collapsed else { return }
+    automaticCompression = .expanded
+    applyStatusTitle()
+    scheduleOcclusionCheck()
+  }
+
+  private func scheduleOcclusionCheck() {
+    guard !collapsed else {
+      occlusionCheckGeneration += 1
+      return
+    }
+    occlusionCheckGeneration += 1
+    let generation = occlusionCheckGeneration
+    DispatchQueue.main.asyncAfter(deadline: .now() + Self.occlusionCheckDelay) { [weak self] in
+      guard let self, self.occlusionCheckGeneration == generation else { return }
+      self.compressIfOccluded()
+    }
+  }
+
+  private func compressIfOccluded() {
+    guard
+      !collapsed,
+      let button = item.button,
+      let window = button.window
+    else { return }
+
+    let isVisible = window.occlusionState.contains(.visible)
+    guard !isVisible, let nextCompression = nextAutomaticCompression() else { return }
+
+    automaticCompression = nextCompression
+    applyStatusTitle()
+    scheduleOcclusionCheck()
+  }
+
+  private func nextAutomaticCompression() -> AutomaticCompression? {
+    switch (statusContent, automaticCompression) {
+    case (_, .iconOnly), (.empty, _):
+      return nil
+    case (.plain, _):
+      return .iconOnly
+    case let (.event(_, title, maximumTitleCharacters), .expanded):
+      let renderedCount = min(title.count, maximumTitleCharacters)
+      return .titleLimit(max(0, renderedCount - Self.automaticTitleReductionStep))
+    case let (.event, .titleLimit(limit)) where limit > 0:
+      return .titleLimit(max(0, limit - Self.automaticTitleReductionStep))
+    case (.event, .titleLimit):
+      return .iconOnly
+    }
   }
 
   /// Tooltip for the shown event, with a count of other timed events still to
@@ -215,6 +346,15 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
       window.makeFirstResponder(nil)
     }
   }
+}
+
+/// Truncates by Swift `Character`, so emoji and composed characters are never
+/// split. The ellipsis counts toward the requested menubar character limit.
+func truncatedMenubarTitle(_ title: String, maximumCharacters: Int) -> String {
+  guard maximumCharacters > 0 else { return "" }
+  guard title.count > maximumCharacters else { return title }
+  guard maximumCharacters > 1 else { return "…" }
+  return String(title.prefix(maximumCharacters - 1)) + "…"
 }
 
 func relativeWhen(_ minutes: Int) -> String {
