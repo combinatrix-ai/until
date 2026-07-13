@@ -16,6 +16,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     statusController = StatusBarController(model: model)
   }
 
+  func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    statusController?.showSettings()
+    return false
+  }
+
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     false
   }
@@ -182,7 +187,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     return moreToday > 0 ? loc("%1$@ (%2$d more today)", base, moreToday) : base
   }
 
-  private func showSettings() {
+  func showSettings() {
     if let settingsWindow {
       settingsWindow.center()
       settingsWindow.makeKeyAndOrderFront(nil)
