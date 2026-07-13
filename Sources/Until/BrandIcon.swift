@@ -5,9 +5,10 @@ import AppKit
 /// truth, and the same geometry backs the generated app icon (scripts/make-icon.swift).
 enum BrandIcon {
   /// Monochrome template image for the menubar status item.
-  static func menubarImage(size: CGFloat = 18) -> NSImage {
-    let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
-      draw(in: rect, color: .black)
+  static func menubarImage(size: CGFloat = 18, trailingCanvasTrim: CGFloat = 0) -> NSImage {
+    let canvasWidth = max(1, size - trailingCanvasTrim)
+    let image = NSImage(size: NSSize(width: canvasWidth, height: size), flipped: false) { _ in
+      draw(in: NSRect(x: 0, y: 0, width: size, height: size), color: .black)
       return true
     }
     image.isTemplate = true

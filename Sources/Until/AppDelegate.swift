@@ -52,8 +52,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }))
 
     if let button = item.button {
-      button.image = BrandIcon.menubarImage()
+      button.image = BrandIcon.menubarImage(trailingCanvasTrim: 4)
       button.image?.accessibilityDescription = "Until"
+      button.imageHugsTitle = true
       button.action = #selector(togglePopover(_:))
       button.target = self
       button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -150,9 +151,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
       } else {
         when = relativeWhen(next.startMinutesFromNow)
       }
-      button.title = " \(when) \(title)"
+      button.title = "\(when) \(title)"
     } else if state.auth.authenticated && state.events.isEmpty && state.allDayEvents.isEmpty && state.lastError == nil {
-      button.title = " " + loc("No events")
+      button.title = loc("No events")
     } else {
       button.title = ""
     }
