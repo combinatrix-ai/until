@@ -45,6 +45,18 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
   private static let automaticTitleReductionStep = 4
   private static let occlusionCheckDelay: TimeInterval = 0.08
 
+  /// Trimmed so the title hugs the chevron. Status item windows pack flush
+  /// (zero gap), so without a title the trim would only eat the margin to the
+  /// neighboring menubar icon — icon-only states use the full canvas instead.
+  private static let titledStatusImage = makeStatusImage(trailingCanvasTrim: 2)
+  private static let iconOnlyStatusImage = makeStatusImage(trailingCanvasTrim: 0)
+
+  private static func makeStatusImage(trailingCanvasTrim: CGFloat) -> NSImage {
+    let image = BrandIcon.menubarImage(trailingCanvasTrim: trailingCanvasTrim)
+    image.accessibilityDescription = "Until"
+    return image
+  }
+
   private let model: AppModel
   private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
   private let popover = NSPopover()
@@ -72,8 +84,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }))
 
     if let button = item.button {
-      button.image = BrandIcon.menubarImage(trailingCanvasTrim: 2)
-      button.image?.accessibilityDescription = "Until"
+      button.image = Self.iconOnlyStatusImage
       button.imageHugsTitle = true
       button.action = #selector(togglePopover(_:))
       button.target = self
@@ -231,6 +242,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     // dimmed; an automatic icon-only fallback stays visually active.
     guard !collapsed else {
       button.title = ""
+      button.image = Self.iconOnlyStatusImage
       button.appearsDisabled = true
       return
     }
@@ -251,6 +263,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
       )
       button.title = renderedTitle.isEmpty ? when : "\(when) \(renderedTitle)"
     }
+    button.image = button.title.isEmpty ? Self.iconOnlyStatusImage : Self.titledStatusImage
   }
 
   private func retryExpandedStatus() {
