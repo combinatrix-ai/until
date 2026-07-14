@@ -55,14 +55,15 @@
             <li>
               <strong>Calendar events</strong> (<code>calendar.events</code>)
               &mdash; event details such as title, time, attendees, location,
-              conferencing links, and attachments.
+              description, RSVP status, conferencing links, and attachments.
             </li>
             <li>
               <strong>Files the app itself creates in Google Drive</strong>
-              (<code>drive.file</code>) &mdash; your meeting-notes documents
-              and the folder that holds them. This scope only grants access to
-              files and folders created by Until; the app cannot see, read, or
-              list anything else in your Drive.
+              (<code>drive.file</code>) &mdash; your meeting-notes documents,
+              the optional notes template, and the folder that holds them.
+              Until uses the <code>drive.file</code> scope and accesses only
+              the files it creates; it does not request broad Drive access and
+              cannot see, read, or list anything else in your Drive.
             </li>
             <li>
               <strong>Your Google account email address</strong>
@@ -77,7 +78,7 @@
           <h2>How Until uses Google user data</h2>
           <p>
             Until uses the data above only to provide the app&rsquo;s
-            user-facing features, at your direction:
+            user-facing features:
           </p>
           <ul>
             <li>
@@ -85,20 +86,26 @@
               calendars to show or hide.
             </li>
             <li>
-              <strong>Calendar events</strong> are used to display your
-              upcoming events in the menubar, open meeting links, and &mdash;
-              only when you ask &mdash; to add a Google Meet link to an event
-              or attach a meeting-notes document to it.
+              <strong>Calendar events</strong> are used to display and filter
+              your upcoming events in the menubar, schedule local reminders
+              (macOS notifications) for events you opted into, open event and
+              meeting links, determine who receives a meeting-notes document,
+              and populate notes documents with the event title, date and
+              time, Calendar link, and attendee email addresses. Only when you
+              ask, Until also updates an event to add a Google Meet link or to
+              attach a meeting-notes document.
             </li>
             <li>
               <strong>Drive files created by the app</strong> are used to
-              create, name, and organize your meeting-notes documents, and
-              &mdash; only when you ask &mdash; to share a notes document with
-              the attendees of the meeting.
+              create, name, and organize your meeting-notes documents (and,
+              if you set one up, the notes template they are copied from), and
+              to share notes documents with meeting attendees as described in
+              the next section.
             </li>
             <li>
               <strong>Your email address</strong> is used to show which account
-              is connected and to identify you when sharing notes documents.
+              is connected and to tell your own domain apart from external
+              attendees when sharing notes documents.
             </li>
           </ul>
           <p>
@@ -110,20 +117,26 @@
         <section>
           <h2>Sharing, transfer, and disclosure of Google user data</h2>
           <p>
-            <strong>Until does not share, transfer, or disclose Google user
-            data to anyone.</strong> There is no Until server: the app makes
-            direct API calls from your Mac to Google (Calendar, Drive, Docs,
-            and sign-in), and nothing is routed through or stored on a server
-            operated by us or any third party. Until does not sell, rent, or
-            trade your data, and does not pass it to third-party services, ad
-            networks, or data brokers.
+            <strong>Except for the meeting-notes collaboration described
+            below, Until does not sell, rent, transfer, or disclose Google
+            user data to anyone.</strong> There is no Until server: the app
+            makes direct API calls from your Mac to Google (Calendar, Drive,
+            Docs, and sign-in), and Google user data is never routed through
+            or stored on a server operated by us or any third party. Until
+            does not pass your data to third-party services, ad networks, or
+            data brokers.
           </p>
           <p>
-            The only time data moves anywhere is at your explicit direction
-            within the app &mdash; for example, when you choose to share a
-            meeting-notes document, Until asks Google Drive to grant access to
-            the attendees you selected. That sharing happens inside your own
-            Google account, under Google&rsquo;s privacy policy.
+            <strong>Meeting-notes sharing.</strong> When you create meeting
+            notes for an event, Until grants editor access on the notes
+            document to the event&rsquo;s attendees whose email domain matches
+            your connected account. If the meeting includes attendees outside
+            that domain, Until asks you first whether to share with them.
+            Until also writes the event title, date and time, Calendar link,
+            and attendee email addresses into the document, and attaches the
+            document to the Calendar event so attendees can find it. All of
+            this happens inside your own Google account, under Google&rsquo;s
+            privacy policy.
           </p>
         </section>
 
@@ -138,9 +151,11 @@
               They are never written to plain files or logs.
             </li>
             <li>
-              <strong>All network traffic is encrypted.</strong> Every request
-              Until makes goes directly to Google&rsquo;s APIs over HTTPS
-              (TLS).
+              <strong>All network traffic is encrypted.</strong> All Google
+              user data transmitted by Until travels directly between the app
+              and Google&rsquo;s APIs over HTTPS (TLS). Until&rsquo;s automatic
+              update checker contacts GitHub over HTTPS, and that traffic never
+              includes Google user data.
             </li>
             <li>
               <strong>Data stays on your device.</strong> Calendar and event
@@ -162,15 +177,24 @@
           <ul>
             <li>
               <strong>Calendar and event data</strong> is fetched on demand and
-              held only in memory and a small local cache while you use the
-              app. It is not accumulated or archived, and it is deleted when
-              you remove the account or uninstall the app.
+              held in memory while Until runs. It is not accumulated or
+              archived. If you enabled reminders, macOS may keep event titles,
+              times, locations, and meeting links in pending or delivered
+              notifications until they fire, are dismissed, or are cleared
+              from Notification Center.
+            </li>
+            <li>
+              <strong>Settings</strong> &mdash; including which calendars you
+              selected and references (IDs) to the app&rsquo;s own Drive folder
+              and template &mdash; are stored in the app&rsquo;s Application
+              Support folder on your Mac.
             </li>
             <li>
               <strong>OAuth tokens</strong> are retained in the macOS Keychain
               only while your account is connected. Removing the account in
               <strong>Settings &rarr; Accounts</strong> deletes the tokens from
-              your Keychain immediately.
+              your Keychain immediately, along with the account&rsquo;s
+              settings.
             </li>
             <li>
               <strong>Meeting-notes documents</strong> live in your own Google
@@ -178,11 +202,13 @@
               in Drive at any time.
             </li>
             <li>
-              <strong>To delete all data the app holds:</strong> remove the
-              account in <strong>Settings &rarr; Accounts</strong> (deletes
-              tokens and cached data) and, if you wish, delete the app. Because
-              Until has no server, there is no server-side data to request
-              deletion of &mdash; removal on your Mac is complete deletion.
+              <strong>To delete all Google user data the app holds:</strong>
+              remove each account in <strong>Settings &rarr; Accounts</strong>
+              (this deletes tokens and account data &mdash; do this before
+              deleting the app, since uninstalling alone does not clear the
+              Keychain), clear any Until notifications from Notification
+              Center, then delete the app. Because Until has no server, there
+              is no server-side data to request deletion of.
             </li>
           </ul>
         </section>
@@ -198,12 +224,14 @@
               >Google API Services User Data Policy</a
             >, including the Limited Use requirements. Data obtained from
             Google is used only to provide the user-facing features described
-            above and is never transferred to others except at your direction
+            above and is never transferred to others except as described above
             to provide those features. Until does not use Google user data for
-            advertising, does not allow humans to read it, and
-            <strong>does not use Google user data &mdash; including Google
-            Workspace data &mdash; to develop, improve, or train generalized or
-            non-personalized AI and/or machine-learning models</strong>.
+            advertising, and no one at combinatrix.ai reads your Google user
+            data. <strong>Until does not use or transfer information received
+            from Google Workspace APIs to develop, improve, or train
+            generalized or non-personalized AI and/or machine-learning models,
+            and does not transfer that information to third-party AI/ML
+            tools.</strong>
           </p>
         </section>
 
@@ -239,7 +267,8 @@
         <section>
           <h2>Contact</h2>
           <p>
-            Questions or concerns? Open an issue on
+            Until is developed by combinatrix.ai. Questions or concerns? Open
+            an issue on
             <a
               href="https://github.com/combinatrix-ai/until/issues"
               rel="noopener"
