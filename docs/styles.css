@@ -1364,6 +1364,12 @@ html.js .workflow-grid article.is-visible {
   color: color-mix(in oklch, var(--blue) 60%, var(--muted));
 }
 
+/* The "short version" list in the legal lead reads at lead size, not body size. */
+ul.legal-lead {
+  margin-top: 18px;
+  font-size: 1.06rem;
+}
+
 .legal strong {
   color: var(--ink);
   font-weight: 720;

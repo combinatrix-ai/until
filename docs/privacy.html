@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,780&family=Manrope:wght@400;520;620;720;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260705-refresh-1" />
+    <link rel="stylesheet" href="styles.css?v=20260714-privacy-1" />
   </head>
   <body>
     <main id="top">
@@ -32,12 +32,26 @@
 
         <p class="legal-lead">
           Until is a macOS menubar app that shows your next Google Calendar
-          event and helps you join meetings and take notes. It runs entirely on
-          your Mac and talks directly to Google. There is no Until server, no
-          account with us, and no data collection by us. This policy explains
-          what Google user data the app accesses, how that data is used, with
-          whom it is shared, how it is protected, and how it is retained and
-          deleted.
+          event and helps you join meetings and take notes. The short version:
+        </p>
+        <ul class="legal-lead">
+          <li>
+            <strong>Everything runs on your Mac.</strong> There is no Until
+            server &mdash; the app talks directly to Google.
+          </li>
+          <li>
+            <strong>No account with us, no data collection by us.</strong> No
+            analytics, no telemetry, no trackers.
+          </li>
+          <li>
+            <strong>Sign-in tokens stay in the macOS Keychain</strong>, never
+            in plain files.
+          </li>
+        </ul>
+        <p class="legal-lead">
+          The sections below explain in detail what Google user data the app
+          accesses, how that data is used, with whom it is shared, how it is
+          protected, and how it is retained and deleted.
         </p>
 
         <section>
@@ -117,26 +131,26 @@
         <section>
           <h2>Sharing, transfer, and disclosure of Google user data</h2>
           <p>
-            <strong>Except for the meeting-notes collaboration described
-            below, Until does not sell, rent, transfer, or disclose Google
-            user data to anyone.</strong> There is no Until server: the app
-            makes direct API calls from your Mac to Google (Calendar, Drive,
-            Docs, and sign-in), and Google user data is never routed through
-            or stored on a server operated by us or any third party. Until
-            does not pass your data to third-party services, ad networks, or
-            data brokers.
+            <strong>Until does not sell, rent, transfer, or disclose Google
+            user data to any third party.</strong> There is no Until server:
+            the app makes direct API calls from your Mac to Google (Calendar,
+            Drive, Docs, and sign-in), and Google user data is never routed
+            through or stored on a server operated by us or anyone else. No
+            ad networks, no data brokers, no analytics services.
           </p>
           <p>
-            <strong>Meeting-notes sharing.</strong> When you create meeting
-            notes for an event, Until grants editor access on the notes
-            document to the event&rsquo;s attendees whose email domain matches
-            your connected account. If the meeting includes attendees outside
-            that domain, Until asks you first whether to share with them.
-            Until also writes the event title, date and time, Calendar link,
-            and attendee email addresses into the document, and attaches the
-            document to the Calendar event so attendees can find it. All of
-            this happens inside your own Google account, under Google&rsquo;s
-            privacy policy.
+            <strong>Note: meeting-notes sharing.</strong> Meeting notes never
+            reach anyone new: access is only ever granted to attendees already
+            invited to the event &mdash; people who can already see the event
+            and its guest list in Google Calendar. When you create notes, the
+            confirmation dialog lists the attendees at your email domain who
+            will get edit access, and Until asks you separately before sharing
+            with attendees outside your domain. It writes the event title,
+            date and time, Calendar link, and attendee email addresses into
+            the document &mdash; details those attendees already see in the
+            invite &mdash; and attaches the document to the Calendar event so
+            attendees can find it. All of this happens inside your own Google
+            account, under Google&rsquo;s privacy policy.
           </p>
         </section>
 
