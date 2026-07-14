@@ -997,6 +997,21 @@ final class AppModel: ObservableObject {
     return emails.sorted()
   }
 
+  /// Attendees on the account's own domain, excluding the user — the people
+  /// who receive edit access automatically when meeting notes are created.
+  /// Listed in the notes-creation confirmation so that grant is never silent.
+  func sameDomainAttendees(for event: CalendarEvent) -> [String] {
+    let ownerEmail = event.account.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let ownerDomain = event.account.email.emailDomain
+    let emails = Set(event.attendees.compactMap { attendee -> String? in
+      guard !attendee.resource, !attendee.selfUser else { return nil }
+      let email = attendee.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+      guard !email.isEmpty, email != ownerEmail, email.emailDomain == ownerDomain else { return nil }
+      return email
+    })
+    return emails.sorted()
+  }
+
   private func normalized(_ config: AppConfig) -> AppConfig {
     var next = config
     next.lookaheadHours = max(1, min(24 * 14, next.lookaheadHours))

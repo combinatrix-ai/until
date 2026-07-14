@@ -65,6 +65,7 @@
 "Create meeting notes?" = "議事録を作成しますか?";
 "Create notes" = "議事録を作成";
 "Create a Google Doc for %@ and attach it to the calendar event." = "「%@」のGoogleドキュメントを作成し、カレンダーの予定に添付します。";
+"Create a Google Doc for %1$@, attach it to the calendar event, and give edit access to %2$@%3$@." = "「%1$@」のGoogleドキュメントを作成してカレンダーの予定に添付し、%2$@%3$@に編集権限を付与します。";
 "Add Google Meet?" = "Google Meetを追加しますか?";
 "Add Meet" = "Meetを追加";
 "Add a Google Meet video link to %@." = "「%@」にGoogle Meetのビデオリンクを追加します。";

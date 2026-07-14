@@ -428,8 +428,24 @@ private struct NoteActionButton: View {
       Button(loc("Create notes")) { model.createOrOpenNote(for: event) }
       Button(loc("Cancel"), role: .cancel) {}
     } message: {
-      Text(loc("Create a Google Doc for %@ and attach it to the calendar event.", event.title))
+      Text(confirmMessage)
     }
+  }
+
+  /// Names the same-domain attendees who will receive edit access, so the
+  /// automatic grant is visible before the user confirms. External attendees
+  /// are asked about separately (ExternalShareOverlay) and not repeated here.
+  private var confirmMessage: String {
+    let sameDomain = model.sameDomainAttendees(for: event)
+    guard !sameDomain.isEmpty else {
+      return loc("Create a Google Doc for %@ and attach it to the calendar event.", event.title)
+    }
+    let shown = sameDomain.prefix(3).joined(separator: ", ")
+    let overflow = sameDomain.count > 3 ? loc(" and %d more", sameDomain.count - 3) : ""
+    return loc(
+      "Create a Google Doc for %1$@, attach it to the calendar event, and give edit access to %2$@%3$@.",
+      event.title, shown, overflow
+    )
   }
 }
 
