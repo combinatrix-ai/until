@@ -72,7 +72,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }))
 
     if let button = item.button {
-      button.image = BrandIcon.menubarImage(trailingCanvasTrim: 4)
+      button.image = BrandIcon.menubarImage(trailingCanvasTrim: 2)
       button.image?.accessibilityDescription = "Until"
       button.imageHugsTitle = true
       button.action = #selector(togglePopover(_:))
