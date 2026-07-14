@@ -109,9 +109,11 @@ struct GoogleDataDisclosureView: View {
     VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
       Text(
         [
-          loc("Until asks Google for your calendar list and events, the Drive files it creates, and your account email."),
-          loc("They are used only to show and filter your events, remind you, open meeting links, and create meeting notes — events are updated only when you ask to add a Meet link or attach notes."),
-          loc("Notes are shared with attendees at your email domain; Until asks before sharing outside it. Your sign-in tokens stay in the macOS Keychain.")
+          loc("Until asks Google for your calendar list and events, its own Drive files, and your account email."),
+          loc("They are used to show and filter events, remind you, open meeting links, and create meeting notes."),
+          loc("Events are updated only when you ask to add a Meet link or attach notes."),
+          loc("Notes are shared with attendees at your email domain; Until asks before sharing outside it."),
+          loc("Your sign-in tokens stay in the macOS Keychain.")
         ].joined(separator: " ")
       )
       .font(.caption)

@@ -47,9 +47,11 @@
 "Open or create notes straight from an event." = "Open or create notes straight from an event.";
 "Opening Google sign-in…" = "Opening Google sign-in…";
 "Sign in with Google" = "Sign in with Google";
-"Until asks Google for your calendar list and events, the Drive files it creates, and your account email." = "Until asks Google for your calendar list and events, the Drive files it creates, and your account email.";
-"They are used only to show and filter your events, remind you, open meeting links, and create meeting notes — events are updated only when you ask to add a Meet link or attach notes." = "They are used only to show and filter your events, remind you, open meeting links, and create meeting notes — events are updated only when you ask to add a Meet link or attach notes.";
-"Notes are shared with attendees at your email domain; Until asks before sharing outside it. Your sign-in tokens stay in the macOS Keychain." = "Notes are shared with attendees at your email domain; Until asks before sharing outside it. Your sign-in tokens stay in the macOS Keychain.";
+"Until asks Google for your calendar list and events, its own Drive files, and your account email." = "Until asks Google for your calendar list and events, its own Drive files, and your account email.";
+"They are used to show and filter events, remind you, open meeting links, and create meeting notes." = "They are used to show and filter events, remind you, open meeting links, and create meeting notes.";
+"Events are updated only when you ask to add a Meet link or attach notes." = "Events are updated only when you ask to add a Meet link or attach notes.";
+"Notes are shared with attendees at your email domain; Until asks before sharing outside it." = "Notes are shared with attendees at your email domain; Until asks before sharing outside it.";
+"Your sign-in tokens stay in the macOS Keychain." = "Your sign-in tokens stay in the macOS Keychain.";
 "Privacy Policy" = "Privacy Policy";
 
 /* MARK: - Event row (Views) */

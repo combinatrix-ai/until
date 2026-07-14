@@ -47,9 +47,11 @@
 "Open or create notes straight from an event." = "予定から直接、議事録を開いたり作成したりできます。";
 "Opening Google sign-in…" = "Googleサインインを開いています…";
 "Sign in with Google" = "Googleでサインイン";
-"Until asks Google for your calendar list and events, the Drive files it creates, and your account email." = "Untilは、カレンダー一覧と予定、アプリ自身が作成したDriveファイル、アカウントのメールアドレスへのアクセスをGoogleに求めます。";
-"They are used only to show and filter your events, remind you, open meeting links, and create meeting notes — events are updated only when you ask to add a Meet link or attach notes." = "用途は、予定の表示とフィルター、リマインド通知、会議リンクを開くこと、議事録の作成のみです。Meetリンクの追加やノートの添付は、あなたが操作したときだけ予定を更新します。";
-"Notes are shared with attendees at your email domain; Until asks before sharing outside it. Your sign-in tokens stay in the macOS Keychain." = "ノートは同じメールドメインの出席者と共有され、それ以外と共有する前には確認します。サインイン情報はmacOSキーチェーンに保存されます。";
+"Until asks Google for your calendar list and events, its own Drive files, and your account email." = "Untilは、カレンダー一覧と予定、アプリ自身が作成したDriveファイル、アカウントのメールアドレスへのアクセスをGoogleに求めます。";
+"They are used to show and filter events, remind you, open meeting links, and create meeting notes." = "用途は、予定の表示とフィルター、リマインド通知、会議リンクを開くこと、議事録の作成のみです。";
+"Events are updated only when you ask to add a Meet link or attach notes." = "Meetリンクの追加やノートの添付は、あなたが操作したときだけ予定を更新します。";
+"Notes are shared with attendees at your email domain; Until asks before sharing outside it." = "ノートは同じメールドメインの出席者と共有され、それ以外と共有する前には確認します。";
+"Your sign-in tokens stay in the macOS Keychain." = "サインイン情報はmacOSキーチェーンに保存されます。";
 "Privacy Policy" = "プライバシーポリシー";
 
 /* MARK: - Event row (Views) */
