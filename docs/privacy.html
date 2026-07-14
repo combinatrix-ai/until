@@ -6,7 +6,7 @@
     <title>Privacy Policy - Until</title>
     <meta
       name="description"
-      content="How Until handles your data: it runs on your Mac, talks directly to Google, stores tokens in the macOS Keychain, and collects nothing."
+      content="How Until handles your Google user data: what it accesses, how it uses it, how it protects it, and how it is retained and deleted."
     />
     <meta name="robots" content="index, follow" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -27,99 +27,183 @@
 
         <header class="legal-head">
           <h1>Privacy Policy</h1>
-          <p class="legal-date">Last updated: July 5, 2026</p>
+          <p class="legal-date">Last updated: July 14, 2026</p>
         </header>
 
         <p class="legal-lead">
           Until is a macOS menubar app that shows your next Google Calendar
           event and helps you join meetings and take notes. It runs entirely on
           your Mac and talks directly to Google. There is no Until server, no
-          account with us, and nothing to collect. This page explains exactly
-          what the app touches and what it does not.
+          account with us, and no data collection by us. This policy explains
+          what Google user data the app accesses, how that data is used, with
+          whom it is shared, how it is protected, and how it is retained and
+          deleted.
         </p>
 
         <section>
-          <h2>What data the app accesses</h2>
+          <h2>What Google user data Until accesses</h2>
           <p>
-            When you sign in with Google, Until asks for only what it needs to
-            do its job:
+            When you sign in with Google, Until requests the following OAuth
+            scopes and accesses only the Google user data they cover:
           </p>
           <ul>
             <li>
-              <strong>Calendar events and your calendar list</strong> &mdash; to
-              show your upcoming events in the menubar and let you filter them.
+              <strong>Calendar list</strong>
+              (<code>calendar.calendarlist.readonly</code>) &mdash; the names,
+              colors, and IDs of the calendars in your account.
             </li>
             <li>
-              <strong>Files it creates in Google Drive</strong> &mdash; using
-              Google's <code>drive.file</code> scope. This scope only grants
-              access to files and folders the app itself creates (your meeting
-              notes and the folder that holds them). Until cannot see, read, or
+              <strong>Calendar events</strong> (<code>calendar.events</code>)
+              &mdash; event details such as title, time, attendees, location,
+              conferencing links, and attachments.
+            </li>
+            <li>
+              <strong>Files the app itself creates in Google Drive</strong>
+              (<code>drive.file</code>) &mdash; your meeting-notes documents
+              and the folder that holds them. This scope only grants access to
+              files and folders created by Until; the app cannot see, read, or
               list anything else in your Drive.
             </li>
             <li>
-              <strong>Your Google account email address</strong> &mdash; to show
-              which account is connected and to share notes with attendees.
+              <strong>Your Google account email address</strong>
+              (<code>userinfo.email</code>, <code>openid</code>) &mdash; the
+              email address of the signed-in account.
             </li>
           </ul>
+          <p>Until does not access any other Google user data.</p>
         </section>
 
         <section>
-          <h2>Where your data lives</h2>
+          <h2>How Until uses Google user data</h2>
+          <p>
+            Until uses the data above only to provide the app&rsquo;s
+            user-facing features, at your direction:
+          </p>
           <ul>
             <li>
-              Everything happens <strong>on your Mac</strong>. Calendar and
-              event data is fetched on demand and kept in memory or local app
-              storage on your device.
+              <strong>Calendar list</strong> is used to let you choose which
+              calendars to show or hide.
             </li>
             <li>
-              Your Google sign-in tokens are stored in the
-              <strong>macOS Keychain</strong>, protected by the operating system
-              like any other credential.
+              <strong>Calendar events</strong> are used to display your
+              upcoming events in the menubar, open meeting links, and &mdash;
+              only when you ask &mdash; to add a Google Meet link to an event
+              or attach a meeting-notes document to it.
             </li>
             <li>
-              Your settings and filters are stored
-              <strong>locally</strong> on your Mac.
+              <strong>Drive files created by the app</strong> are used to
+              create, name, and organize your meeting-notes documents, and
+              &mdash; only when you ask &mdash; to share a notes document with
+              the attendees of the meeting.
+            </li>
+            <li>
+              <strong>Your email address</strong> is used to show which account
+              is connected and to identify you when sharing notes documents.
             </li>
           </ul>
-        </section>
-
-        <section>
-          <h2>What is transmitted</h2>
           <p>
-            The only network requests Until makes are
-            <strong>direct API calls to Google</strong> (Calendar, Drive, and
-            sign-in) to fetch your events and create or share the documents you
-            ask for. Nothing is routed through a server operated by us or any
-            third party.
+            Until does not use Google user data for advertising, analytics,
+            profiling, or any purpose other than the features described above.
           </p>
         </section>
 
         <section>
-          <h2>What Until does not do</h2>
+          <h2>Sharing, transfer, and disclosure of Google user data</h2>
+          <p>
+            <strong>Until does not share, transfer, or disclose Google user
+            data to anyone.</strong> There is no Until server: the app makes
+            direct API calls from your Mac to Google (Calendar, Drive, Docs,
+            and sign-in), and nothing is routed through or stored on a server
+            operated by us or any third party. Until does not sell, rent, or
+            trade your data, and does not pass it to third-party services, ad
+            networks, or data brokers.
+          </p>
+          <p>
+            The only time data moves anywhere is at your explicit direction
+            within the app &mdash; for example, when you choose to share a
+            meeting-notes document, Until asks Google Drive to grant access to
+            the attendees you selected. That sharing happens inside your own
+            Google account, under Google&rsquo;s privacy policy.
+          </p>
+        </section>
+
+        <section>
+          <h2>How Until protects Google user data</h2>
           <ul>
-            <li>No analytics, telemetry, or usage tracking.</li>
-            <li>No third-party servers, ad networks, or trackers.</li>
-            <li>No selling, renting, or sharing of your data with anyone.</li>
             <li>
-              No access to your Drive beyond the files the app itself creates.
+              <strong>Sensitive data is stored in the macOS Keychain.</strong>
+              Your Google OAuth tokens &mdash; the most sensitive data the app
+              holds &mdash; are stored in the macOS Keychain, encrypted and
+              protected by the operating system like any other credential.
+              They are never written to plain files or logs.
             </li>
-            <li>No use of your data to train any model.</li>
+            <li>
+              <strong>All network traffic is encrypted.</strong> Every request
+              Until makes goes directly to Google&rsquo;s APIs over HTTPS
+              (TLS).
+            </li>
+            <li>
+              <strong>Data stays on your device.</strong> Calendar and event
+              data is fetched on demand and kept in memory or in local app
+              storage on your Mac, protected by your macOS user account. There
+              is no server-side copy to breach.
+            </li>
+            <li>
+              <strong>Minimum scopes.</strong> Until requests only the scopes
+              listed above, uses the read-only calendar-list scope, and uses
+              the restricted-to-own-files <code>drive.file</code> scope instead
+              of full Drive access.
+            </li>
           </ul>
         </section>
 
         <section>
-          <h2>Google API Services User Data Policy</h2>
+          <h2>Retention and deletion of Google user data</h2>
+          <ul>
+            <li>
+              <strong>Calendar and event data</strong> is fetched on demand and
+              held only in memory and a small local cache while you use the
+              app. It is not accumulated or archived, and it is deleted when
+              you remove the account or uninstall the app.
+            </li>
+            <li>
+              <strong>OAuth tokens</strong> are retained in the macOS Keychain
+              only while your account is connected. Removing the account in
+              <strong>Settings &rarr; Accounts</strong> deletes the tokens from
+              your Keychain immediately.
+            </li>
+            <li>
+              <strong>Meeting-notes documents</strong> live in your own Google
+              Drive and belong to you. Until keeps no copy; you can delete them
+              in Drive at any time.
+            </li>
+            <li>
+              <strong>To delete all data the app holds:</strong> remove the
+              account in <strong>Settings &rarr; Accounts</strong> (deletes
+              tokens and cached data) and, if you wish, delete the app. Because
+              Until has no server, there is no server-side data to request
+              deletion of &mdash; removal on your Mac is complete deletion.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Google API Services User Data Policy and Limited Use</h2>
           <p>
-            Until's use of information received from Google APIs adheres to the
+            Until&rsquo;s use of information received from Google APIs adheres
+            to the
             <a
               href="https://developers.google.com/terms/api-services-user-data-policy"
               rel="noopener"
               >Google API Services User Data Policy</a
-            >, including the Limited Use requirements. Data obtained from Google
-            is used only to provide the app's user-facing features described
-            above, and is never transferred to others except as needed to
-            provide those features at your direction (for example, sharing a
-            meeting-notes document with the attendees you choose).
+            >, including the Limited Use requirements. Data obtained from
+            Google is used only to provide the user-facing features described
+            above and is never transferred to others except at your direction
+            to provide those features. Until does not use Google user data for
+            advertising, does not allow humans to read it, and
+            <strong>does not use Google user data &mdash; including Google
+            Workspace data &mdash; to develop, improve, or train generalized or
+            non-personalized AI and/or machine-learning models</strong>.
           </p>
         </section>
 
@@ -139,9 +223,17 @@
                 rel="noopener"
                 >Google Account permissions</a
               >
-              and remove Until's access.
+              and remove Until&rsquo;s access.
             </li>
           </ul>
+        </section>
+
+        <section>
+          <h2>Changes to this policy</h2>
+          <p>
+            If the app&rsquo;s data practices change, this page will be updated
+            and the date at the top revised before the change takes effect.
+          </p>
         </section>
 
         <section>
