@@ -100,6 +100,37 @@ struct PanelView: View {
   }
 }
 
+/// What Google data the app requests and how it is used. Google's API
+/// user-data policy requires this disclosure in-product, immediately before
+/// every "Sign in with Google" entry point — not only in the web privacy
+/// policy.
+struct GoogleDataDisclosureView: View {
+  var body: some View {
+    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+      Text(
+        [
+          loc("Until asks Google for your calendar list and events, the Drive files it creates, and your account email."),
+          loc("They are used only to show and filter your events, remind you, open meeting links, and create meeting notes — events are updated only when you ask to add a Meet link or attach notes."),
+          loc("Notes are shared with attendees at your email domain; Until asks before sharing outside it. Your sign-in tokens stay in the macOS Keychain.")
+        ].joined(separator: " ")
+      )
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .fixedSize(horizontal: false, vertical: true)
+      Button {
+        NSWorkspace.shared.open(URL(string: "https://until.combinatrix.ai/privacy.html")!)
+      } label: {
+        Text(loc("Privacy Policy"))
+          .font(.caption.weight(.medium))
+          .foregroundStyle(Color.accentColor)
+          .underline()
+      }
+      .buttonStyle(.plain)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
 /// First-run experience shown in the popover when no Google account is connected.
 /// Lets the user sign in directly instead of digging through Preferences.
 struct OnboardingView: View {
@@ -149,6 +180,9 @@ struct OnboardingView: View {
       .frame(maxWidth: 300)
 
       VStack(spacing: Theme.Spacing.sm) {
+        GoogleDataDisclosureView()
+          .card(.inset, padding: Theme.Spacing.md)
+
         Button {
           model.startLogin()
         } label: {
@@ -1196,6 +1230,8 @@ private struct ConnectedAccountsPanel: View {
           }
         }
       }
+
+      GoogleDataDisclosureView()
 
       if model.isSigningIn {
         HStack(spacing: Theme.Spacing.sm) {
