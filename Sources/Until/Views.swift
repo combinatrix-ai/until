@@ -282,6 +282,9 @@ struct EventRow: View {
                 .foregroundStyle(.secondary)
                 .help(loc("Meeting notes attached"))
             }
+            if isSkipped {
+              SkippedBadge()
+            }
           }
           if !metadata.isEmpty {
             Text(metadata)
@@ -294,6 +297,17 @@ struct EventRow: View {
         Spacer(minLength: Theme.Spacing.sm)
 
         HStack(spacing: Theme.Spacing.xs) {
+          if isSkipped {
+            Button {
+              model.unskipInMenubar(event)
+            } label: {
+              Image(systemName: "arrow.uturn.backward")
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help(loc("Show in menubar"))
+          }
+
           if !event.conferenceUrl.isEmpty {
             Button {
               model.join(event)
@@ -316,6 +330,10 @@ struct EventRow: View {
           model.toggleExpanded(event, on: day)
         }
       }
+      // Dim just the header row (time/title/actions) to signal "hidden from
+      // the menubar" without also fading expanded detail or error overlays,
+      // which stay fully legible.
+      .opacity(isSkipped ? 0.55 : 1)
 
       if model.isExpanded(event, on: day) {
         EventDetailView(event: event, model: model)
@@ -375,7 +393,28 @@ struct EventRow: View {
           Label(loc("Open meeting notes"), systemImage: "doc.text")
         }
       }
+      Divider()
+      if isSkipped {
+        Button {
+          model.unskipInMenubar(event)
+        } label: {
+          Label(loc("Show in menubar"), systemImage: "arrow.uturn.backward")
+        }
+      } else {
+        Button {
+          model.skipInMenubar(event)
+        } label: {
+          Label(loc("Skip in menubar"), systemImage: "forward.end")
+        }
+      }
     }
+  }
+
+  /// Whether this event is currently hidden from the menubar countdown (see
+  /// `AppModel.skipInMenubar`). Only affects this row's presentation — the
+  /// popover list itself always shows the event.
+  private var isSkipped: Bool {
+    model.isSkippedInMenubar(event)
   }
 
   private var eventColor: Color {
@@ -391,6 +430,21 @@ struct EventRow: View {
       attendees.isEmpty ? nil : attendees.joined(separator: ", ")
     ]
     return parts.compactMap { $0 }.joined(separator: " · ")
+  }
+}
+
+/// Small inline caption chip marking an event as hidden from the menubar
+/// countdown. Mirrors the subtle, no-border pill look used elsewhere for
+/// inline captions (e.g. `NoteErrorOverlay`'s tinted background) but at
+/// caption scale so it sits comfortably next to the event title.
+private struct SkippedBadge: View {
+  var body: some View {
+    Text(loc("Skipped"))
+      .font(.caption2.weight(.medium))
+      .foregroundStyle(.secondary)
+      .padding(.horizontal, Theme.Spacing.xs)
+      .padding(.vertical, 1)
+      .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
   }
 }
 

@@ -21,7 +21,8 @@ final class LocalizationTests: XCTestCase {
       ("Quit Until?", "Untilを終了しますか?"),
       ("all-day", "終日"),
       ("now", "今"),
-      ("Launch at login", "ログイン時に起動")
+      ("Launch at login", "ログイン時に起動"),
+      ("Skip in menubar", "メニューバーでスキップ")
     ]
 
     for testCase in cases {

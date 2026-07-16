@@ -62,6 +62,9 @@
 "Add Google Meet" = "Add Google Meet";
 "Copy meeting link" = "Copy meeting link";
 "Open in Google Calendar" = "Open in Google Calendar";
+"Skip in menubar" = "Skip in menubar";
+"Show in menubar" = "Show in menubar";
+"Skipped" = "Skipped";
 "Create meeting notes?" = "Create meeting notes?";
 "Create notes" = "Create notes";
 "Create a Google Doc for %@ and attach it to the calendar event." = "Create a Google Doc for %@ and attach it to the calendar event.";

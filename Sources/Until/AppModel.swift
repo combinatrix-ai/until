@@ -89,6 +89,46 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Hides `event` from the menubar countdown only — the popover list,
+  /// filters, and notifications are unaffected (see `pickMenubarEvent`, which
+  /// is the only place `skippedMenubarEvents` is consulted). Bypasses
+  /// `saveConfig` (which restarts timers and refetches accounts/calendars)
+  /// in favor of the lightweight mutate-then-`reapplyFilter` pattern used by
+  /// `removeAccountConfiguration`, so the menubar updates immediately without
+  /// the heavier refresh work.
+  func skipInMenubar(_ event: CalendarEvent) {
+    var next = config
+    next.skippedMenubarEvents[event.actionKey] = event.endDate
+    config = AppModel.purgingExpiredSkips(next)
+    if !runtimeOptions.demoMode {
+      persistConfig()
+    }
+    reapplyFilter()
+  }
+
+  /// Restores `event` to menubar consideration.
+  func unskipInMenubar(_ event: CalendarEvent) {
+    var next = config
+    next.skippedMenubarEvents.removeValue(forKey: event.actionKey)
+    config = AppModel.purgingExpiredSkips(next)
+    if !runtimeOptions.demoMode {
+      persistConfig()
+    }
+    reapplyFilter()
+  }
+
+  func isSkippedInMenubar(_ event: CalendarEvent) -> Bool {
+    config.skippedMenubarEvents[event.actionKey] != nil
+  }
+
+  /// Drops skip entries whose recorded event end date has already passed, so
+  /// config.json doesn't accumulate stale keys for events that are long over.
+  static func purgingExpiredSkips(_ config: AppConfig, now: Date = Date()) -> AppConfig {
+    var next = config
+    next.skippedMenubarEvents = next.skippedMenubarEvents.filter { $0.value > now }
+    return next
+  }
+
   /// Starts (or restarts) the sign-in flow for a new account. Cancels any
   /// in-flight sign-in first so only one OAuth loopback server runs at a
   /// time.
@@ -695,7 +735,7 @@ final class AppModel: ObservableObject {
     let allDay = passed.filter(\.allDay).sorted { $0.startDate < $1.startDate }
     state.events = timed
     state.allDayEvents = allDay
-    state.next = pickMenubarEvent(timed: timed, allDay: allDay, now: now)
+    state.next = AppModel.pickMenubarEvent(config: config, timed: timed, allDay: allDay, now: now)
     state.filterError = nil
     let notificationEvents = config.notifyVideoOnly ? timed.filter { !$0.conferenceUrl.isEmpty } : timed
     guard !runtimeOptions.demoMode else { return }
@@ -764,7 +804,10 @@ final class AppModel: ObservableObject {
     }
   }
 
-  /// `events` is assumed sorted by start date.
+  /// `events` is assumed sorted by start date. `static` (taking `config`
+  /// explicitly rather than reading `self.config`) so tests can exercise it
+  /// deterministically without a live `AppModel` instance or wall clock —
+  /// same rationale as `groupByDay`.
   ///
   /// When `menubarPrefersImminentNext` is on, this deliberately reuses
   /// `notifyLeadMinutes` (even if notifications are disabled) so the menubar
@@ -773,11 +816,20 @@ final class AppModel: ObservableObject {
   /// applies when no event is currently ongoing — in that case it behaves
   /// identically to the existing upcoming-event branches below once the
   /// next event enters its lead window, so no special-casing is needed.
-  private func pickMenubarEvent(
-    timed events: [CalendarEvent],
-    allDay allDayEvents: [CalendarEvent],
+  ///
+  /// Events skipped via `skipInMenubar` are excluded up front, before any
+  /// branch below, so a skip always takes effect regardless of which branch
+  /// would otherwise have picked it. The popover list (`state.events` /
+  /// `daySections`) is built separately in `reapplyFilter` and is never
+  /// passed through this filtering, so skipped events stay visible there.
+  static func pickMenubarEvent(
+    config: AppConfig,
+    timed timedCandidates: [CalendarEvent],
+    allDay allDayCandidates: [CalendarEvent],
     now: Date
   ) -> CalendarEvent? {
+    let events = timedCandidates.filter { config.skippedMenubarEvents[$0.actionKey] == nil }
+    let allDayEvents = allDayCandidates.filter { config.skippedMenubarEvents[$0.actionKey] == nil }
     if config.menubarPrefersImminentNext {
       let lead = TimeInterval(max(0, config.notifyLeadMinutes) * 60)
       if let imminent = events.first(where: { event in
@@ -1028,6 +1080,11 @@ final class AppModel: ObservableObject {
     if next.oauthClientSecret.isEmpty && !self.config.oauthClientSecret.isEmpty {
       next.oauthClientSecret = self.config.oauthClientSecret
     }
+    // Also purge here so a config load/save cycle (e.g. opening Settings)
+    // cleans up stale skip entries even if the user hasn't skipped/unskipped
+    // anything recently; `skipInMenubar`/`unskipInMenubar` purge on every
+    // mutation for the common case.
+    next = AppModel.purgingExpiredSkips(next)
     return next
   }
 

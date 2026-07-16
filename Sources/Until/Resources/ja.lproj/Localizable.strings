@@ -62,6 +62,9 @@
 "Add Google Meet" = "Google Meetを追加";
 "Copy meeting link" = "会議リンクをコピー";
 "Open in Google Calendar" = "Googleカレンダーで開く";
+"Skip in menubar" = "メニューバーでスキップ";
+"Show in menubar" = "メニューバーに表示する";
+"Skipped" = "スキップ中";
 "Create meeting notes?" = "議事録を作成しますか?";
 "Create notes" = "議事録を作成";
 "Create a Google Doc for %@ and attach it to the calendar event." = "「%@」のGoogleドキュメントを作成し、カレンダーの予定に添付します。";

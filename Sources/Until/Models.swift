@@ -518,6 +518,11 @@ struct AppConfig: Codable, Hashable {
   /// Set once the launch-at-login default has been applied so it never
   /// overrides the user's later choice. Absent in legacy configs (decodes false).
   var didApplyDefaultLaunchAtLogin: Bool
+  /// Events hidden from the menubar countdown only (popover list, filters, and
+  /// notifications are unaffected), keyed by `CalendarEvent.actionKey`. The
+  /// value is the event's `endDate`, kept only so expired entries can be
+  /// purged automatically instead of accumulating forever.
+  var skippedMenubarEvents: [String: Date]
 
   // Google OAuth client credentials, injected at build/package time rather than
   // committed to source. Packaged builds read them from Info.plist (written by
@@ -581,7 +586,8 @@ struct AppConfig: Codable, Hashable {
     meetingNotesFolderNamesByAccount: [:],
     meetingNotesTitleTemplatesByAccount: [:],
     meetingNotesTemplateDocsByAccount: [:],
-    didApplyDefaultLaunchAtLogin: false
+    didApplyDefaultLaunchAtLogin: false,
+    skippedMenubarEvents: [:]
   )
 
   enum CodingKeys: String, CodingKey {
@@ -596,6 +602,7 @@ struct AppConfig: Codable, Hashable {
     case meetingNotesTitleTemplatesByAccount
     case meetingNotesTemplateDocsByAccount
     case didApplyDefaultLaunchAtLogin
+    case skippedMenubarEvents
   }
 
   enum OAuthKeys: String, CodingKey {
@@ -622,7 +629,8 @@ struct AppConfig: Codable, Hashable {
     meetingNotesFolderNamesByAccount: [String: String] = [:],
     meetingNotesTitleTemplatesByAccount: [String: String],
     meetingNotesTemplateDocsByAccount: [String: String],
-    didApplyDefaultLaunchAtLogin: Bool = false
+    didApplyDefaultLaunchAtLogin: Bool = false,
+    skippedMenubarEvents: [String: Date] = [:]
   ) {
     self.oauthClientId = oauthClientId
     self.oauthClientSecret = oauthClientSecret
@@ -644,6 +652,7 @@ struct AppConfig: Codable, Hashable {
     self.meetingNotesTitleTemplatesByAccount = meetingNotesTitleTemplatesByAccount
     self.meetingNotesTemplateDocsByAccount = meetingNotesTemplateDocsByAccount
     self.didApplyDefaultLaunchAtLogin = didApplyDefaultLaunchAtLogin
+    self.skippedMenubarEvents = skippedMenubarEvents
   }
 
   init(from decoder: Decoder) throws {
@@ -701,6 +710,10 @@ struct AppConfig: Codable, Hashable {
       .didApplyDefaultLaunchAtLogin,
       default: defaults.didApplyDefaultLaunchAtLogin
     )
+    skippedMenubarEvents = try container.decode(
+      .skippedMenubarEvents,
+      default: defaults.skippedMenubarEvents
+    )
   }
 
   func encode(to encoder: Encoder) throws {
@@ -728,6 +741,7 @@ struct AppConfig: Codable, Hashable {
     try container.encode(meetingNotesTitleTemplatesByAccount, forKey: .meetingNotesTitleTemplatesByAccount)
     try container.encode(meetingNotesTemplateDocsByAccount, forKey: .meetingNotesTemplateDocsByAccount)
     try container.encode(didApplyDefaultLaunchAtLogin, forKey: .didApplyDefaultLaunchAtLogin)
+    try container.encode(skippedMenubarEvents, forKey: .skippedMenubarEvents)
   }
 }
 
