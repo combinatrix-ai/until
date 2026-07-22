@@ -214,6 +214,30 @@ struct DaySection: Identifiable, Hashable {
   var id: Date { day }
 }
 
+/// A free-time divider inserted between two consecutive timed rows in the
+/// popover list (see `AppModel.insertingFreeGaps`). `until` is the next
+/// event's start time — the text shown is "free until <until>".
+struct FreeGap: Identifiable, Hashable {
+  var afterActionKey: String
+  var until: Date
+  var id: String { "gap::\(afterActionKey)::\(until.timeIntervalSinceReferenceDate)" }
+}
+
+/// One row rendered in the popover's event list: either a calendar event or a
+/// `FreeGap` divider. Keeps the free-gap insertion logic (`AppModel.insertingFreeGaps`)
+/// pure and independent of the SwiftUI list itself.
+enum PopoverListItem: Identifiable, Hashable {
+  case event(DayEvent)
+  case gap(FreeGap)
+
+  var id: String {
+    switch self {
+    case .event(let dayEvent): return "event::\(dayEvent.id)"
+    case .gap(let gap): return gap.id
+    }
+  }
+}
+
 struct MeetingNoteResult: Codable, Hashable {
   var fileId: String
   var fileName: String

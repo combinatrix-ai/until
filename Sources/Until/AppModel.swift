@@ -748,6 +748,15 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// The event shown in the menubar countdown — literally `state.next`
+  /// (see `reapplyFilter`/`pickMenubarEvent`), exposed under this name so the
+  /// popover's "Up next" hero renders the identical event rather than a second,
+  /// potentially-diverging computation. `AppDelegate`'s status item reads
+  /// `state.next` directly; this is just a semantic alias for the popover.
+  var menubarEvent: CalendarEvent? {
+    state.next
+  }
+
   /// Events grouped into day sections for display. Multi-day all-day events are
   /// repeated on each day they cover, clamped to the lookahead window.
   var daySections: [DaySection] {
@@ -794,6 +803,35 @@ final class AppModel: ObservableObject {
       let events = (allDayByDay[day] ?? []) + (timedByDay[day] ?? [])
       return DaySection(day: day, rows: events.map { DayEvent(day: day, event: $0) })
     }
+  }
+
+  /// Gaps at or above this length between two consecutive timed rows earn a
+  /// "free until …" divider in the popover list.
+  static let freeGapThresholdMinutes = 30
+
+  /// Pure: interleaves `FreeGap` dividers into `rows` wherever two
+  /// consecutive TIMED rows are separated by at least
+  /// `freeGapThresholdMinutes` and the gap hasn't already elapsed. `rows` is
+  /// assumed pre-ordered as `DaySection.rows` provides it (all-day first,
+  /// then timed by start time), which keeps every section's timed rows
+  /// already contiguous, so only adjacent timed pairs need checking. All-day
+  /// rows pass through untouched and never bracket a gap.
+  static func insertingFreeGaps(_ rows: [DayEvent], now: Date) -> [PopoverListItem] {
+    var result: [PopoverListItem] = []
+    var previousTimed: DayEvent?
+    for row in rows {
+      if !row.event.allDay, let previous = previousTimed {
+        let gapMinutes = row.event.startDate.timeIntervalSince(previous.event.endDate) / 60
+        if gapMinutes >= Double(freeGapThresholdMinutes), row.event.startDate > now {
+          result.append(.gap(FreeGap(afterActionKey: previous.event.actionKey, until: row.event.startDate)))
+        }
+      }
+      result.append(.event(row))
+      if !row.event.allDay {
+        previousTimed = row
+      }
+    }
+    return result
   }
 
   private func refreshedRawEvents(now: Date) -> [CalendarEvent] {

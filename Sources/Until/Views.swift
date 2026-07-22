@@ -32,6 +32,14 @@ struct PanelView: View {
       .frame(maxHeight: .infinity)
     } else {
       VStack(spacing: 0) {
+        // The hero pins the same event the menubar is counting down (see
+        // `AppModel.menubarEvent`) above the list so its join/notes actions
+        // never require scrolling. All-day menubar events have no meaningful
+        // countdown, so the hero is skipped entirely for them.
+        if let hero = heroEvent {
+          HeroSection(event: hero, model: model)
+          Divider()
+        }
         // Cached events remain visible; the error rides above them as a compact
         // banner so a transient outage doesn't hide the whole panel.
         if let error = model.state.lastError {
@@ -42,8 +50,20 @@ struct PanelView: View {
         List {
           ForEach(model.daySections) { section in
             Section(dayHeader(section.day)) {
-              ForEach(section.rows) { row in
-                EventRow(event: row.event, day: row.day, model: model)
+              ForEach(listItems(for: section)) { item in
+                switch item {
+                case .event(let dayEvent):
+                  EventRow(
+                    event: dayEvent.event,
+                    day: dayEvent.day,
+                    model: model,
+                    relativeTimeSuffix: dayEvent.event.actionKey == upcomingRelativeTimeRowKey
+                      ? loc("in %@", relativeWhen(minutesFromNow(dayEvent.event.startDate)))
+                      : nil
+                  )
+                case .gap(let gap):
+                  FreeGapRow(until: gap.until)
+                }
               }
             }
           }
@@ -51,6 +71,47 @@ struct PanelView: View {
         .listStyle(.inset)
       }
     }
+  }
+
+  /// The hero is shown only for a TIMED menubar event: a nil `menubarEvent`
+  /// means there's nothing to pin, and an all-day event has no countdown
+  /// worth pinning above the list.
+  private var heroEvent: CalendarEvent? {
+    guard let event = model.menubarEvent, !event.allDay else { return nil }
+    return event
+  }
+
+  /// The hero event must not also appear in the list below it, and any gap
+  /// large enough to earn a "free until …" divider is computed on whatever
+  /// remains after that filter.
+  private func listItems(for section: DaySection) -> [PopoverListItem] {
+    let rows: [DayEvent]
+    if let hero = heroEvent {
+      rows = section.rows.filter { $0.event.actionKey != hero.actionKey }
+    } else {
+      rows = section.rows
+    }
+    return AppModel.insertingFreeGaps(rows, now: Date())
+  }
+
+  /// When the hero event is in progress, the first still-upcoming timed row
+  /// in the list (across all sections, in the order they're shown) gets a
+  /// "· in 25m" suffix appended to its metadata line.
+  private var upcomingRelativeTimeRowKey: String? {
+    guard let hero = heroEvent else { return nil }
+    let now = Date()
+    guard hero.startDate <= now, hero.endDate > now else { return nil }
+    for section in model.daySections {
+      for row in section.rows where row.event.actionKey != hero.actionKey {
+        guard !row.event.allDay, row.event.startDate > now else { continue }
+        return row.event.actionKey
+      }
+    }
+    return nil
+  }
+
+  private func minutesFromNow(_ date: Date) -> Int {
+    max(0, Int((date.timeIntervalSince(Date()) / 60).rounded()))
   }
 
   private var footer: some View {
@@ -247,6 +308,175 @@ private struct FeatureRow: View {
   }
 }
 
+/// The "Up next" hero pinned above the popover's event list: the same event
+/// the menubar countdown shows (`AppModel.menubarEvent`). Flat layout — no
+/// card background or rounded rect — so it reads as part of the popover's
+/// top edge rather than a separate surface; `PanelView` draws the hairline
+/// `Divider` below it. Wrapped in a 30s-periodic `TimelineView` so the
+/// relative time (and, in progress, the elapsed bar) keep ticking while the
+/// popover stays open.
+private struct HeroSection: View {
+  var event: CalendarEvent
+  @ObservedObject var model: AppModel
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 30)) { context in
+      HeroContent(event: event, model: model, now: context.date)
+    }
+  }
+}
+
+private struct HeroContent: View {
+  var event: CalendarEvent
+  @ObservedObject var model: AppModel
+  var now: Date
+
+  private var inProgress: Bool {
+    event.startDate <= now && event.endDate > now
+  }
+
+  private var tintColor: Color {
+    inProgress ? .green : .accentColor
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+      HStack(alignment: .firstTextBaseline) {
+        Text(kickerText)
+          .font(.caption.weight(.bold))
+          .tracking(0.8)
+          .textCase(.uppercase)
+          .foregroundStyle(tintColor)
+        Spacer(minLength: Theme.Spacing.sm)
+        Text(countText)
+          .font(.system(size: 12, weight: .semibold))
+          .monospacedDigit()
+          .foregroundStyle(tintColor)
+      }
+
+      if inProgress {
+        HeroProgressBar(fraction: progressFraction)
+      }
+
+      Text(event.title)
+        .font(.system(size: 16, weight: .semibold))
+        .lineLimit(2)
+
+      if !metadataLine.isEmpty {
+        Text(metadataLine)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
+
+      HStack(spacing: Theme.Spacing.sm) {
+        if !event.conferenceUrl.isEmpty {
+          Button {
+            model.join(event)
+          } label: {
+            Label(joinLabel, systemImage: "video.fill")
+          }
+          .buttonStyle(.borderedProminent)
+          .tint(tintColor)
+        }
+        NoteActionButton(event: event, model: model, showsLabel: true)
+      }
+      .padding(.top, 2)
+    }
+    .padding(.horizontal, Theme.Spacing.lg)
+    .padding(.top, Theme.Spacing.md + 2)
+    .padding(.bottom, Theme.Spacing.md + 3)
+  }
+
+  private var kickerText: String {
+    inProgress
+      ? loc("Now · started %@ ago", relativeWhen(minutesSince(event.startDate)))
+      : loc("Up next")
+  }
+
+  private var countText: String {
+    inProgress
+      ? loc("%@ left", relativeWhen(minutesUntil(event.endDate)))
+      : loc("in %@", relativeWhen(minutesUntil(event.startDate)))
+  }
+
+  private var progressFraction: Double {
+    let total = event.endDate.timeIntervalSince(event.startDate)
+    guard total > 0 else { return 0 }
+    return max(0, min(1, now.timeIntervalSince(event.startDate) / total))
+  }
+
+  private var joinLabel: String {
+    if let provider = EventLinks.meetingProvider(for: event) {
+      return loc("Join %@", provider.label)
+    }
+    return loc("Join video call")
+  }
+
+  private var metadataLine: String {
+    var parts = [timeRangeText]
+    if let provider = EventLinks.meetingProvider(for: event) {
+      parts.append(provider.label)
+    }
+    let attendees = attendeeDisplayNames(for: event)
+    if !attendees.isEmpty {
+      parts.append(attendees.joined(separator: ", "))
+    }
+    return parts.joined(separator: " · ")
+  }
+
+  private var timeRangeText: String {
+    "\(clock(event.startDate)) – \(clock(event.endDate))"
+  }
+
+  private func minutesUntil(_ date: Date) -> Int {
+    max(0, Int((date.timeIntervalSince(now) / 60).rounded()))
+  }
+
+  private func minutesSince(_ date: Date) -> Int {
+    max(0, Int((now.timeIntervalSince(date) / 60).rounded()))
+  }
+}
+
+/// Thin elapsed-time bar shown under the hero's kicker row while the event is
+/// in progress. `fraction` is elapsed/duration, clamped to 0...1.
+private struct HeroProgressBar: View {
+  var fraction: Double
+
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack(alignment: .leading) {
+        RoundedRectangle(cornerRadius: 2)
+          .fill(Color.green.opacity(0.18))
+        RoundedRectangle(cornerRadius: 2)
+          .fill(Color.green)
+          .frame(width: proxy.size.width * fraction)
+      }
+    }
+    .frame(height: 3)
+  }
+}
+
+/// Slim "free until …" divider shown in the popover list between two timed
+/// rows separated by a gap of at least `AppModel.freeGapThresholdMinutes`
+/// (see `AppModel.insertingFreeGaps`).
+private struct FreeGapRow: View {
+  var until: Date
+
+  var body: some View {
+    HStack(spacing: Theme.Spacing.sm) {
+      Rectangle().fill(Theme.hairline).frame(height: 1)
+      Text(loc("free until %@", clock(until)))
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .fixedSize()
+      Rectangle().fill(Theme.hairline).frame(height: 1)
+    }
+    .padding(.vertical, Theme.Spacing.xs)
+    .listRowSeparator(.hidden)
+  }
+}
+
 struct EventRow: View {
   private static let colorBarWidth: CGFloat = 3
   private static let timeColumnWidth: CGFloat = clockColumnWidth()
@@ -255,6 +485,20 @@ struct EventRow: View {
   var event: CalendarEvent
   var day: Date
   @ObservedObject var model: AppModel
+  /// "· in 25m" appended to the metadata line — set by `PanelView` on the
+  /// first upcoming timed row while the hero event is in progress.
+  var relativeTimeSuffix: String?
+  /// Drives the hover-reveal of "add"-type row actions (see `isHovered`
+  /// below); tracked here rather than derived so the reveal only responds to
+  /// this row's own hover, not a neighbor's.
+  @State private var isHovered = false
+
+  init(event: CalendarEvent, day: Date, model: AppModel, relativeTimeSuffix: String? = nil) {
+    self.event = event
+    self.day = day
+    self.model = model
+    self.relativeTimeSuffix = relativeTimeSuffix
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
@@ -308,6 +552,11 @@ struct EventRow: View {
             .help(loc("Show in menubar"))
           }
 
+          // "Add"-type actions (no conference link yet / no note yet) only
+          // represent a possibility, not a state, so they're hidden at rest
+          // and fade in on row hover. They stay in the layout at fixed size
+          // (opacity only) so nothing shifts when they appear. All-day rows
+          // never get a "add video call" action, hover or not.
           if !event.conferenceUrl.isEmpty {
             Button {
               model.join(event)
@@ -317,11 +566,16 @@ struct EventRow: View {
             }
             .buttonStyle(.borderless)
             .help(loc("Join video call"))
-          } else {
+          } else if !event.allDay {
             ConferenceActionButton(event: event, model: model)
+              .opacity(isHovered ? 1 : 0)
+              .animation(.easeInOut(duration: 0.12), value: isHovered)
           }
 
           NoteActionButton(event: event, model: model)
+            // Already has a note: always visible (state, not possibility).
+            .opacity(model.noteURL(for: event).isEmpty && !isHovered ? 0 : 1)
+            .animation(.easeInOut(duration: 0.12), value: isHovered)
         }
       }
       .contentShape(Rectangle())
@@ -330,6 +584,7 @@ struct EventRow: View {
           model.toggleExpanded(event, on: day)
         }
       }
+      .onHover { isHovered = $0 }
       // Dim just the header row (time/title/actions) to signal "hidden from
       // the menubar" without also fading expanded detail or error overlays,
       // which stay fully legible.
@@ -422,15 +677,24 @@ struct EventRow: View {
   }
 
   private var metadata: String {
-    let attendees = event.attendees
-      .filter { !$0.selfUser && !$0.resource }
-      .map { $0.name.isEmpty ? $0.email : $0.name }
+    let attendees = attendeeDisplayNames(for: event)
     let parts: [String?] = [
       event.location.isEmpty ? nil : event.location,
-      attendees.isEmpty ? nil : attendees.joined(separator: ", ")
+      attendees.isEmpty ? nil : attendees.joined(separator: ", "),
+      relativeTimeSuffix
     ]
     return parts.compactMap { $0 }.joined(separator: " · ")
   }
+}
+
+/// Attendee display names for an event's metadata line: excludes the current
+/// user and resource attendees (rooms, etc.), preferring each attendee's name
+/// over their bare email. Shared by `EventRow` and the "Up next" hero so both
+/// draw from the same source of names.
+private func attendeeDisplayNames(for event: CalendarEvent) -> [String] {
+  event.attendees
+    .filter { !$0.selfUser && !$0.resource }
+    .map { $0.name.isEmpty ? $0.email : $0.name }
 }
 
 /// Small inline caption chip marking an event as hidden from the menubar
@@ -451,31 +715,53 @@ private struct SkippedBadge: View {
 private struct NoteActionButton: View {
   var event: CalendarEvent
   @ObservedObject var model: AppModel
+  /// Renders as a labeled "Notes" button instead of the list row's icon-only
+  /// presentation — used by the "Up next" hero's quiet secondary action.
+  /// Same open-or-create behavior either way; only the label differs.
+  var showsLabel: Bool = false
   @State private var showConfirm = false
 
   var body: some View {
     let notesUrl = model.noteURL(for: event)
     let isCreating = model.isCreatingNote(for: event)
 
-    Button {
+    let action = {
       if notesUrl.isEmpty {
         showConfirm = true
       } else {
         model.createOrOpenNote(for: event)
       }
-    } label: {
-      Group {
-        if isCreating {
-          ProgressView()
-            .controlSize(.small)
-            .frame(width: 14, height: 14)
-        } else {
-          Image(systemName: notesUrl.isEmpty ? "doc.badge.plus" : "doc.text")
-            .foregroundStyle(notesUrl.isEmpty ? AnyShapeStyle(.primary) : AnyShapeStyle(Color.accentColor))
+    }
+
+    Group {
+      if showsLabel {
+        Button(action: action) {
+          HStack(spacing: Theme.Spacing.xs) {
+            if isCreating {
+              ProgressView().controlSize(.small)
+            } else {
+              Image(systemName: notesUrl.isEmpty ? "doc.badge.plus" : "doc.text")
+            }
+            Text(loc("Notes"))
+          }
         }
+        .buttonStyle(.bordered)
+      } else {
+        Button(action: action) {
+          Group {
+            if isCreating {
+              ProgressView()
+                .controlSize(.small)
+                .frame(width: 14, height: 14)
+            } else {
+              Image(systemName: notesUrl.isEmpty ? "doc.badge.plus" : "doc.text")
+                .foregroundStyle(notesUrl.isEmpty ? AnyShapeStyle(.primary) : AnyShapeStyle(Color.accentColor))
+            }
+          }
+        }
+        .buttonStyle(.borderless)
       }
     }
-    .buttonStyle(.borderless)
     .disabled(isCreating)
     .help(notesUrl.isEmpty ? loc("Create meeting notes") : loc("Open meeting notes"))
     .confirmationDialog(loc("Create meeting notes?"), isPresented: $showConfirm) {

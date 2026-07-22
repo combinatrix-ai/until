@@ -37,6 +37,14 @@
 "Updated just now" = "たった今更新";
 "Updated %@ ago" = "%@前に更新";
 
+/* MARK: - Hero / "Up next" (Views) */
+"Up next" = "次の予定";
+"Now · started %@ ago" = "進行中 · %@前に開始";
+"in %@" = "%@後";
+"Join %@" = "%@に参加";
+"Notes" = "議事録";
+"free until %@" = "%@まで空き";
+
 /* MARK: - Onboarding (Views) */
 "Your next Google Calendar event, always in the menubar." = "次のGoogleカレンダーの予定を、いつでもメニューバーに。";
 "Glance at what's next" = "次の予定をひと目で";

@@ -37,6 +37,14 @@
 "Updated just now" = "Updated just now";
 "Updated %@ ago" = "Updated %@ ago";
 
+/* MARK: - Hero / "Up next" (Views) */
+"Up next" = "Up next";
+"Now · started %@ ago" = "Now · started %@ ago";
+"in %@" = "in %@";
+"Join %@" = "Join %@";
+"Notes" = "Notes";
+"free until %@" = "free until %@";
+
 /* MARK: - Onboarding (Views) */
 "Your next Google Calendar event, always in the menubar." = "Your next Google Calendar event, always in the menubar.";
 "Glance at what's next" = "Glance at what's next";
