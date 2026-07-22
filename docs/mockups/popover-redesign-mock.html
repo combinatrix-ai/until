@@ -1,0 +1,642 @@
+<meta charset="utf-8">
+<title>Until — ポップオーバー再設計モック</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --ink: #1d1d1f;
+    --muted: #6e6e73;
+    --line: rgba(20, 22, 26, 0.10);
+    --accent: #0071e3;
+    --panel: #ffffff;
+    --panel-inset: #f5f5f7;
+    --panel-line: rgba(20, 22, 26, 0.08);
+    --hover: rgba(20, 22, 26, 0.045);
+    --hero-bg: linear-gradient(180deg, rgba(0, 113, 227, 0.07), rgba(0, 113, 227, 0.025));
+    --now: #248a3d;
+    --now-bg: linear-gradient(180deg, rgba(36, 138, 61, 0.09), rgba(36, 138, 61, 0.03));
+    --now-btn-ink: #ffffff;
+    --menubar: #e6e7ea;
+    --shadow: 0 18px 50px rgba(20, 22, 26, 0.16), 0 2px 8px rgba(20, 22, 26, 0.08);
+    --cal-blue: #4285f4; --cal-orange: #f4a742; --cal-green: #34a853;
+    --cal-red: #ea6060; --cal-teal: #2ec7c0; --cal-purple: #b07fe0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131316;
+      --ink: #f5f5f7;
+      --muted: #98989d;
+      --line: rgba(255, 255, 255, 0.10);
+      --accent: #0a84ff;
+      --panel: #262628;
+      --panel-inset: #1e1e20;
+      --panel-line: rgba(255, 255, 255, 0.09);
+      --hover: rgba(255, 255, 255, 0.055);
+      --hero-bg: linear-gradient(180deg, rgba(10, 132, 255, 0.13), rgba(10, 132, 255, 0.05));
+      --now: #32d74b;
+      --now-bg: linear-gradient(180deg, rgba(50, 215, 75, 0.12), rgba(50, 215, 75, 0.04));
+      --now-btn-ink: #06230e;
+      --menubar: #2c2c2f;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131316; --ink: #f5f5f7; --muted: #98989d;
+    --line: rgba(255,255,255,0.10); --accent: #0a84ff;
+    --panel: #262628; --panel-inset: #1e1e20;
+    --panel-line: rgba(255,255,255,0.09); --hover: rgba(255,255,255,0.055);
+    --hero-bg: linear-gradient(180deg, rgba(10,132,255,0.13), rgba(10,132,255,0.05));
+    --now: #32d74b;
+    --now-bg: linear-gradient(180deg, rgba(50,215,75,0.12), rgba(50,215,75,0.04));
+    --now-btn-ink: #06230e;
+    --menubar: #2c2c2f;
+    --shadow: 0 18px 50px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+  }
+  :root[data-theme="light"] {
+    --bg: #eef0f3; --ink: #1d1d1f; --muted: #6e6e73;
+    --line: rgba(20,22,26,0.10); --accent: #0071e3;
+    --panel: #ffffff; --panel-inset: #f5f5f7;
+    --panel-line: rgba(20,22,26,0.08); --hover: rgba(20,22,26,0.045);
+    --hero-bg: linear-gradient(180deg, rgba(0,113,227,0.07), rgba(0,113,227,0.025));
+    --now: #248a3d;
+    --now-bg: linear-gradient(180deg, rgba(36,138,61,0.09), rgba(36,138,61,0.03));
+    --now-btn-ink: #ffffff;
+    --menubar: #e6e7ea;
+    --shadow: 0 18px 50px rgba(20,22,26,0.16), 0 2px 8px rgba(20,22,26,0.08);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .page { max-width: 980px; margin: 0 auto; padding: 56px 24px 80px; }
+
+  /* ---------- page chrome ---------- */
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.01em;
+    margin: 0 0 8px; text-wrap: balance;
+  }
+  .lead { color: var(--muted); font-size: 14px; margin: 0 0 44px; max-width: 620px; }
+  .lead strong { color: var(--ink); font-weight: 600; }
+
+  .stage {
+    display: flex; flex-wrap: wrap; gap: 48px 40px;
+    justify-content: center; align-items: flex-start;
+  }
+  .variant { display: flex; flex-direction: column; gap: 14px; }
+  .variant-label {
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .variant-note { font-size: 12.5px; color: var(--muted); max-width: 390px; margin: 2px 0 0; }
+  .variant-note b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- menubar strip ---------- */
+  .menubar {
+    width: 390px; height: 28px; border-radius: 7px;
+    background: var(--menubar);
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 10px; gap: 12px;
+    font-size: 12.5px; font-weight: 500;
+    border: 1px solid var(--panel-line);
+  }
+  .menubar .mb-item { display: flex; align-items: center; gap: 5px; }
+  .menubar .mb-clock { color: var(--muted); font-weight: 400; }
+  .menubar svg { display: block; }
+
+  /* ---------- popover shell ---------- */
+  .popover {
+    width: 390px;
+    background: var(--panel);
+    border-radius: 14px;
+    border: 1px solid var(--panel-line);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+
+  /* ---------- hero ---------- */
+  .hero {
+    border-bottom: 1px solid var(--panel-line);
+    padding: 14px 16px 15px;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .hero-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .hero-kicker {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent);
+  }
+  .hero.now .hero-kicker { color: var(--now); }
+  .hero-count {
+    font-size: 12px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+  }
+  .hero.now .hero-count { color: var(--now); }
+  .hero-title { font-size: 16px; font-weight: 650; line-height: 1.3; margin: 0; }
+  .hero-meta { font-size: 12px; color: var(--muted); margin: 0; }
+  .hero-progress {
+    height: 3px; border-radius: 2px;
+    background: color-mix(in srgb, var(--now) 18%, transparent);
+    overflow: hidden;
+  }
+  .hero-progress i {
+    display: block; height: 100%; width: 17%;
+    background: var(--now); border-radius: 2px;
+  }
+  .hero-actions { display: flex; gap: 8px; margin-top: 3px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600;
+    border-radius: 7px; padding: 5px 12px;
+    border: 1px solid transparent; cursor: default;
+  }
+  .btn svg { display: block; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .hero.now .btn-primary { background: var(--now); color: var(--now-btn-ink); }
+  .btn-quiet {
+    background: var(--panel);
+    border-color: var(--panel-line);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+
+  /* ---------- list ---------- */
+  .list { padding: 2px 0 6px; overflow: hidden; }
+  .sec {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--muted);
+    padding: 10px 16px 4px;
+  }
+  .row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 12px 7px 14px;
+    position: relative;
+  }
+  .row:hover { background: var(--hover); }
+  .bar { width: 3px; align-self: stretch; border-radius: 2px; flex: none; }
+  .time {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; color: var(--muted);
+    width: 56px; flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .row-main { min-width: 0; flex: 1; }
+  .row-title {
+    font-size: 13.5px; font-weight: 500;
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .row-title .clip { color: var(--muted); flex: none; }
+  .row-sub {
+    font-size: 11.5px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .row-actions { display: flex; gap: 4px; flex: none; }
+  .icon-btn {
+    width: 26px; height: 22px; border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--accent); cursor: default;
+  }
+  .icon-btn.muted { color: var(--muted); }
+  .icon-btn:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  /* 追加系(ゴースト)アクションはホバー時のみ */
+  .icon-btn.ghost { opacity: 0; transition: opacity 0.12s ease; color: var(--muted); }
+  .row:hover .icon-btn.ghost { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .icon-btn.ghost { transition: none; } }
+
+  .gap-divider {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 16px;
+    color: var(--muted);
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+  .gap-divider::before, .gap-divider::after {
+    content: ""; height: 1px; flex: 1; background: var(--panel-line);
+  }
+
+  /* ---------- footer ---------- */
+  .pop-footer {
+    border-top: 1px solid var(--panel-line);
+    background: var(--panel-inset);
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 12px;
+    color: var(--muted); font-size: 11.5px;
+  }
+  .pop-footer .grow { flex: 1; }
+  .pop-footer svg { display: block; }
+  .f-btn {
+    width: 24px; height: 22px; border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--muted);
+  }
+  .f-btn:hover { background: var(--hover); color: var(--ink); }
+
+  /* ---------- decisions ---------- */
+  .decisions { margin-top: 64px; border-top: 1px solid var(--line); padding-top: 32px; }
+  .decisions h2 { font-size: 15px; font-weight: 700; margin: 0 0 18px; }
+  .decisions dl {
+    margin: 0; display: grid; gap: 14px 24px;
+    grid-template-columns: 200px 1fr;
+  }
+  .decisions dt { font-size: 13px; font-weight: 600; }
+  .decisions dd { margin: 0; font-size: 13px; color: var(--muted); max-width: 560px; }
+  @media (max-width: 640px) {
+    .decisions dl { grid-template-columns: 1fr; gap: 4px; }
+    .decisions dd { margin-bottom: 12px; }
+  }
+  .fine { margin-top: 40px; font-size: 12px; color: var(--muted); }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Until · UX mock</p>
+  <h1>ポップオーバー再設計モック</h1>
+  <p class="lead">
+    メニューバーがカウントダウンしている当のイベントを <strong>「Up next」ヒーローカード</strong>として最上部に固定し、
+    リスト行の追加系アクションは<strong>ホバー時のみ</strong>表示。左が開始7分前、右が会議中の状態です。
+    行にマウスを載せると挙動を確認できます。
+  </p>
+
+  <div class="stage">
+
+    <!-- ===================== Variant A: 7 minutes before ===================== -->
+    <figure class="variant" style="margin:0;">
+      <span class="variant-label">A — 開始7分前</span>
+      <div class="menubar">
+        <span class="mb-item">
+          <svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 1.5l4 4.5-4 4.5M6.5 1.5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          7m&nbsp;&nbsp;Design review: website screenshots
+        </span>
+        <span class="mb-clock">Mon 8:53 AM</span>
+      </div>
+
+      <div class="popover">
+        <!-- hero -->
+        <div class="hero">
+          <div class="hero-top">
+            <span class="hero-kicker">Up next</span>
+            <span class="hero-count">in 7m</span>
+          </div>
+          <p class="hero-title">Design review: website screenshots</p>
+          <p class="hero-meta">9:00 – 9:30 AM · Google Meet · Maya Chen, Ren Sato</p>
+          <div class="hero-actions">
+            <span class="btn btn-primary">
+              <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+              Join Google Meet
+            </span>
+            <span class="btn btn-quiet">
+              <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+              Notes
+            </span>
+          </div>
+        </div>
+
+        <!-- list -->
+        <div class="list">
+          <div class="sec">Today</div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-blue)"></span>
+            <span class="time">all-day</span>
+            <div class="row-main">
+              <div class="row-title">Launch assets due
+                <svg class="clip" width="11" height="12" viewBox="0 0 12 14"><path d="M3.2 7.4l4.6-4.6a2.3 2.3 0 013.2 3.2l-5.4 5.4a1.4 1.4 0 01-2-2l4.8-4.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn muted" title="Open notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-blue)"></span>
+            <span class="time">9:30 AM</span>
+            <div class="row-main">
+              <div class="row-title">Morning run</div>
+              <div class="row-sub">Riverside Park</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn ghost" title="Add video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0.7" y="1.7" width="11.6" height="10.6" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="icon-btn ghost" title="Create notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7v3M4.5 8.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-orange)"></span>
+            <span class="time">10:30 AM</span>
+            <div class="row-main">
+              <div class="row-title">Project work block</div>
+              <div class="row-sub">Desk</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn ghost" title="Add video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0.7" y="1.7" width="11.6" height="10.6" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="icon-btn ghost" title="Create notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7v3M4.5 8.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-green)"></span>
+            <span class="time">12:00 PM</span>
+            <div class="row-main">
+              <div class="row-title">Product sync</div>
+              <div class="row-sub">Google Meet · Alex Kim, Sam Rivera</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn" title="Join video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+              </span>
+              <span class="icon-btn ghost" title="Create notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7v3M4.5 8.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="gap-divider">free until 1:30 PM</div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-red)"></span>
+            <span class="time">1:30 PM</span>
+            <div class="row-main">
+              <div class="row-title">Focus: Until copy polish</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn ghost" title="Add video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0.7" y="1.7" width="11.6" height="10.6" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="icon-btn ghost" title="Create notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7v3M4.5 8.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-red)"></span>
+            <span class="time">2:00 PM</span>
+            <div class="row-main">
+              <div class="row-title">School pickup</div>
+              <div class="row-sub">Maple Elementary · Avery</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn ghost" title="Add video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0.7" y="1.7" width="11.6" height="10.6" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="icon-btn ghost" title="Create notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7v3M4.5 8.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="sec">Tomorrow</div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-teal)"></span>
+            <span class="time">all-day</span>
+            <div class="row-main">
+              <div class="row-title">Website QA window</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-purple)"></span>
+            <span class="time">10:30 AM</span>
+            <div class="row-main">
+              <div class="row-title">Customer interview: onboarding
+                <svg class="clip" width="11" height="12" viewBox="0 0 12 14"><path d="M3.2 7.4l4.6-4.6a2.3 2.3 0 013.2 3.2l-5.4 5.4a1.4 1.4 0 01-2-2l4.8-4.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn" title="Join video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+              </span>
+              <span class="icon-btn muted" title="Open notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- footer -->
+        <div class="pop-footer">
+          <span class="f-btn" title="Quit Until">
+            <svg width="12" height="12" viewBox="0 0 14 14"><path d="M7 1v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.2 3.2a5 5 0 11-6.4 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </span>
+          <span>Updated 1m ago</span>
+          <span class="grow"></span>
+          <span class="f-btn" title="Refresh">
+            <svg width="13" height="13" viewBox="0 0 14 14"><path d="M12 7a5 5 0 11-1.5-3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12.2 1.6v2.6H9.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="f-btn" title="Preferences">
+            <svg width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7 1.2v2M7 10.8v2M1.2 7h2M10.8 7h2M2.9 2.9l1.4 1.4M9.7 9.7l1.4 1.4M11.1 2.9L9.7 4.3M4.3 9.7l-1.4 1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </span>
+        </div>
+      </div>
+
+      <figcaption class="variant-note">
+        ヒーローカードだけがラベル付きの主ボタンを持つ。リスト行の<b>追加系アクション（ビデオ会議・ノート作成）はホバーで出現</b>。
+        既存のMeet・ノートは常時表示。終日行に「ビデオ会議追加」は出さない。
+      </figcaption>
+    </figure>
+
+    <!-- ===================== Variant B: in progress ===================== -->
+    <figure class="variant" style="margin:0;">
+      <span class="variant-label">B — 会議中（開始5分後）</span>
+      <div class="menubar">
+        <span class="mb-item">
+          <svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 1.5l4 4.5-4 4.5M6.5 1.5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          25m left&nbsp;&nbsp;Design review: website…
+        </span>
+        <span class="mb-clock">Mon 9:05 AM</span>
+      </div>
+
+      <div class="popover">
+        <!-- hero: now -->
+        <div class="hero now">
+          <div class="hero-top">
+            <span class="hero-kicker">Now · started 5m ago</span>
+            <span class="hero-count">25m left</span>
+          </div>
+          <div class="hero-progress"><i></i></div>
+          <p class="hero-title">Design review: website screenshots</p>
+          <p class="hero-meta">9:00 – 9:30 AM · Google Meet · Maya Chen, Ren Sato</p>
+          <div class="hero-actions">
+            <span class="btn btn-primary">
+              <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+              Join Google Meet
+            </span>
+            <span class="btn btn-quiet">
+              <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+              Notes
+            </span>
+          </div>
+        </div>
+
+        <!-- list (次以降のみ・進行中はヒーローに集約) -->
+        <div class="list">
+          <div class="sec">Today</div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-blue)"></span>
+            <span class="time">all-day</span>
+            <div class="row-main">
+              <div class="row-title">Launch assets due
+                <svg class="clip" width="11" height="12" viewBox="0 0 12 14"><path d="M3.2 7.4l4.6-4.6a2.3 2.3 0 013.2 3.2l-5.4 5.4a1.4 1.4 0 01-2-2l4.8-4.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn muted" title="Open notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-blue)"></span>
+            <span class="time">9:30 AM</span>
+            <div class="row-main">
+              <div class="row-title">Morning run</div>
+              <div class="row-sub">Riverside Park · in 25m</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn ghost" title="Add video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0.7" y="1.7" width="11.6" height="10.6" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="icon-btn ghost" title="Create notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7v3M4.5 8.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-orange)"></span>
+            <span class="time">10:30 AM</span>
+            <div class="row-main">
+              <div class="row-title">Project work block</div>
+              <div class="row-sub">Desk</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn ghost" title="Add video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0.7" y="1.7" width="11.6" height="10.6" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="icon-btn ghost" title="Create notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7v3M4.5 8.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-green)"></span>
+            <span class="time">12:00 PM</span>
+            <div class="row-main">
+              <div class="row-title">Product sync</div>
+              <div class="row-sub">Google Meet · Alex Kim, Sam Rivera</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn" title="Join video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+              </span>
+              <span class="icon-btn ghost" title="Create notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7v3M4.5 8.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="gap-divider">free until 1:30 PM</div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-red)"></span>
+            <span class="time">1:30 PM</span>
+            <div class="row-main">
+              <div class="row-title">Focus: Until copy polish</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn ghost" title="Add video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0.7" y="1.7" width="11.6" height="10.6" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="icon-btn ghost" title="Create notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7v3M4.5 8.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-red)"></span>
+            <span class="time">2:00 PM</span>
+            <div class="row-main">
+              <div class="row-title">School pickup</div>
+              <div class="row-sub">Maple Elementary · Avery</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn ghost" title="Add video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0.7" y="1.7" width="11.6" height="10.6" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="icon-btn ghost" title="Create notes">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7v3M4.5 8.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pop-footer">
+          <span class="f-btn" title="Quit Until">
+            <svg width="12" height="12" viewBox="0 0 14 14"><path d="M7 1v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.2 3.2a5 5 0 11-6.4 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </span>
+          <span>Updated just now</span>
+          <span class="grow"></span>
+          <span class="f-btn" title="Refresh">
+            <svg width="13" height="13" viewBox="0 0 14 14"><path d="M12 7a5 5 0 11-1.5-3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12.2 1.6v2.6H9.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="f-btn" title="Preferences">
+            <svg width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7 1.2v2M7 10.8v2M1.2 7h2M10.8 7h2M2.9 2.9l1.4 1.4M9.7 9.7l1.4 1.4M11.1 2.9L9.7 4.3M4.3 9.7l-1.4 1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </span>
+        </div>
+      </div>
+
+      <figcaption class="variant-note">
+        開始後はヒーローが<b>「Now」状態（緑）</b>に切り替わり、経過・残り時間とプログレスバーを表示。
+        進行中イベントはリストから消えてヒーローに集約されるので、重複しない。次の予定には「in 25m」の相対時間。
+      </figcaption>
+    </figure>
+  </div>
+
+  <!-- ---------- decisions ---------- -->
+  <section class="decisions">
+    <h2>設計判断メモ</h2>
+    <dl>
+      <dt>ヒーロー = メニューバーの中身</dt>
+      <dd>ヒーローカードに載るのは常に「メニューバーがカウントダウンしているイベント」。メニューバー・通知・ポップオーバーの三者が同じイベントを指すことで、アプリ全体のメンタルモデルが一本化される。</dd>
+
+      <dt>主ボタンはヒーローだけ</dt>
+      <dd>ラベル付きのJoinボタンはヒーローに一つ。リスト行は従来どおりアイコンに留め、視覚的な優先順位を壊さない。⌥クリックJoinやReturnキーJoinのターゲットもこのヒーローイベント。</dd>
+
+      <dt>追加系アクションはホバー出現</dt>
+      <dd>「Meetを追加」「ノートを作成」は可能性の提示であって状態ではない。常時表示をやめることで、「Meetがある」「ノートがある」という状態表示だけが残り、リストの走査が速くなる。終日イベントには会議追加を出さない。</dd>
+
+      <dt>空き時間の区切り</dt>
+      <dd>30分以上の空きにだけ「free until …」の区切りを入れる。閾値未満は今までどおり詰めて表示し、区切りがノイズにならないようにする。</dd>
+    </dl>
+  </section>
+
+  <p class="fine">
+    モックはHTML（システムフォント・実寸390px）。実装はSwiftUIの PanelView / EventRow に同じ階層で反映する想定。
+    ライト・ダーク両テーマ対応済み — OSの外観設定に追従します。
+  </p>
+</div>
