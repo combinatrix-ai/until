@@ -339,53 +339,97 @@ private struct HeroContent: View {
     inProgress ? .green : .accentColor
   }
 
+  /// Same day key `EventRow` uses for `model.toggleExpanded`/`isExpanded`, so
+  /// the hero shares expansion state with the row this event would otherwise
+  /// occupy.
+  private var day: Date {
+    Calendar.current.startOfDay(for: event.startDate)
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-      HStack(alignment: .firstTextBaseline) {
-        Text(kickerText)
-          .font(.caption.weight(.bold))
-          .tracking(0.8)
-          .textCase(.uppercase)
-          .foregroundStyle(tintColor)
-        Spacer(minLength: Theme.Spacing.sm)
-        Text(countText)
-          .font(.system(size: 12, weight: .semibold))
-          .monospacedDigit()
-          .foregroundStyle(tintColor)
-      }
-
-      if inProgress {
-        HeroProgressBar(fraction: progressFraction)
-      }
-
-      Text(event.title)
-        .font(.system(size: 16, weight: .semibold))
-        .lineLimit(2)
-
-      if !metadataLine.isEmpty {
-        Text(metadataLine)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
-      }
-
-      HStack(spacing: Theme.Spacing.sm) {
-        if !event.conferenceUrl.isEmpty {
-          Button {
-            model.join(event)
-          } label: {
-            Label(joinLabel, systemImage: "video.fill")
-          }
-          .buttonStyle(.borderedProminent)
-          .tint(tintColor)
+      VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+        HStack(alignment: .firstTextBaseline) {
+          Text(kickerText)
+            .font(.caption.weight(.bold))
+            .tracking(0.8)
+            .textCase(.uppercase)
+            .foregroundStyle(tintColor)
+          Spacer(minLength: Theme.Spacing.sm)
+          Text(countText)
+            .font(.system(size: 12, weight: .semibold))
+            .monospacedDigit()
+            .foregroundStyle(tintColor)
         }
-        NoteActionButton(event: event, model: model, showsLabel: true)
+
+        if inProgress {
+          HeroProgressBar(fraction: progressFraction)
+        }
+
+        Text(event.title)
+          .font(.system(size: 16, weight: .semibold))
+          .lineLimit(2)
+
+        if !metadataLine.isEmpty {
+          Text(metadataLine)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
+
+        HStack(spacing: Theme.Spacing.sm) {
+          if !event.conferenceUrl.isEmpty {
+            Button {
+              model.join(event)
+            } label: {
+              Label(joinLabel, systemImage: "video.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(tintColor)
+          }
+          NoteActionButton(event: event, model: model, showsLabel: true)
+        }
+        .padding(.top, 2)
       }
-      .padding(.top, 2)
+      .contentShape(Rectangle())
+      .onTapGesture {
+        withAnimation(.easeInOut(duration: 0.2)) {
+          model.toggleExpanded(event, on: day)
+        }
+      }
+
+      if model.isExpanded(event, on: day) {
+        EventDetailView(event: event, model: model)
+          .transition(.opacity.combined(with: .move(edge: .top)))
+      }
+
+      if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
+        ExternalShareOverlay(prompt: prompt, model: model)
+      }
+
+      if let issue = model.noteError(for: event) {
+        NoteErrorOverlay(issue: issue) {
+          switch issue.kind {
+          case .retry:
+            model.createOrOpenNote(for: event)
+          case .reauthorize(let email):
+            model.startReauthorize(email: email)
+          }
+        }
+      }
+
+      if let error = model.conferenceError(for: event) {
+        NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
+          model.addConference(for: event)
+        }
+      }
     }
     .padding(.horizontal, Theme.Spacing.lg)
     .padding(.top, Theme.Spacing.md + 2)
     .padding(.bottom, Theme.Spacing.md + 3)
+    .contextMenu {
+      eventContextMenuItems(event: event, model: model)
+    }
   }
 
   private var kickerText: String {
@@ -474,6 +518,55 @@ private struct FreeGapRow: View {
     }
     .padding(.vertical, Theme.Spacing.xs)
     .listRowSeparator(.hidden)
+  }
+}
+
+/// Right-click menu content shared by `EventRow` and the "Up next" hero
+/// (`HeroContent`) so both present the identical set of actions for an
+/// event — join/copy link, open in Calendar, open notes, and skip/unskip in
+/// the menubar.
+@MainActor
+@ViewBuilder
+private func eventContextMenuItems(event: CalendarEvent, model: AppModel) -> some View {
+  if !event.conferenceUrl.isEmpty {
+    Button {
+      model.join(event)
+    } label: {
+      Label(loc("Join video call"), systemImage: "video")
+    }
+    Button {
+      let pasteboard = NSPasteboard.general
+      pasteboard.clearContents()
+      pasteboard.setString(event.conferenceUrl, forType: .string)
+    } label: {
+      Label(loc("Copy meeting link"), systemImage: "link")
+    }
+  }
+  Button {
+    model.open(event)
+  } label: {
+    Label(loc("Open in Google Calendar"), systemImage: "calendar")
+  }
+  if !model.noteURL(for: event).isEmpty {
+    Button {
+      model.createOrOpenNote(for: event)
+    } label: {
+      Label(loc("Open meeting notes"), systemImage: "doc.text")
+    }
+  }
+  Divider()
+  if model.isSkippedInMenubar(event) {
+    Button {
+      model.unskipInMenubar(event)
+    } label: {
+      Label(loc("Show in menubar"), systemImage: "arrow.uturn.backward")
+    }
+  } else {
+    Button {
+      model.skipInMenubar(event)
+    } label: {
+      Label(loc("Skip in menubar"), systemImage: "forward.end")
+    }
   }
 }
 
@@ -622,46 +715,7 @@ struct EventRow: View {
     }
     .padding(.vertical, Theme.Spacing.xs)
     .contextMenu {
-      if !event.conferenceUrl.isEmpty {
-        Button {
-          model.join(event)
-        } label: {
-          Label(loc("Join video call"), systemImage: "video")
-        }
-        Button {
-          let pasteboard = NSPasteboard.general
-          pasteboard.clearContents()
-          pasteboard.setString(event.conferenceUrl, forType: .string)
-        } label: {
-          Label(loc("Copy meeting link"), systemImage: "link")
-        }
-      }
-      Button {
-        model.open(event)
-      } label: {
-        Label(loc("Open in Google Calendar"), systemImage: "calendar")
-      }
-      if !model.noteURL(for: event).isEmpty {
-        Button {
-          model.createOrOpenNote(for: event)
-        } label: {
-          Label(loc("Open meeting notes"), systemImage: "doc.text")
-        }
-      }
-      Divider()
-      if isSkipped {
-        Button {
-          model.unskipInMenubar(event)
-        } label: {
-          Label(loc("Show in menubar"), systemImage: "arrow.uturn.backward")
-        }
-      } else {
-        Button {
-          model.skipInMenubar(event)
-        } label: {
-          Label(loc("Skip in menubar"), systemImage: "forward.end")
-        }
-      }
+      eventContextMenuItems(event: event, model: model)
     }
   }
 
