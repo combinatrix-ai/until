@@ -2,16 +2,23 @@ import Foundation
 
 struct AppRuntimeOptions: Hashable {
   var demoMode: Bool
+  var demoNowEvent: Bool = false
 
   static func fromProcess(
     arguments: [String] = CommandLine.arguments,
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) -> AppRuntimeOptions {
     let demoFlags = Set(["--demo-mode"])
-    let hasFlag = arguments.dropFirst().contains { demoFlags.contains($0) }
+    let demoNowFlags = Set(["--demo-now"])
+    let processArguments = arguments.dropFirst()
+    let hasFlag = processArguments.contains { demoFlags.contains($0) }
+    let hasNowFlag = processArguments.contains { demoNowFlags.contains($0) }
     let envValue = environment["UNTIL_DEMO_MODE"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     let hasEnv = ["1", "true", "yes", "on"].contains(envValue ?? "")
-    return AppRuntimeOptions(demoMode: hasFlag || hasEnv)
+    let envNowValue = environment["UNTIL_DEMO_NOW"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let hasNowEnv = ["1", "true", "yes", "on"].contains(envNowValue ?? "")
+    let demoNowEvent = hasNowFlag || hasNowEnv
+    return AppRuntimeOptions(demoMode: hasFlag || hasEnv || demoNowEvent, demoNowEvent: demoNowEvent)
   }
 }
 
@@ -59,10 +66,10 @@ enum DemoCalendarData {
     }
   }
 
-  static func events(now: Date, selectedIds: [String]) -> [CalendarEvent] {
+  static func events(now: Date, selectedIds: [String], includeNowEvent: Bool) -> [CalendarEvent] {
     let selectedCalendars = calendars(selectedIds: selectedIds).filter(\.selected)
     let selectedCalendarIds = Set(selectedCalendars.map(\.id))
-    return eventDefinitions(now: now)
+    return eventDefinitions(now: now, includeNowEvent: includeNowEvent)
       .filter { selectedCalendarIds.contains($0.calendar.id) }
       .sorted { $0.startDate < $1.startDate }
   }
@@ -110,12 +117,16 @@ enum DemoCalendarData {
     )
   ]
 
-  private static func eventDefinitions(now: Date) -> [CalendarEvent] {
+  private static func eventDefinitions(now: Date, includeNowEvent: Bool) -> [CalendarEvent] {
     let today = Calendar.current.startOfDay(for: now)
     let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today) ?? today
+    // With the in-progress demo event included, push the schedule anchor out
+    // far enough that "Design review" never falls inside the imminent-next
+    // lead window (5 min) and never overlaps the in-progress event's end.
+    let scheduleAnchor = includeNowEvent ? minutes(from: now, 25) : now
     let context = DemoContext(
       now: now,
-      nextSlot: nextHalfHour(after: now),
+      nextSlot: nextHalfHour(after: scheduleAnchor),
       personal: calendarRef(for: calendarDefinitions[0]),
       family: calendarRef(for: calendarDefinitions[1]),
       work: calendarRef(for: calendarDefinitions[2]),
@@ -124,11 +135,14 @@ enum DemoCalendarData {
       tomorrow: tomorrow,
       dayAfterTomorrow: Calendar.current.date(byAdding: .day, value: 2, to: today) ?? tomorrow
     )
-    let specs = runAndLaunchSpecs(context)
+    var specs = runAndLaunchSpecs(context)
       + reviewAndCaptureSpecs(context)
       + syncAndFocusSpecs(context)
       + holdAndPickupSpecs(context)
       + tomorrowSpecs(context)
+    if includeNowEvent {
+      specs += inProgressSpecs(context)
+    }
     return specs.compactMap { event($0, now: now) }
   }
 
@@ -308,6 +322,32 @@ enum DemoCalendarData {
           attendee("mom@example.com", "Mom", "accepted")
         ],
         colorId: "6",
+        transparency: "busy"
+      )
+    ]
+  }
+
+  /// Only included when `--demo-now` / `UNTIL_DEMO_NOW` opts in: a single
+  /// event straddling "now" so the popover's in-progress "Up next" hero can
+  /// be demoed (default demo mode anchors everything to the next half-hour
+  /// so nothing is ever in progress).
+  private static func inProgressSpecs(_ ctx: DemoContext) -> [DemoEventSpec] {
+    [
+      DemoEventSpec(
+        id: "launch-standup",
+        title: "Launch standup",
+        description: "Check screenshot capture progress and flag any launch blockers.",
+        location: "Google Meet",
+        start: minutes(from: ctx.now, -5),
+        end: minutes(from: ctx.now, 25),
+        calendar: ctx.launch,
+        accountEmail: workAccountEmail,
+        attendees: [
+          attendee("maya@acme.co", "Maya Chen", "accepted"),
+          attendee("ren@acme.co", "Ren Sato", "accepted")
+        ],
+        conferenceUrl: "https://meet.google.com/uvw-xyza-bcd",
+        colorId: "9",
         transparency: "busy"
       )
     ]

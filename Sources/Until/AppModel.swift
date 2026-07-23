@@ -943,7 +943,11 @@ final class AppModel: ObservableObject {
 
   private func loadDemoData(now: Date) {
     calendars = DemoCalendarData.calendars(selectedIds: config.selectedCalendarIds)
-    rawEvents = DemoCalendarData.events(now: now, selectedIds: config.selectedCalendarIds)
+    rawEvents = DemoCalendarData.events(
+      now: now,
+      selectedIds: config.selectedCalendarIds,
+      includeNowEvent: runtimeOptions.demoNowEvent
+    )
     state.auth = DemoCalendarData.accountState()
     state.lastSync = now
     state.lastError = nil
