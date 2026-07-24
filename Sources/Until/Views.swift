@@ -623,11 +623,23 @@ struct EventRow: View {
               SkippedBadge()
             }
           }
-          if !metadata.isEmpty {
-            Text(metadata)
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .lineLimit(1)
+          if !metadata.isEmpty || relativeTimeSuffix != nil {
+            // The relative time is its own fixed-size Text so a long
+            // location/attendee list truncates instead of eating "in 25m".
+            HStack(spacing: 0) {
+              if !metadata.isEmpty {
+                Text(metadata)
+                  .lineLimit(1)
+              }
+              if let suffix = relativeTimeSuffix {
+                Text(metadata.isEmpty ? suffix : " · " + suffix)
+                  .lineLimit(1)
+                  .fixedSize(horizontal: true, vertical: false)
+                  .layoutPriority(1)
+              }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
           }
         }
 
@@ -734,8 +746,7 @@ struct EventRow: View {
     let attendees = attendeeDisplayNames(for: event)
     let parts: [String?] = [
       event.location.isEmpty ? nil : event.location,
-      attendees.isEmpty ? nil : attendees.joined(separator: ", "),
-      relativeTimeSuffix
+      attendees.isEmpty ? nil : attendees.joined(separator: ", ")
     ]
     return parts.compactMap { $0 }.joined(separator: " · ")
   }
