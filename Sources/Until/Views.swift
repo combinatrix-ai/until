@@ -399,8 +399,17 @@ private struct HeroContent: View {
       }
 
       if model.isExpanded(event, on: day) {
+        // Unlike list rows, the hero isn't clipped by a List row, so a sliding
+        // detail would overlap the buttons above it mid-animation. Instead the
+        // section grows first and the text fades in only once the space is
+        // there; on collapse the text vanishes before the section shrinks.
         EventDetailView(event: event, model: model)
-          .transition(.opacity.combined(with: .move(edge: .top)))
+          .transition(
+            .asymmetric(
+              insertion: .opacity.animation(.easeInOut(duration: 0.12).delay(0.15)),
+              removal: .opacity.animation(.easeInOut(duration: 0.08))
+            )
+          )
       }
 
       if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
