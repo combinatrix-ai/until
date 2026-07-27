@@ -41,8 +41,8 @@
 "Up next" = "次の予定";
 "Now · started %@ ago" = "進行中 · %@前に開始";
 "in %@" = "%@後";
-"Join %@" = "%@に参加";
-"Notes" = "議事録";
+"Join" = "参加";
+"Create" = "作成";
 "free until %@" = "%@まで空き";
 
 /* MARK: - Onboarding (Views) */

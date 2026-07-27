@@ -382,7 +382,7 @@ private struct HeroContent: View {
             Button {
               model.join(event)
             } label: {
-              Label(joinLabel, systemImage: "video.fill")
+              Label(loc("Join"), systemImage: "video.fill")
             }
             .buttonStyle(.borderedProminent)
             .tint(tintColor)
@@ -457,13 +457,6 @@ private struct HeroContent: View {
     let total = event.endDate.timeIntervalSince(event.startDate)
     guard total > 0 else { return 0 }
     return max(0, min(1, now.timeIntervalSince(event.startDate) / total))
-  }
-
-  private var joinLabel: String {
-    if let provider = EventLinks.meetingProvider(for: event) {
-      return loc("Join %@", provider.label)
-    }
-    return loc("Join video call")
   }
 
   private var metadataLine: String {
@@ -816,7 +809,7 @@ private struct NoteActionButton: View {
             } else {
               Image(systemName: notesUrl.isEmpty ? "doc.badge.plus" : "doc.text")
             }
-            Text(loc("Notes"))
+            Text(notesUrl.isEmpty ? loc("Create") : loc("Open"))
           }
         }
         .buttonStyle(.bordered)

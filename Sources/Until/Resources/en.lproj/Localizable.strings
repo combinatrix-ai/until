@@ -41,8 +41,8 @@
 "Up next" = "Up next";
 "Now · started %@ ago" = "Now · started %@ ago";
 "in %@" = "in %@";
-"Join %@" = "Join %@";
-"Notes" = "Notes";
+"Join" = "Join";
+"Create" = "Create";
 "free until %@" = "free until %@";
 
 /* MARK: - Onboarding (Views) */
