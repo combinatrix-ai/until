@@ -461,6 +461,9 @@ private struct HeroContent: View {
 
   private var metadataLine: String {
     var parts = [timeRangeText]
+    if !event.location.isEmpty {
+      parts.append(event.location)
+    }
     if let provider = EventLinks.meetingProvider(for: event) {
       parts.append(provider.label)
     }
