@@ -190,6 +190,22 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     togglePopover(relativeTo: button)
   }
 
+  /// Injects an opaque backdrop behind the popover's frame view so the whole
+  /// popover — rounded corners and arrow included — renders solid instead of
+  /// NSPopover's default frosted material. `PanelView` paints the same color
+  /// behind its own content, but SwiftUI can only cover the content rect, not
+  /// the popover chrome, which is why this reaches into the frame view.
+  func popoverWillShow(_ notification: Notification) {
+    guard
+      let frameView = popover.contentViewController?.view.window?.contentView?.superview,
+      !frameView.subviews.contains(where: { $0 is OpaquePopoverBackdropView })
+    else { return }
+    let backdrop = OpaquePopoverBackdropView(frame: frameView.bounds)
+    backdrop.wantsLayer = true
+    backdrop.autoresizingMask = [.width, .height]
+    frameView.addSubview(backdrop, positioned: .below, relativeTo: nil)
+  }
+
   nonisolated func popoverDidClose(_ notification: Notification) {
     Task { @MainActor in
       model.collapseEventDetails()
@@ -431,4 +447,15 @@ func dayHeader(_ day: Date, now: Date = Date()) -> String {
     return loc("Tomorrow")
   }
   return dayHeaderFormatter.string(from: day)
+}
+
+/// See `StatusBarController.popoverWillShow`. `updateLayer` (rather than a
+/// stored CGColor) keeps the color tracking light/dark appearance switches
+/// while the popover stays open.
+private final class OpaquePopoverBackdropView: NSView {
+  override var wantsUpdateLayer: Bool { true }
+
+  override func updateLayer() {
+    layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
+  }
 }

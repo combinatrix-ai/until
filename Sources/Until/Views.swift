@@ -13,6 +13,11 @@ struct PanelView: View {
       footer
     }
     .frame(width: 390, height: 520)
+    // Solid surface matching the List's own background, so the hero, NOW
+    // strip, and footer don't show NSPopover's frosted material while the
+    // list body is opaque (the popover chrome — corners and arrow — is
+    // painted by `StatusBarController.popoverWillShow`).
+    .background(Color(nsColor: .textBackgroundColor))
   }
 
   @ViewBuilder
