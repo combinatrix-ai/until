@@ -320,7 +320,7 @@ struct QuietButton: View {
   /// Overrides the rest/hover foreground with a fixed color — used for the
   /// copy-details button's transient green "copied" flash, where the tint
   /// signals success rather than hover.
-  var tint: Color? = nil
+  var tint: Color?
   /// Swaps the leading symbol for a spinner, e.g. the hero's "Create notes"
   /// while the note doc is being created.
   var isBusy: Bool = false
