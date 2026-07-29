@@ -860,6 +860,16 @@ final class AppModel: ObservableObject {
   /// would otherwise have picked it. The popover list (`state.events` /
   /// `daySections`) is built separately in `reapplyFilter` and is never
   /// passed through this filtering, so skipped events stay visible there.
+  ///
+  /// Among events already in progress (`startDate <= now && endDate > now`),
+  /// the one with the LATEST startDate wins — the meeting most recently
+  /// entered, not the earliest-starting one. Without this, a double-booked
+  /// event B that starts while an older meeting A is still running would
+  /// either keep showing A after the user has already moved on to B, or —
+  /// combined with `menubarPrefersImminentNext` switching the menubar to B
+  /// slightly before it starts — bounce back to A the instant B's start time
+  /// arrives. Ties (equal startDate) fall back to `events`'s existing order,
+  /// which `reapplyFilter` already sorts deterministically via `compareEvents`.
   static func pickMenubarEvent(
     config: AppConfig,
     timed timedCandidates: [CalendarEvent],
@@ -877,8 +887,19 @@ final class AppModel: ObservableObject {
         return imminent
       }
     }
-    if let current = events.first(where: { $0.startDate <= now && $0.endDate > now }) {
-      return current
+    var mostRecentlyEntered: CalendarEvent?
+    for event in events {
+      guard event.startDate <= now, event.endDate > now else { continue }
+      guard let candidate = mostRecentlyEntered else {
+        mostRecentlyEntered = event
+        continue
+      }
+      if event.startDate > candidate.startDate {
+        mostRecentlyEntered = event
+      }
+    }
+    if let mostRecentlyEntered {
+      return mostRecentlyEntered
     }
     if config.menubarShowsNextAlways {
       // Always surface the next upcoming timed event, regardless of lead time.
