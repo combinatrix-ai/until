@@ -495,7 +495,11 @@ private struct HeroContent: View {
     if !event.location.isEmpty {
       parts.append(event.location)
     }
-    if let provider = EventLinks.meetingProvider(for: event) {
+    // Calendars often put the provider's own name in the location field, so
+    // suppress the provider label when it would just repeat the location
+    // ("Google Meet · Google Meet").
+    if let provider = EventLinks.meetingProvider(for: event),
+       event.location.caseInsensitiveCompare(provider.label) != .orderedSame {
       parts.append(provider.label)
     }
     let attendees = attendeeDisplayNames(for: event)
