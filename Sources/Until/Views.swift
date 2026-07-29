@@ -152,13 +152,9 @@ struct PanelView: View {
 
   private var footer: some View {
     HStack(spacing: Theme.Spacing.sm) {
-      Button {
+      IconButton(systemImage: "power") {
         showQuitConfirm = true
-      } label: {
-        Image(systemName: "power")
-          .foregroundStyle(.secondary)
       }
-      .buttonStyle(.borderless)
       .help(loc("Quit Until"))
       .confirmationDialog(loc("Quit Until?"), isPresented: $showQuitConfirm) {
         Button(loc("Quit"), role: .destructive) { NSApp.terminate(nil) }
@@ -172,19 +168,13 @@ struct PanelView: View {
 
       Spacer()
 
-      Button {
+      IconButton(systemImage: model.isRefreshing ? "arrow.triangle.2.circlepath" : "arrow.clockwise") {
         Task { await model.refresh() }
-      } label: {
-        Image(systemName: model.isRefreshing ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
       }
-      .buttonStyle(.borderless)
       .help(loc("Refresh"))
 
-      Button(action: openSettings) {
-        Image(systemName: "gearshape")
-      }
-      .buttonStyle(.borderless)
-      .help(loc("Preferences"))
+      IconButton(systemImage: "gearshape", action: openSettings)
+        .help(loc("Preferences"))
     }
     .padding(.horizontal, Theme.Spacing.md)
     .padding(.vertical, Theme.Spacing.sm)
@@ -367,6 +357,11 @@ private struct HeroContent: View {
   @ObservedObject var model: AppModel
   var now: Date
 
+  /// Drives the hover-reveal of the "Create notes" possibility — same ghost
+  /// pattern as `EventRow`'s `isHovered`, scoped to the hero's own tappable
+  /// area so a neighboring section's hover can't trigger it.
+  @State private var isHovered = false
+
   private var inProgress: Bool {
     event.startDate <= now && event.endDate > now
   }
@@ -424,6 +419,15 @@ private struct HeroContent: View {
             .tint(tintColor)
           }
           NoteActionButton(event: event, model: model, showsLabel: true)
+            // A note already exists, or one is being created: persistent
+            // state, always visible. No note yet: only a possibility, so it
+            // only shows while the hero is hovered — same rule as the rows'
+            // "add"-type actions, applied here via opacity so nothing shifts.
+            .opacity(
+              model.noteURL(for: event).isEmpty && !model.isCreatingNote(for: event) && !isHovered
+                ? 0 : 1
+            )
+            .animation(.easeInOut(duration: 0.12), value: isHovered)
         }
         .padding(.top, 2)
       }
@@ -433,6 +437,7 @@ private struct HeroContent: View {
           model.toggleExpanded(event, on: day)
         }
       }
+      .onHover { isHovered = $0 }
 
       if model.isExpanded(event, on: day) {
         // Unlike list rows, the hero isn't clipped by a List row, so a sliding
@@ -622,13 +627,9 @@ private struct NowStripContent: View {
 
         HStack(spacing: Theme.Spacing.xs) {
           if !event.conferenceUrl.isEmpty {
-            Button {
+            IconButton(systemImage: "video.fill") {
               model.join(event)
-            } label: {
-              Image(systemName: "video")
-                .foregroundStyle(Color.accentColor)
             }
-            .buttonStyle(.borderless)
             .help(loc("Join video call"))
             .opacity(isHovered ? 1 : 0)
             .animation(.easeInOut(duration: 0.12), value: isHovered)
@@ -846,12 +847,6 @@ struct EventRow: View {
             Text(event.title)
               .font(.body)
               .lineLimit(2)
-            if !model.noteURL(for: event).isEmpty {
-              Image(systemName: "paperclip")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .help(loc("Meeting notes attached"))
-            }
             if isSkipped {
               SkippedBadge()
             }
@@ -880,29 +875,24 @@ struct EventRow: View {
 
         HStack(spacing: Theme.Spacing.xs) {
           if isSkipped {
-            Button {
+            IconButton(systemImage: "arrow.uturn.backward") {
               model.unskipInMenubar(event)
-            } label: {
-              Image(systemName: "arrow.uturn.backward")
-                .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderless)
             .help(loc("Show in menubar"))
           }
 
-          // "Add"-type actions (no conference link yet / no note yet) only
-          // represent a possibility, not a state, so they're hidden at rest
-          // and fade in on row hover. They stay in the layout at fixed size
-          // (opacity only) so nothing shifts when they appear. All-day rows
-          // never get a "add video call" action, hover or not.
+          // State (a link/note that already exists) renders as a persistent
+          // IconButton; possibility (no link/note yet — an "add"-type action)
+          // only fades in on row hover. Both render through the same shared
+          // component (see `IconButton` in Theme.swift), so accent color is
+          // never a resting state, only a hover one. Hover-only actions stay
+          // in the layout at fixed size (opacity only) so nothing shifts when
+          // they appear. All-day rows never get a "add video call" action,
+          // hover or not.
           if !event.conferenceUrl.isEmpty {
-            Button {
+            IconButton(systemImage: "video.fill") {
               model.join(event)
-            } label: {
-              Image(systemName: "video")
-                .foregroundStyle(Color.accentColor)
             }
-            .buttonStyle(.borderless)
             .help(loc("Join video call"))
           } else if !event.allDay {
             ConferenceActionButton(event: event, model: model)
@@ -1013,9 +1003,9 @@ private struct SkippedBadge: View {
 private struct NoteActionButton: View {
   var event: CalendarEvent
   @ObservedObject var model: AppModel
-  /// Renders as a labeled "Notes" button instead of the list row's icon-only
-  /// presentation — used by the "Up next" hero's quiet secondary action.
-  /// Same open-or-create behavior either way; only the label differs.
+  /// Renders as a labeled `QuietButton` instead of the list row's icon-only
+  /// `IconButton` — used by the "Up next" hero's secondary action. Same
+  /// open-or-create behavior either way; only the presentation differs.
   var showsLabel: Bool = false
   @State private var showConfirm = false
 
@@ -1033,31 +1023,18 @@ private struct NoteActionButton: View {
 
     Group {
       if showsLabel {
-        Button(action: action) {
-          HStack(spacing: Theme.Spacing.xs) {
-            if isCreating {
-              ProgressView().controlSize(.small)
-            } else {
-              Image(systemName: notesUrl.isEmpty ? "doc.badge.plus" : "doc.text")
-            }
-            Text(notesUrl.isEmpty ? loc("Create") : loc("Open"))
-          }
-        }
-        .buttonStyle(.bordered)
+        QuietButton(
+          systemImage: notesUrl.isEmpty ? "doc.badge.plus" : "doc.text",
+          label: notesUrl.isEmpty ? loc("Create notes") : loc("Open notes"),
+          isBusy: isCreating,
+          action: action
+        )
       } else {
-        Button(action: action) {
-          Group {
-            if isCreating {
-              ProgressView()
-                .controlSize(.small)
-                .frame(width: 14, height: 14)
-            } else {
-              Image(systemName: notesUrl.isEmpty ? "doc.badge.plus" : "doc.text")
-                .foregroundStyle(notesUrl.isEmpty ? AnyShapeStyle(.primary) : AnyShapeStyle(Color.accentColor))
-            }
-          }
-        }
-        .buttonStyle(.borderless)
+        IconButton(
+          systemImage: notesUrl.isEmpty ? "doc.badge.plus" : "doc.text",
+          isBusy: isCreating,
+          action: action
+        )
       }
     }
     .disabled(isCreating)
@@ -1095,21 +1072,9 @@ private struct ConferenceActionButton: View {
   var body: some View {
     let isAdding = model.isAddingConference(for: event)
 
-    Button {
+    IconButton(systemImage: "video.badge.plus", isBusy: isAdding) {
       showConfirm = true
-    } label: {
-      Group {
-        if isAdding {
-          ProgressView()
-            .controlSize(.small)
-            .frame(width: 14, height: 14)
-        } else {
-          Image(systemName: "video.badge.plus")
-            .foregroundStyle(.primary)
-        }
-      }
     }
-    .buttonStyle(.borderless)
     .disabled(isAdding)
     .help(loc("Add Google Meet"))
     .confirmationDialog(loc("Add Google Meet?"), isPresented: $showConfirm) {
@@ -1142,6 +1107,14 @@ private struct EventDetailView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+      // Always present, unlike the description/attendee blocks below, so an
+      // event with neither (e.g. a bare "移動" placeholder) still expands to
+      // a line of text instead of landing straight on a row of icon buttons.
+      Text(detailMetadataLine)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+
       if !event.description.isEmpty {
         Text(htmlAttributedString(event.description))
           .font(.caption)
@@ -1168,32 +1141,31 @@ private struct EventDetailView: View {
       }
 
       HStack(spacing: Theme.Spacing.sm) {
-        Button {
-          copyEventDetails()
-        } label: {
-          Image(systemName: copiedRecently ? "checkmark" : "doc.on.doc")
-            .font(.caption)
-            .frame(width: 16, height: 16)
-        }
-        .buttonStyle(.borderless)
-        .foregroundStyle(copiedRecently ? Color.green : Color.accentColor)
+        QuietButton(
+          systemImage: copiedRecently ? "checkmark" : "doc.on.doc",
+          label: loc("Copy details"),
+          size: .small,
+          tint: copiedRecently ? Color.green : nil,
+          action: copyEventDetails
+        )
         .help(copiedRecently ? loc("Copied event details") : loc("Copy event details"))
         .accessibilityLabel(loc("Copy event details"))
 
-        Button {
+        QuietButton(systemImage: "arrow.up.right", label: loc("Open in Calendar"), size: .small) {
           model.open(event)
-        } label: {
-          Image(systemName: "arrow.up.right.square")
-            .font(.caption)
-            .frame(width: 16, height: 16)
         }
-        .buttonStyle(.borderless)
-        .foregroundStyle(Color.accentColor)
         .help(loc("Open in Calendar"))
         .accessibilityLabel(loc("Open in Calendar"))
       }
     }
     .padding(.vertical, Theme.Spacing.xs)
+  }
+
+  /// "<start – end> · <account email>" (all-day: `loc("all-day")` in place of
+  /// the range), matching `HeroContent.timeRangeText`'s dash/spacing.
+  private var detailMetadataLine: String {
+    let timePart = event.allDay ? loc("all-day") : "\(clock(event.startDate)) – \(clock(event.endDate))"
+    return "\(timePart) · \(event.account.email)"
   }
 
   private func copyEventDetails() {

@@ -237,6 +237,122 @@ struct InlineErrorView: View {
   }
 }
 
+/// Circular icon-only control shared by list rows, the NOW strip, and the
+/// footer: a fixed 22×22pt hit area, monochrome `.secondary` at rest,
+/// `Color.accentColor` over a soft circular backdrop on hover. Accent color
+/// is something hover reveals now, not a resting state — the one deliberate
+/// exception is the hero's loud `.borderedProminent` Join button, which isn't
+/// built from this component. Callers attach `.help`/`.accessibilityLabel`/
+/// `.disabled` the same way they would on a plain `Button`.
+struct IconButton: View {
+  var systemImage: String
+  /// Swaps the symbol for a spinner without resizing the chrome around it —
+  /// used while a note is being created or a Meet link is being added.
+  var isBusy: Bool = false
+  var action: () -> Void
+
+  @State private var isHovered = false
+
+  var body: some View {
+    Button(action: action) {
+      ZStack {
+        Circle()
+          .fill(isHovered ? Color.primary.opacity(0.07) : Color.clear)
+        if isBusy {
+          ProgressView()
+            .controlSize(.small)
+        } else {
+          Image(systemName: systemImage)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(isHovered ? Color.accentColor : Color.secondary)
+        }
+      }
+      .frame(width: 22, height: 22)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.borderless)
+    // Non-text views default their baseline to the bottom edge, which would
+    // hang the whole 22pt chrome from a `firstTextBaseline` row (NOW strip)
+    // and float the glyph above the neighboring text. Expose the symbol's
+    // approximate baseline instead: glyph center + half a 12pt symbol's cap
+    // height, which optically centers the icon on adjacent text.
+    .alignmentGuide(.firstTextBaseline) { $0.height / 2 + 4.3 }
+    .animation(.easeInOut(duration: 0.12), value: isHovered)
+    .onHover { isHovered = $0 }
+  }
+}
+
+/// Borderless text+icon button for an action that shouldn't outrank a
+/// screen's one loud `.borderedProminent` control: no chrome at rest, a soft
+/// backdrop and full-strength label on hover. `.regular` sits in the hero's
+/// action row; `.small` sits in expanded event detail, where two of these
+/// share a line.
+struct QuietButton: View {
+  enum Size {
+    case regular
+    case small
+
+    var font: Font {
+      switch self {
+      case .regular: return .system(size: 12, weight: .medium)
+      case .small: return .caption.weight(.medium)
+      }
+    }
+
+    var horizontalPadding: CGFloat {
+      switch self {
+      case .regular: return 8
+      case .small: return 7
+      }
+    }
+
+    var verticalPadding: CGFloat {
+      switch self {
+      case .regular: return 3
+      case .small: return 2
+      }
+    }
+  }
+
+  var systemImage: String
+  var label: String
+  var size: Size = .regular
+  /// Overrides the rest/hover foreground with a fixed color — used for the
+  /// copy-details button's transient green "copied" flash, where the tint
+  /// signals success rather than hover.
+  var tint: Color? = nil
+  /// Swaps the leading symbol for a spinner, e.g. the hero's "Create notes"
+  /// while the note doc is being created.
+  var isBusy: Bool = false
+  var action: () -> Void
+
+  @State private var isHovered = false
+
+  var body: some View {
+    Button(action: action) {
+      HStack(spacing: Theme.Spacing.xs) {
+        if isBusy {
+          ProgressView().controlSize(.small)
+        } else {
+          Image(systemName: systemImage)
+        }
+        Text(label)
+      }
+      .font(size.font)
+      .foregroundStyle(tint ?? (isHovered ? Color.primary : Color.secondary))
+      .padding(.horizontal, size.horizontalPadding)
+      .padding(.vertical, size.verticalPadding)
+      .background(
+        isHovered ? Color.primary.opacity(0.06) : Color.clear,
+        in: RoundedRectangle(cornerRadius: Theme.Radius.sm)
+      )
+    }
+    .buttonStyle(.borderless)
+    .animation(.easeInOut(duration: 0.12), value: isHovered)
+    .onHover { isHovered = $0 }
+  }
+}
+
 extension Color {
   init?(hex: String) {
     var value = hex.trimmingCharacters(in: .whitespacesAndNewlines)

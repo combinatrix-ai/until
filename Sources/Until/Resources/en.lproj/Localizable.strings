@@ -42,7 +42,7 @@
 "Now · started %@ ago" = "Now · started %@ ago";
 "in %@" = "in %@";
 "Join" = "Join";
-"Create" = "Create";
+"Open notes" = "Open notes";
 "free until %@" = "free until %@";
 
 /* MARK: - NOW strip (Views) */
@@ -66,7 +66,6 @@
 "Privacy Policy" = "Privacy Policy";
 
 /* MARK: - Event row (Views) */
-"Meeting notes attached" = "Meeting notes attached";
 "Join video call" = "Join video call";
 "Create meeting notes" = "Create meeting notes";
 "Open meeting notes" = "Open meeting notes";
@@ -85,6 +84,7 @@
 "Add a Google Meet video link to %@." = "Add a Google Meet video link to %@.";
 
 /* MARK: - Event detail (Views) */
+"Copy details" = "Copy details";
 "Copy event details" = "Copy event details";
 "Copied event details" = "Copied event details";
 "Open in Calendar" = "Open in Calendar";

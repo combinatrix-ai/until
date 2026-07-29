@@ -42,7 +42,7 @@
 "Now · started %@ ago" = "進行中 · %@前に開始";
 "in %@" = "%@後";
 "Join" = "参加";
-"Create" = "作成";
+"Open notes" = "議事録を開く";
 "free until %@" = "%@まで空き";
 
 /* MARK: - NOW strip (Views) */
@@ -66,7 +66,6 @@
 "Privacy Policy" = "プライバシーポリシー";
 
 /* MARK: - Event row (Views) */
-"Meeting notes attached" = "議事録が添付されています";
 "Join video call" = "ビデオ会議に参加";
 "Create meeting notes" = "議事録を作成";
 "Open meeting notes" = "議事録を開く";
@@ -85,6 +84,7 @@
 "Add a Google Meet video link to %@." = "「%@」にGoogle Meetのビデオリンクを追加します。";
 
 /* MARK: - Event detail (Views) */
+"Copy details" = "詳細をコピー";
 "Copy event details" = "予定の詳細をコピー";
 "Copied event details" = "予定の詳細をコピーしました";
 "Open in Calendar" = "カレンダーで開く";
