@@ -38,10 +38,6 @@ Privacy policy: <https://combinatrix-ai.github.io/until/privacy.html>
   created), and there are no servers: your data goes straight from Google's
   APIs to your Mac.
 
-<p align="center">
-  <img src="docs/anka-until-demo-popover-overlap.png" alt="Until popover with the current meeting folded into a NOW strip above the Up next hero" width="720" />
-</p>
-
 ## Install
 
 Download the latest notarized build from
