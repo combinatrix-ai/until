@@ -19,6 +19,9 @@ Privacy policy: <https://combinatrix-ai.github.io/until/privacy.html>
 
 - **Menubar countdown** — the next event stays in the menubar all day with a
   live countdown, then shows the time remaining once the meeting starts.
+- **Never lose the current meeting** — when the next event closes in, the
+  countdown switches ahead and the meeting you're still in folds into a
+  compact NOW strip pinned above the list.
 - **One-click join** — click an event's meeting link, or option-click the
   menubar item to join the meeting it's showing (Meet, Zoom, Teams,
   Whereby, and friends).
@@ -34,6 +37,10 @@ Privacy policy: <https://combinatrix-ai.github.io/until/privacy.html>
   scope is the non-sensitive `drive.file` tier (the app only sees files it
   created), and there are no servers: your data goes straight from Google's
   APIs to your Mac.
+
+<p align="center">
+  <img src="docs/anka-until-demo-popover-overlap.png" alt="Until popover with the current meeting folded into a NOW strip above the Up next hero" width="720" />
+</p>
 
 ## Install
 
