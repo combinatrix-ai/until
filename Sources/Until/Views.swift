@@ -600,14 +600,20 @@ private struct NowStripContent: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-      HStack(spacing: Theme.Spacing.sm) {
-        dot
-
-        Text(loc("Now"))
-          .font(.system(size: 9.5, weight: .bold))
-          .tracking(0.8)
-          .textCase(.uppercase)
-          .foregroundStyle(Color.green)
+      // Mixed type sizes on one line look misaligned when centered by frame,
+      // so the row shares a text baseline — same rule as the hero's kicker
+      // row. The dot has no baseline of its own; pairing it with the kicker
+      // keeps it optically centered on the small text instead of sitting on
+      // the baseline like a period.
+      HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.sm) {
+        HStack(spacing: Theme.Spacing.sm) {
+          dot
+          Text(loc("Now"))
+            .font(.system(size: 9.5, weight: .bold))
+            .tracking(0.8)
+            .textCase(.uppercase)
+            .foregroundStyle(Color.green)
+        }
 
         Text(event.title)
           .font(.system(size: 12.5, weight: .medium))
