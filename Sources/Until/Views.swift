@@ -4,6 +4,7 @@ struct PanelView: View {
   @ObservedObject var model: AppModel
   var openSettings: () -> Void
   @State private var showQuitConfirm = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
     VStack(spacing: 0) {
@@ -32,14 +33,29 @@ struct PanelView: View {
       .frame(maxHeight: .infinity)
     } else {
       VStack(spacing: 0) {
-        // The hero pins the same event the menubar is counting down (see
-        // `AppModel.menubarEvent`) above the list so its join/notes actions
-        // never require scrolling. All-day menubar events have no meaningful
-        // countdown, so the hero is skipped entirely for them.
-        if let hero = heroEvent {
-          HeroSection(event: hero, model: model)
-          Divider()
+        // The NOW strip and hero pin the in-progress event and the menubar's
+        // countdown event (see `AppModel.nowStripEvent` / `AppModel.menubarEvent`)
+        // above the list so their join/notes actions never require scrolling.
+        // All-day menubar events have no meaningful countdown, so the hero is
+        // skipped entirely for them. Both slots are keyed by actionKey and
+        // animated together (`heroStripSlots`) so a swap crossfades instead of
+        // the text morphing in place; the animation is keyed on that identity
+        // alone, so the periodic `TimelineView` countdown tick inside each
+        // section never triggers it.
+        VStack(spacing: 0) {
+          if let strip = nowStripEvent {
+            NowStripSection(event: strip, model: model)
+              .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
+            Divider()
+          }
+          if let hero = heroEvent {
+            HeroSection(event: hero, model: model)
+              .id(hero.actionKey)
+              .transition(.opacity)
+            Divider()
+          }
         }
+        .animation(.easeInOut(duration: 0.3), value: heroStripSlots)
         // Cached events remain visible; the error rides above them as a compact
         // banner so a transient outage doesn't hide the whole panel.
         if let error = model.state.lastError {
@@ -81,16 +97,31 @@ struct PanelView: View {
     return event
   }
 
-  /// The hero event must not also appear in the list below it, and any gap
-  /// large enough to earn a "free until …" divider is computed on whatever
-  /// remains after that filter.
+  /// The NOW strip's event (see `AppModel.nowStripEvent`) pinned above the
+  /// hero — the in-progress event that isn't already the hero. `nil` renders
+  /// no strip.
+  private var nowStripEvent: CalendarEvent? {
+    model.nowStripEvent
+  }
+
+  /// Identifies which events currently occupy the hero and NOW strip slots,
+  /// so `content` can key a single `.animation` on it (see `heroStripSlots`'s
+  /// use there) that fires only when a slot's occupant actually changes.
+  private struct HeroStripSlots: Hashable {
+    var heroActionKey: String?
+    var stripActionKey: String?
+  }
+
+  private var heroStripSlots: HeroStripSlots {
+    HeroStripSlots(heroActionKey: heroEvent?.actionKey, stripActionKey: nowStripEvent?.actionKey)
+  }
+
+  /// Neither the hero event nor the NOW strip event may also appear in the
+  /// list below them; any gap large enough to earn a "free until …" divider
+  /// is computed on whatever remains after that filter.
   private func listItems(for section: DaySection) -> [PopoverListItem] {
-    let rows: [DayEvent]
-    if let hero = heroEvent {
-      rows = section.rows.filter { $0.event.actionKey != hero.actionKey }
-    } else {
-      rows = section.rows
-    }
+    let pinnedKeys = Set([heroEvent?.actionKey, nowStripEvent?.actionKey].compactMap { $0 })
+    let rows = section.rows.filter { !pinnedKeys.contains($0.event.actionKey) }
     return AppModel.insertingFreeGaps(rows, now: Date())
   }
 
@@ -487,22 +518,204 @@ private struct HeroContent: View {
   }
 }
 
-/// Thin elapsed-time bar shown under the hero's kicker row while the event is
-/// in progress. `fraction` is elapsed/duration, clamped to 0...1.
+/// Thin elapsed/duration fill bar. `fraction` is elapsed/duration, clamped to
+/// 0...1. Used inline under the hero's kicker row while its event is in
+/// progress (rounded, 3pt) and full-bleed along the NOW strip's bottom edge
+/// (square, 2pt) — same math, different geometry per call site.
 private struct HeroProgressBar: View {
   var fraction: Double
+  var height: CGFloat = 3
+  var cornerRadius: CGFloat = 2
+  var trackOpacity: Double = 0.18
 
   var body: some View {
     GeometryReader { proxy in
       ZStack(alignment: .leading) {
-        RoundedRectangle(cornerRadius: 2)
-          .fill(Color.green.opacity(0.18))
-        RoundedRectangle(cornerRadius: 2)
+        RoundedRectangle(cornerRadius: cornerRadius)
+          .fill(Color.green.opacity(trackOpacity))
+        RoundedRectangle(cornerRadius: cornerRadius)
           .fill(Color.green)
           .frame(width: proxy.size.width * fraction)
       }
     }
-    .frame(height: 3)
+    .frame(height: height)
+  }
+}
+
+/// The compact one-line strip pinned above the hero for an event that's in
+/// progress but isn't the hero (see `AppModel.nowStripEvent`) — e.g. once
+/// `menubarPrefersImminentNext` has switched the hero/menubar countdown to
+/// the next event while this one is still running. Wrapped in the same
+/// 30s-periodic `TimelineView` as `HeroSection` so its remaining time and
+/// progress fill keep ticking while the popover stays open.
+private struct NowStripSection: View {
+  var event: CalendarEvent
+  @ObservedObject var model: AppModel
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 30)) { context in
+      NowStripContent(event: event, model: model, now: context.date)
+    }
+  }
+}
+
+private struct NowStripContent: View {
+  var event: CalendarEvent
+  @ObservedObject var model: AppModel
+  var now: Date
+
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  /// Drives the hover-reveal of the join/notes icons — same ghost pattern as
+  /// `EventRow`, tracked here so the reveal only responds to this strip's own
+  /// hover, not a neighboring row's.
+  @State private var isHovered = false
+  @State private var dotDimmed = false
+
+  /// Same day key `EventRow`/`HeroContent` use for `model.toggleExpanded`/
+  /// `isExpanded`, so the strip shares expansion state with the row this
+  /// event would otherwise occupy.
+  private var day: Date {
+    Calendar.current.startOfDay(for: event.startDate)
+  }
+
+  /// Whether anything renders below the strip band (expanded detail or an
+  /// overlay). The band carries its own bottom padding, but content below it
+  /// hangs past the progress-bar edge and would otherwise sit flush against
+  /// the hairline divider under the section.
+  private var showsTrailingContent: Bool {
+    model.isExpanded(event, on: day)
+      || model.externalSharePrompt?.id == event.actionKey
+      || model.noteError(for: event) != nil
+      || model.conferenceError(for: event) != nil
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+      HStack(spacing: Theme.Spacing.sm) {
+        dot
+
+        Text(loc("Now"))
+          .font(.system(size: 9.5, weight: .bold))
+          .tracking(0.8)
+          .textCase(.uppercase)
+          .foregroundStyle(Color.green)
+
+        Text(event.title)
+          .font(.system(size: 12.5, weight: .medium))
+          .lineLimit(1)
+          .frame(maxWidth: .infinity, alignment: .leading)
+
+        HStack(spacing: Theme.Spacing.xs) {
+          if !event.conferenceUrl.isEmpty {
+            Button {
+              model.join(event)
+            } label: {
+              Image(systemName: "video")
+                .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.borderless)
+            .help(loc("Join video call"))
+            .opacity(isHovered ? 1 : 0)
+            .animation(.easeInOut(duration: 0.12), value: isHovered)
+          }
+          NoteActionButton(event: event, model: model)
+            .opacity(isHovered ? 1 : 0)
+            .animation(.easeInOut(duration: 0.12), value: isHovered)
+        }
+
+        Text(loc("%@ left", relativeWhen(minutesUntil(event.endDate))))
+          .font(.system(size: 11.5, weight: .semibold))
+          .monospacedDigit()
+          .foregroundStyle(Color.green)
+      }
+      .padding(.horizontal, Theme.Spacing.lg)
+      .padding(.top, 7)
+      .padding(.bottom, 9)
+      .background(
+        LinearGradient(
+          colors: [Color.green.opacity(0.10), Color.green.opacity(0.03)],
+          startPoint: .top,
+          endPoint: .bottom
+        )
+      )
+      .overlay(alignment: .bottom) {
+        HeroProgressBar(fraction: progressFraction, height: 2, cornerRadius: 0, trackOpacity: 0.16)
+      }
+      .contentShape(Rectangle())
+      .onTapGesture {
+        withAnimation(.easeInOut(duration: 0.2)) {
+          model.toggleExpanded(event, on: day)
+        }
+      }
+      .onHover { isHovered = $0 }
+
+      if model.isExpanded(event, on: day) {
+        // Same asymmetric grow-then-fade as the hero (see `HeroContent`): the
+        // strip isn't clipped by a List row, so the section grows first and
+        // the text fades in only once the space is there.
+        EventDetailView(event: event, model: model)
+          .padding(.horizontal, Theme.Spacing.lg)
+          .transition(
+            .asymmetric(
+              insertion: .opacity.animation(.easeInOut(duration: 0.12).delay(0.15)),
+              removal: .opacity.animation(.easeInOut(duration: 0.08))
+            )
+          )
+      }
+
+      if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
+        ExternalShareOverlay(prompt: prompt, model: model)
+          .padding(.horizontal, Theme.Spacing.lg)
+      }
+
+      if let issue = model.noteError(for: event) {
+        NoteErrorOverlay(issue: issue) {
+          switch issue.kind {
+          case .retry:
+            model.createOrOpenNote(for: event)
+          case .reauthorize(let email):
+            model.startReauthorize(email: email)
+          }
+        }
+        .padding(.horizontal, Theme.Spacing.lg)
+      }
+
+      if let error = model.conferenceError(for: event) {
+        NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
+          model.addConference(for: event)
+        }
+        .padding(.horizontal, Theme.Spacing.lg)
+      }
+    }
+    .padding(.bottom, showsTrailingContent ? Theme.Spacing.md : 0)
+    .contextMenu {
+      eventContextMenuItems(event: event, model: model)
+    }
+  }
+
+  /// Pulses 1 → 0.45 → 1 over a 2.4s cycle; static at full opacity when
+  /// reduce motion is on.
+  private var dot: some View {
+    Circle()
+      .fill(Color.green)
+      .frame(width: 6, height: 6)
+      .opacity(reduceMotion ? 1 : (dotDimmed ? 0.45 : 1))
+      .onAppear {
+        guard !reduceMotion else { return }
+        withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+          dotDimmed = true
+        }
+      }
+  }
+
+  private var progressFraction: Double {
+    let total = event.endDate.timeIntervalSince(event.startDate)
+    guard total > 0 else { return 0 }
+    return max(0, min(1, now.timeIntervalSince(event.startDate) / total))
+  }
+
+  private func minutesUntil(_ date: Date) -> Int {
+    max(0, Int((date.timeIntervalSince(now) / 60).rounded()))
   }
 }
 

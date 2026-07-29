@@ -45,6 +45,9 @@
 "Create" = "Create";
 "free until %@" = "free until %@";
 
+/* MARK: - NOW strip (Views) */
+"Now" = "Now";
+
 /* MARK: - Onboarding (Views) */
 "Your next Google Calendar event, always in the menubar." = "Your next Google Calendar event, always in the menubar.";
 "Glance at what's next" = "Glance at what's next";

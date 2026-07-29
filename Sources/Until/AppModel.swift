@@ -757,6 +757,13 @@ final class AppModel: ObservableObject {
     state.next
   }
 
+  /// The event shown in the popover's NOW strip (see `pickNowStripEvent`):
+  /// the in-progress event that isn't already rendered as the hero. `nil`
+  /// means no strip should be shown.
+  var nowStripEvent: CalendarEvent? {
+    AppModel.pickNowStripEvent(menubarEvent: menubarEvent, config: config, timed: state.events, now: Date())
+  }
+
   /// Events grouped into day sections for display. Multi-day all-day events are
   /// repeated on each day they cover, clamped to the lookahead window.
   var daySections: [DaySection] {
@@ -918,6 +925,51 @@ final class AppModel: ObservableObject {
     return allDayEvents.first { event in
       event.startDate <= now && event.endDate > now
     }
+  }
+
+  /// Pure picker for the popover's NOW strip: the in-progress event folded
+  /// into a compact strip pinned above the hero when the hero (`menubarEvent`)
+  /// isn't itself currently running. Mirrors `pickMenubarEvent`'s testable
+  /// shape (explicit `config`/`now`, no `self` access) for the same reason.
+  ///
+  /// Returns nil whenever `menubarEvent` is a timed, in-progress event — the
+  /// hero already renders that "Now" state, and showing the same event in
+  /// both the hero and the strip would be redundant. An all-day menubar event
+  /// is never "in progress" for this purpose (the hero has no countdown for
+  /// it), so it never suppresses the strip.
+  ///
+  /// Otherwise, among `timed`, candidates are events currently in progress,
+  /// not menubar-skipped (a skip means "stop surfacing this near the
+  /// menubar"; the event still shows in the popover list), and distinct from
+  /// `menubarEvent` itself. The candidate ending SOONEST wins — "when am I
+  /// next free" — the opposite tie-break from `pickMenubarEvent` (latest
+  /// started): the two answer different questions, so a double booking can
+  /// legitimately show one event in the hero and a different one in the
+  /// strip. Ties (equal endDate) fall back to `timed`'s existing order.
+  /// All-day events never qualify since callers only pass timed events in.
+  static func pickNowStripEvent(
+    menubarEvent: CalendarEvent?,
+    config: AppConfig,
+    timed: [CalendarEvent],
+    now: Date
+  ) -> CalendarEvent? {
+    if let menubarEvent, !menubarEvent.allDay, menubarEvent.startDate <= now, menubarEvent.endDate > now {
+      return nil
+    }
+    var soonestEnding: CalendarEvent?
+    for event in timed {
+      guard event.startDate <= now, event.endDate > now else { continue }
+      guard config.skippedMenubarEvents[event.actionKey] == nil else { continue }
+      guard event.actionKey != menubarEvent?.actionKey else { continue }
+      guard let candidate = soonestEnding else {
+        soonestEnding = event
+        continue
+      }
+      if event.endDate < candidate.endDate {
+        soonestEnding = event
+      }
+    }
+    return soonestEnding
   }
 
   private func compareEvents(_ lhs: CalendarEvent, _ rhs: CalendarEvent) -> Bool {
