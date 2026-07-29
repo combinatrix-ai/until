@@ -20,6 +20,14 @@ enum Theme {
 
   /// Hairline border used to separate a surface from its background.
   static let hairline = Color.primary.opacity(0.1)
+
+  /// Soft backdrop behind a hovered borderless control (`IconButton`,
+  /// `QuietButton`).
+  static let hoverFill = Color.primary.opacity(0.07)
+
+  /// One shared duration for hover-driven fades — control backdrops and the
+  /// `revealOnHover` reveal — so every hover response moves at the same speed.
+  static let hoverFadeDuration: Double = 0.12
 }
 
 /// The two nesting levels a card can have. `panel` is the outer container,
@@ -257,7 +265,7 @@ struct IconButton: View {
     Button(action: action) {
       ZStack {
         Circle()
-          .fill(isHovered ? Color.primary.opacity(0.07) : Color.clear)
+          .fill(isHovered ? Theme.hoverFill : Color.clear)
         if isBusy {
           ProgressView()
             .controlSize(.small)
@@ -277,7 +285,7 @@ struct IconButton: View {
     // approximate baseline instead: glyph center + half a 12pt symbol's cap
     // height, which optically centers the icon on adjacent text.
     .alignmentGuide(.firstTextBaseline) { $0.height / 2 + 4.3 }
-    .animation(.easeInOut(duration: 0.12), value: isHovered)
+    .animation(.easeInOut(duration: Theme.hoverFadeDuration), value: isHovered)
     .onHover { isHovered = $0 }
   }
 }
@@ -288,30 +296,13 @@ struct IconButton: View {
 /// action row; `.small` sits in expanded event detail, where two of these
 /// share a line.
 struct QuietButton: View {
-  enum Size {
-    case regular
-    case small
+  struct Size {
+    var font: Font
+    var horizontalPadding: CGFloat
+    var verticalPadding: CGFloat
 
-    var font: Font {
-      switch self {
-      case .regular: return .system(size: 12, weight: .medium)
-      case .small: return .caption.weight(.medium)
-      }
-    }
-
-    var horizontalPadding: CGFloat {
-      switch self {
-      case .regular: return 8
-      case .small: return 7
-      }
-    }
-
-    var verticalPadding: CGFloat {
-      switch self {
-      case .regular: return 3
-      case .small: return 2
-      }
-    }
+    static let regular = Size(font: .system(size: 12, weight: .medium), horizontalPadding: 8, verticalPadding: 3)
+    static let small = Size(font: .caption.weight(.medium), horizontalPadding: 7, verticalPadding: 2)
   }
 
   var systemImage: String
@@ -343,13 +334,23 @@ struct QuietButton: View {
       .padding(.horizontal, size.horizontalPadding)
       .padding(.vertical, size.verticalPadding)
       .background(
-        isHovered ? Color.primary.opacity(0.06) : Color.clear,
+        isHovered ? Theme.hoverFill : Color.clear,
         in: RoundedRectangle(cornerRadius: Theme.Radius.sm)
       )
     }
     .buttonStyle(.borderless)
-    .animation(.easeInOut(duration: 0.12), value: isHovered)
+    .animation(.easeInOut(duration: Theme.hoverFadeDuration), value: isHovered)
     .onHover { isHovered = $0 }
+  }
+}
+
+extension View {
+  /// Fades a hover-revealed action in and out. Hidden means opacity 0 rather
+  /// than removal, so the control keeps its footprint and neighbors don't
+  /// shift when it appears.
+  func revealOnHover(_ isVisible: Bool) -> some View {
+    opacity(isVisible ? 1 : 0)
+      .animation(.easeInOut(duration: Theme.hoverFadeDuration), value: isVisible)
   }
 }
 

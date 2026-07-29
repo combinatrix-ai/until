@@ -418,16 +418,7 @@ private struct HeroContent: View {
             .buttonStyle(.borderedProminent)
             .tint(tintColor)
           }
-          NoteActionButton(event: event, model: model, showsLabel: true)
-            // A note already exists, or one is being created: persistent
-            // state, always visible. No note yet: only a possibility, so it
-            // only shows while the hero is hovered — same rule as the rows'
-            // "add"-type actions, applied here via opacity so nothing shifts.
-            .opacity(
-              model.noteURL(for: event).isEmpty && !model.isCreatingNote(for: event) && !isHovered
-                ? 0 : 1
-            )
-            .animation(.easeInOut(duration: 0.12), value: isHovered)
+          NoteActionButton(event: event, model: model, showsLabel: true, containerHovered: isHovered)
         }
         .padding(.top, 2)
       }
@@ -501,7 +492,7 @@ private struct HeroContent: View {
   }
 
   private var metadataLine: String {
-    var parts = [timeRangeText]
+    var parts = [timeRangeText(for: event)]
     if !event.location.isEmpty {
       parts.append(event.location)
     }
@@ -517,10 +508,6 @@ private struct HeroContent: View {
       parts.append(attendees.joined(separator: ", "))
     }
     return parts.joined(separator: " · ")
-  }
-
-  private var timeRangeText: String {
-    "\(clock(event.startDate)) – \(clock(event.endDate))"
   }
 
   private func minutesUntil(_ date: Date) -> Int {
@@ -627,16 +614,11 @@ private struct NowStripContent: View {
 
         HStack(spacing: Theme.Spacing.xs) {
           if !event.conferenceUrl.isEmpty {
-            IconButton(systemImage: "video.fill") {
-              model.join(event)
-            }
-            .help(loc("Join video call"))
-            .opacity(isHovered ? 1 : 0)
-            .animation(.easeInOut(duration: 0.12), value: isHovered)
+            JoinVideoCallButton(event: event, model: model)
+              .revealOnHover(isHovered)
           }
-          NoteActionButton(event: event, model: model)
-            .opacity(isHovered ? 1 : 0)
-            .animation(.easeInOut(duration: 0.12), value: isHovered)
+          NoteActionButton(event: event, model: model, containerHovered: nil)
+            .revealOnHover(isHovered)
         }
 
         Text(loc("%@ left", relativeWhen(minutesUntil(event.endDate))))
@@ -883,27 +865,17 @@ struct EventRow: View {
 
           // State (a link/note that already exists) renders as a persistent
           // IconButton; possibility (no link/note yet — an "add"-type action)
-          // only fades in on row hover. Both render through the same shared
-          // component (see `IconButton` in Theme.swift), so accent color is
-          // never a resting state, only a hover one. Hover-only actions stay
-          // in the layout at fixed size (opacity only) so nothing shifts when
-          // they appear. All-day rows never get a "add video call" action,
-          // hover or not.
+          // only fades in on row hover via `revealOnHover`, so accent color
+          // is never a resting state, only a hover one. All-day rows never
+          // get a "add video call" action, hover or not.
           if !event.conferenceUrl.isEmpty {
-            IconButton(systemImage: "video.fill") {
-              model.join(event)
-            }
-            .help(loc("Join video call"))
+            JoinVideoCallButton(event: event, model: model)
           } else if !event.allDay {
             ConferenceActionButton(event: event, model: model)
-              .opacity(isHovered ? 1 : 0)
-              .animation(.easeInOut(duration: 0.12), value: isHovered)
+              .revealOnHover(isHovered)
           }
 
-          NoteActionButton(event: event, model: model)
-            // Already has a note: always visible (state, not possibility).
-            .opacity(model.noteURL(for: event).isEmpty && !isHovered ? 0 : 1)
-            .animation(.easeInOut(duration: 0.12), value: isHovered)
+          NoteActionButton(event: event, model: model, containerHovered: isHovered)
         }
       }
       .contentShape(Rectangle())
@@ -985,6 +957,12 @@ private func attendeeDisplayNames(for event: CalendarEvent) -> [String] {
     .map { $0.name.isEmpty ? $0.email : $0.name }
 }
 
+/// "start – end" clock times for a timed event. Shared by the hero's metadata
+/// line and expanded event detail so the dash and spacing can't drift apart.
+private func timeRangeText(for event: CalendarEvent) -> String {
+  "\(clock(event.startDate)) – \(clock(event.endDate))"
+}
+
 /// Small inline caption chip marking an event as hidden from the menubar
 /// countdown. Mirrors the subtle, no-border pill look used elsewhere for
 /// inline captions (e.g. `NoteErrorOverlay`'s tinted background) but at
@@ -1007,11 +985,19 @@ private struct NoteActionButton: View {
   /// `IconButton` — used by the "Up next" hero's secondary action. Same
   /// open-or-create behavior either way; only the presentation differs.
   var showsLabel: Bool = false
+  /// The containing surface's hover state. The possibility/state rule lives
+  /// here rather than at call sites so every surface agrees on it: an
+  /// existing or in-flight note is state (always visible), a missing note is
+  /// a possibility (visible only while the container is hovered). `nil` opts
+  /// out for containers that manage visibility themselves — the NOW strip
+  /// reveals all of its actions on hover, note or not.
+  var containerHovered: Bool?
   @State private var showConfirm = false
 
   var body: some View {
     let notesUrl = model.noteURL(for: event)
     let isCreating = model.isCreatingNote(for: event)
+    let revealed = containerHovered.map { !notesUrl.isEmpty || isCreating || $0 } ?? true
 
     let action = {
       if notesUrl.isEmpty {
@@ -1045,6 +1031,7 @@ private struct NoteActionButton: View {
     } message: {
       Text(confirmMessage)
     }
+    .revealOnHover(revealed)
   }
 
   /// Names the same-domain attendees who will receive edit access, so the
@@ -1061,6 +1048,22 @@ private struct NoteActionButton: View {
       "Create a Google Doc for %1$@, attach it to the calendar event, and give edit access to %2$@%3$@.",
       event.title, shown, overflow
     )
+  }
+}
+
+/// The row/strip "join the video call" action: one home for the icon, action,
+/// and help text, mirroring how `ConferenceActionButton` and
+/// `NoteActionButton` wrap theirs. Joining reads nothing observable from the
+/// model, so this holds a plain reference rather than an `@ObservedObject`.
+private struct JoinVideoCallButton: View {
+  var event: CalendarEvent
+  var model: AppModel
+
+  var body: some View {
+    IconButton(systemImage: "video.fill") {
+      model.join(event)
+    }
+    .help(loc("Join video call"))
   }
 }
 
@@ -1162,9 +1165,9 @@ private struct EventDetailView: View {
   }
 
   /// "<start – end> · <account email>" (all-day: `loc("all-day")` in place of
-  /// the range), matching `HeroContent.timeRangeText`'s dash/spacing.
+  /// the range).
   private var detailMetadataLine: String {
-    let timePart = event.allDay ? loc("all-day") : "\(clock(event.startDate)) – \(clock(event.endDate))"
+    let timePart = event.allDay ? loc("all-day") : timeRangeText(for: event)
     return "\(timePart) · \(event.account.email)"
   }
 
@@ -1303,12 +1306,9 @@ private struct ExternalShareOverlay: View {
           model.resolveExternalShare(shareExternalAttendees: true)
         }
         .buttonStyle(.borderedProminent)
-        Button {
+        IconButton(systemImage: "xmark") {
           model.cancelExternalSharePrompt()
-        } label: {
-          Image(systemName: "xmark")
         }
-        .buttonStyle(.borderless)
         .help(loc("Cancel"))
       }
       .font(.caption)
