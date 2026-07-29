@@ -1,0 +1,838 @@
+<meta charset="utf-8">
+<title>Until — NOWストリップ・モック</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --ink: #1d1d1f;
+    --muted: #6e6e73;
+    --line: rgba(20, 22, 26, 0.10);
+    --accent: #0071e3;
+    --panel: #ffffff;
+    --panel-inset: #f5f5f7;
+    --panel-line: rgba(20, 22, 26, 0.08);
+    --hover: rgba(20, 22, 26, 0.045);
+    --hero-bg: linear-gradient(180deg, rgba(0, 113, 227, 0.07), rgba(0, 113, 227, 0.025));
+    --now: #248a3d;
+    --now-bg: linear-gradient(180deg, rgba(36, 138, 61, 0.09), rgba(36, 138, 61, 0.03));
+    --now-tint: rgba(36, 138, 61, 0.08);
+    --now-tint-strong: rgba(36, 138, 61, 0.16);
+    --now-btn-ink: #ffffff;
+    --menubar: #e6e7ea;
+    --shadow: 0 18px 50px rgba(20, 22, 26, 0.16), 0 2px 8px rgba(20, 22, 26, 0.08);
+    --cal-blue: #4285f4; --cal-orange: #f4a742; --cal-green: #34a853;
+    --cal-red: #ea6060; --cal-teal: #2ec7c0; --cal-purple: #b07fe0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131316;
+      --ink: #f5f5f7;
+      --muted: #98989d;
+      --line: rgba(255, 255, 255, 0.10);
+      --accent: #0a84ff;
+      --panel: #262628;
+      --panel-inset: #1e1e20;
+      --panel-line: rgba(255, 255, 255, 0.09);
+      --hover: rgba(255, 255, 255, 0.055);
+      --hero-bg: linear-gradient(180deg, rgba(10, 132, 255, 0.13), rgba(10, 132, 255, 0.05));
+      --now: #32d74b;
+      --now-bg: linear-gradient(180deg, rgba(50, 215, 75, 0.12), rgba(50, 215, 75, 0.04));
+      --now-tint: rgba(50, 215, 75, 0.10);
+      --now-tint-strong: rgba(50, 215, 75, 0.20);
+      --now-btn-ink: #06230e;
+      --menubar: #2c2c2f;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131316; --ink: #f5f5f7; --muted: #98989d;
+    --line: rgba(255,255,255,0.10); --accent: #0a84ff;
+    --panel: #262628; --panel-inset: #1e1e20;
+    --panel-line: rgba(255,255,255,0.09); --hover: rgba(255,255,255,0.055);
+    --hero-bg: linear-gradient(180deg, rgba(10,132,255,0.13), rgba(10,132,255,0.05));
+    --now: #32d74b;
+    --now-bg: linear-gradient(180deg, rgba(50,215,75,0.12), rgba(50,215,75,0.04));
+    --now-tint: rgba(50,215,75,0.10);
+    --now-tint-strong: rgba(50,215,75,0.20);
+    --now-btn-ink: #06230e;
+    --menubar: #2c2c2f;
+    --shadow: 0 18px 50px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+  }
+  :root[data-theme="light"] {
+    --bg: #eef0f3; --ink: #1d1d1f; --muted: #6e6e73;
+    --line: rgba(20,22,26,0.10); --accent: #0071e3;
+    --panel: #ffffff; --panel-inset: #f5f5f7;
+    --panel-line: rgba(20,22,26,0.08); --hover: rgba(20,22,26,0.045);
+    --hero-bg: linear-gradient(180deg, rgba(0,113,227,0.07), rgba(0,113,227,0.025));
+    --now: #248a3d;
+    --now-bg: linear-gradient(180deg, rgba(36,138,61,0.09), rgba(36,138,61,0.03));
+    --now-tint: rgba(36,138,61,0.08);
+    --now-tint-strong: rgba(36,138,61,0.16);
+    --now-btn-ink: #ffffff;
+    --menubar: #e6e7ea;
+    --shadow: 0 18px 50px rgba(20,22,26,0.16), 0 2px 8px rgba(20,22,26,0.08);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .page { max-width: 980px; margin: 0 auto; padding: 56px 24px 80px; }
+
+  /* ---------- page chrome ---------- */
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.01em;
+    margin: 0 0 8px; text-wrap: balance;
+  }
+  .lead { color: var(--muted); font-size: 14px; margin: 0 0 44px; max-width: 640px; }
+  .lead strong { color: var(--ink); font-weight: 600; }
+  h2.section-title {
+    font-size: 15px; font-weight: 700; margin: 64px 0 6px;
+  }
+  .section-sub { font-size: 13px; color: var(--muted); margin: 0 0 22px; max-width: 620px; }
+
+  .stage {
+    display: flex; flex-wrap: wrap; gap: 48px 40px;
+    justify-content: center; align-items: flex-start;
+  }
+  .variant { display: flex; flex-direction: column; gap: 14px; }
+  .variant-label {
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .variant-note { font-size: 12.5px; color: var(--muted); max-width: 390px; margin: 2px 0 0; }
+  .variant-note b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- menubar strip ---------- */
+  .menubar {
+    width: 390px; height: 28px; border-radius: 7px;
+    background: var(--menubar);
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 10px; gap: 12px;
+    font-size: 12.5px; font-weight: 500;
+    border: 1px solid var(--panel-line);
+  }
+  .menubar .mb-item { display: flex; align-items: center; gap: 5px; }
+  .menubar .mb-clock { color: var(--muted); font-weight: 400; }
+  .menubar svg { display: block; }
+
+  /* ---------- popover shell ---------- */
+  .popover {
+    width: 390px;
+    background: var(--panel);
+    border-radius: 14px;
+    border: 1px solid var(--panel-line);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+
+  /* ---------- NOW strip (the proposal) ---------- */
+  .now-strip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 16px 9px;
+    background: var(--now-bg);
+    border-bottom: 1px solid var(--panel-line);
+    position: relative;
+  }
+  .ns-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--now); flex: none;
+    animation: ns-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes ns-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+  @media (prefers-reduced-motion: reduce) { .ns-dot { animation: none; } }
+  .ns-kicker {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--now); flex: none;
+  }
+  .ns-title {
+    font-size: 12.5px; font-weight: 550;
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ns-left {
+    font-size: 11.5px; font-weight: 650; color: var(--now);
+    font-variant-numeric: tabular-nums; flex: none;
+  }
+  .ns-progress {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: color-mix(in srgb, var(--now) 16%, transparent);
+  }
+  .ns-progress i {
+    display: block; height: 100%;
+    background: var(--now);
+  }
+  .ns-actions { display: flex; gap: 2px; flex: none; margin: -3px 0; }
+  .now-strip .icon-btn { width: 24px; height: 20px; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    border-bottom: 1px solid var(--panel-line);
+    padding: 14px 16px 15px;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .hero-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .hero-kicker {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent);
+  }
+  .hero.now .hero-kicker { color: var(--now); }
+  .hero-count {
+    font-size: 12px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+  }
+  .hero.now .hero-count { color: var(--now); }
+  .hero-title { font-size: 16px; font-weight: 650; line-height: 1.3; margin: 0; }
+  .hero-meta { font-size: 12px; color: var(--muted); margin: 0; }
+  .hero-progress {
+    height: 3px; border-radius: 2px;
+    background: color-mix(in srgb, var(--now) 18%, transparent);
+    overflow: hidden;
+  }
+  .hero-progress i {
+    display: block; height: 100%;
+    background: var(--now); border-radius: 2px;
+  }
+  .hero-actions { display: flex; gap: 8px; margin-top: 3px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600;
+    border-radius: 7px; padding: 5px 12px;
+    border: 1px solid transparent; cursor: default;
+  }
+  .btn svg { display: block; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .hero.now .btn-primary { background: var(--now); color: var(--now-btn-ink); }
+  .btn-quiet {
+    background: var(--panel);
+    border-color: var(--panel-line);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+
+  /* ---------- list ---------- */
+  .list { padding: 2px 0 6px; overflow: hidden; }
+  .sec {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--muted);
+    padding: 10px 16px 4px;
+  }
+  .row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 12px 7px 14px;
+    position: relative;
+  }
+  .row:hover { background: var(--hover); }
+  .bar { width: 3px; align-self: stretch; border-radius: 2px; flex: none; }
+  .time {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; color: var(--muted);
+    width: 56px; flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .row-main { min-width: 0; flex: 1; }
+  .row-title {
+    font-size: 13.5px; font-weight: 500;
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .row-title .clip { color: var(--muted); flex: none; }
+  .row-sub {
+    font-size: 11.5px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .row-actions { display: flex; gap: 4px; flex: none; }
+  .icon-btn {
+    width: 26px; height: 22px; border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--accent); cursor: default;
+  }
+  .icon-btn.muted { color: var(--muted); }
+  .icon-btn:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  .icon-btn.ghost { opacity: 0; transition: opacity 0.12s ease; color: var(--muted); }
+  .row:hover .icon-btn.ghost,
+  .now-strip:hover .icon-btn.ghost { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .icon-btn.ghost { transition: none; } }
+
+  .gap-divider {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 16px;
+    color: var(--muted);
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+  .gap-divider::before, .gap-divider::after {
+    content: ""; height: 1px; flex: 1; background: var(--panel-line);
+  }
+
+  /* ---------- footer ---------- */
+  .pop-footer {
+    border-top: 1px solid var(--panel-line);
+    background: var(--panel-inset);
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 12px;
+    color: var(--muted); font-size: 11.5px;
+  }
+  .pop-footer .grow { flex: 1; }
+  .pop-footer svg { display: block; }
+  .f-btn {
+    width: 24px; height: 22px; border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--muted);
+  }
+  .f-btn:hover { background: var(--hover); color: var(--ink); }
+
+  /* ---------- transition demo ---------- */
+  .anim-controls { display: flex; align-items: center; gap: 12px; }
+  .play-btn {
+    font: inherit; font-size: 13px; font-weight: 600;
+    color: var(--ink);
+    background: var(--panel); border: 1px solid var(--panel-line);
+    border-radius: 8px; padding: 6px 14px;
+    cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .play-btn:hover { background: var(--hover); }
+  .anim-hint { font-size: 12px; color: var(--muted); }
+
+  #anim .mb-swap { position: relative; display: inline-flex; }
+  #anim .mb-a, #anim .mb-b {
+    display: flex; align-items: center; gap: 5px;
+    transition: opacity 0.3s ease;
+  }
+  #anim .mb-b { position: absolute; inset: 0; opacity: 0; }
+  #anim.switched .mb-a { opacity: 0; }
+  #anim.switched .mb-b { opacity: 1; }
+
+  #anim .full-version {
+    overflow: hidden; max-height: 180px; opacity: 1;
+    transition: max-height 0.32s ease, opacity 0.2s ease 0.08s;
+  }
+  #anim.switched .full-version {
+    max-height: 0; opacity: 0; border-bottom-width: 0;
+    transition: max-height 0.32s ease, opacity 0.18s ease;
+  }
+  #anim .strip-version {
+    overflow: hidden; max-height: 0; opacity: 0;
+    padding-top: 0; padding-bottom: 0; border-bottom-width: 0;
+    transition: max-height 0.28s ease, opacity 0.2s ease, padding 0.28s ease;
+  }
+  #anim.switched .strip-version {
+    max-height: 40px; opacity: 1;
+    padding-top: 7px; padding-bottom: 9px; border-bottom-width: 1px;
+    transition: max-height 0.28s ease 0.2s, opacity 0.24s ease 0.3s, padding 0.28s ease 0.2s;
+  }
+  #anim .next-hero {
+    overflow: hidden; max-height: 0; opacity: 0;
+    padding-top: 0; padding-bottom: 0; border-bottom-width: 0;
+    transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.3s ease;
+  }
+  #anim.switched .next-hero {
+    max-height: 220px; opacity: 1;
+    padding-top: 14px; padding-bottom: 15px; border-bottom-width: 1px;
+    transition: max-height 0.34s ease 0.34s, opacity 0.26s ease 0.44s, padding 0.34s ease 0.34s;
+  }
+  #anim .next-row {
+    overflow: hidden; max-height: 60px; opacity: 1;
+    transition: max-height 0.3s ease 0.34s, opacity 0.2s ease 0.34s;
+  }
+  #anim.switched .next-row {
+    max-height: 0; opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.18s ease;
+  }
+  #anim .hero-progress i, #anim .ns-progress i { transition: width 0.5s ease 0.3s; }
+  #anim .anim-progress { width: 17%; }
+  #anim.switched .anim-progress { width: 73%; }
+  @media (prefers-reduced-motion: reduce) {
+    #anim *, #anim .mb-a, #anim .mb-b { transition: none !important; }
+  }
+
+  /* ---------- strip micro-variants ---------- */
+  .strip-samples { display: flex; flex-direction: column; gap: 26px; max-width: 390px; }
+  .strip-sample { display: flex; flex-direction: column; gap: 8px; }
+  .strip-sample .shell {
+    width: 390px; background: var(--panel);
+    border: 1px solid var(--panel-line); border-radius: 10px;
+    overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .strip-sample .shell .now-strip { border-bottom: none; }
+  .now-strip.v3 { background: none; }
+  .now-strip.v3 .v3-fill {
+    position: absolute; inset: 0; width: 73%;
+    background: linear-gradient(90deg, var(--now-tint), var(--now-tint-strong));
+    z-index: 0;
+  }
+  .now-strip.v3 > :not(.v3-fill) { position: relative; z-index: 1; }
+
+  /* ---------- decisions ---------- */
+  .decisions { margin-top: 64px; border-top: 1px solid var(--line); padding-top: 32px; }
+  .decisions h2 { font-size: 15px; font-weight: 700; margin: 0 0 18px; }
+  .decisions dl {
+    margin: 0; display: grid; gap: 14px 24px;
+    grid-template-columns: 200px 1fr;
+  }
+  .decisions dt { font-size: 13px; font-weight: 600; }
+  .decisions dd { margin: 0; font-size: 13px; color: var(--muted); max-width: 560px; }
+  @media (max-width: 640px) {
+    .decisions dl { grid-template-columns: 1fr; gap: 4px; }
+    .decisions dd { margin-bottom: 12px; }
+  }
+  .fine { margin-top: 40px; font-size: 12px; color: var(--muted); }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Until · UX mock</p>
+  <h1>NOWストリップ — 切替後も今の予定を見失わない</h1>
+  <p class="lead">
+    次の予定のリード時間に入るとメニューバーとヒーローは次の予定へ切り替わる（imminent切替）。
+    このとき進行中の予定を<strong>1行の緑ストリップに畳んで</strong>ヒーローの上に残す案。
+    左が切替前（現行のまま）、右が切替後（提案）。ストリップにマウスを載せるとホバーアクションが出ます。
+  </p>
+
+  <div class="stage">
+
+    <!-- ===================== Before: in progress (unchanged) ===================== -->
+    <figure class="variant" style="margin:0;">
+      <span class="variant-label">切替前 9:05 — 会議中（現行のまま）</span>
+      <div class="menubar">
+        <span class="mb-item">
+          <svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 1.5l4 4.5-4 4.5M6.5 1.5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          25m left&nbsp;&nbsp;Design review: website…
+        </span>
+        <span class="mb-clock">Mon 9:05 AM</span>
+      </div>
+
+      <div class="popover">
+        <div class="hero now">
+          <div class="hero-top">
+            <span class="hero-kicker">Now · started 5m ago</span>
+            <span class="hero-count">25m left</span>
+          </div>
+          <div class="hero-progress"><i style="width:17%"></i></div>
+          <p class="hero-title">Design review: website screenshots</p>
+          <p class="hero-meta">9:00 – 9:30 AM · Google Meet · Maya Chen, Ren Sato</p>
+          <div class="hero-actions">
+            <span class="btn btn-primary">
+              <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+              Join Google Meet
+            </span>
+            <span class="btn btn-quiet">
+              <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+              Notes
+            </span>
+          </div>
+        </div>
+
+        <div class="list">
+          <div class="sec">Today</div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-blue)"></span>
+            <span class="time">all-day</span>
+            <div class="row-main">
+              <div class="row-title">Launch assets due</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-green)"></span>
+            <span class="time">9:30 AM</span>
+            <div class="row-main">
+              <div class="row-title">Product sync</div>
+              <div class="row-sub">Google Meet · Alex Kim, Sam Rivera · in 25m</div>
+            </div>
+            <div class="row-actions">
+              <span class="icon-btn" title="Join video call">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+              </span>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-orange)"></span>
+            <span class="time">10:30 AM</span>
+            <div class="row-main">
+              <div class="row-title">Project work block</div>
+              <div class="row-sub">Desk</div>
+            </div>
+          </div>
+
+          <div class="gap-divider">free until 1:30 PM</div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-red)"></span>
+            <span class="time">1:30 PM</span>
+            <div class="row-main">
+              <div class="row-title">Focus: Until copy polish</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pop-footer">
+          <span class="f-btn" title="Quit Until">
+            <svg width="12" height="12" viewBox="0 0 14 14"><path d="M7 1v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.2 3.2a5 5 0 11-6.4 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </span>
+          <span>Updated just now</span>
+          <span class="grow"></span>
+          <span class="f-btn" title="Refresh">
+            <svg width="13" height="13" viewBox="0 0 14 14"><path d="M12 7a5 5 0 11-1.5-3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12.2 1.6v2.6H9.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="f-btn" title="Preferences">
+            <svg width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7 1.2v2M7 10.8v2M1.2 7h2M10.8 7h2M2.9 2.9l1.4 1.4M9.7 9.7l1.4 1.4M11.1 2.9L9.7 4.3M4.3 9.7l-1.4 1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </span>
+        </div>
+      </div>
+
+      <figcaption class="variant-note">
+        進行中はヒーローが<b>NOW（緑・デカい）</b>。次の予定はリスト先頭に「in 25m」付きで居る。ここは今のまま。
+      </figcaption>
+    </figure>
+
+    <!-- ===================== After: imminent switch (proposal) ===================== -->
+    <figure class="variant" style="margin:0;">
+      <span class="variant-label">切替後 9:22 — リード10分に入った（提案）</span>
+      <div class="menubar">
+        <span class="mb-item">
+          <svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 1.5l4 4.5-4 4.5M6.5 1.5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          8m&nbsp;&nbsp;Product sync
+        </span>
+        <span class="mb-clock">Mon 9:22 AM</span>
+      </div>
+
+      <div class="popover">
+        <!-- NOW strip: the in-progress event, folded to one line -->
+        <div class="now-strip">
+          <span class="ns-dot"></span>
+          <span class="ns-kicker">Now</span>
+          <span class="ns-title">Design review: website screenshots</span>
+          <span class="ns-actions">
+            <span class="icon-btn ghost" title="Rejoin Google Meet">
+              <svg width="14" height="10" viewBox="0 0 20 14"><rect x="0.7" y="1.7" width="11.6" height="10.6" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="icon-btn ghost" title="Notes">
+              <svg width="10" height="12" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+            </span>
+          </span>
+          <span class="ns-left">8m left</span>
+          <span class="ns-progress"><i style="width:73%"></i></span>
+        </div>
+
+        <!-- hero: up next, unchanged size -->
+        <div class="hero">
+          <div class="hero-top">
+            <span class="hero-kicker">Up next</span>
+            <span class="hero-count">in 8m</span>
+          </div>
+          <p class="hero-title">Product sync</p>
+          <p class="hero-meta">9:30 – 10:00 AM · Google Meet · Alex Kim, Sam Rivera</p>
+          <div class="hero-actions">
+            <span class="btn btn-primary">
+              <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+              Join Google Meet
+            </span>
+            <span class="btn btn-quiet">
+              <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+              Notes
+            </span>
+          </div>
+        </div>
+
+        <div class="list">
+          <div class="sec">Today</div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-blue)"></span>
+            <span class="time">all-day</span>
+            <div class="row-main">
+              <div class="row-title">Launch assets due</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-orange)"></span>
+            <span class="time">10:30 AM</span>
+            <div class="row-main">
+              <div class="row-title">Project work block</div>
+              <div class="row-sub">Desk</div>
+            </div>
+          </div>
+
+          <div class="gap-divider">free until 1:30 PM</div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-red)"></span>
+            <span class="time">1:30 PM</span>
+            <div class="row-main">
+              <div class="row-title">Focus: Until copy polish</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="bar" style="background:var(--cal-red)"></span>
+            <span class="time">2:00 PM</span>
+            <div class="row-main">
+              <div class="row-title">School pickup</div>
+              <div class="row-sub">Maple Elementary · Avery</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pop-footer">
+          <span class="f-btn" title="Quit Until">
+            <svg width="12" height="12" viewBox="0 0 14 14"><path d="M7 1v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.2 3.2a5 5 0 11-6.4 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </span>
+          <span>Updated just now</span>
+          <span class="grow"></span>
+          <span class="f-btn" title="Refresh">
+            <svg width="13" height="13" viewBox="0 0 14 14"><path d="M12 7a5 5 0 11-1.5-3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12.2 1.6v2.6H9.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="f-btn" title="Preferences">
+            <svg width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7 1.2v2M7 10.8v2M1.2 7h2M10.8 7h2M2.9 2.9l1.4 1.4M9.7 9.7l1.4 1.4M11.1 2.9L9.7 4.3M4.3 9.7l-1.4 1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </span>
+        </div>
+      </div>
+
+      <figcaption class="variant-note">
+        メニューバーは次の予定へ（現行どおり）。ポップオーバーは<b>NOWが1行の緑ストリップに畳まれ</b>、
+        UP NEXTがデカいヒーローに。進行中はストリップへ、次はヒーローへ集約されるのでリストは10:30から始まる。
+        ストリップは<b>ホバーで再入室・ノート</b>のアイコンが出る（行と同じ流儀）。
+      </figcaption>
+    </figure>
+  </div>
+
+  <!-- ===================== transition demo ===================== -->
+  <h2 class="section-title">切替の動き</h2>
+  <p class="section-sub">
+    「NOWヒーローがストリップに畳まれ、空いた場所にUP NEXTが展開する」を連続した動きとして見せることで、
+    ジャンプカット（今の予定が突然消えたように見える問題）をなくす。ボタンで往復できます。
+  </p>
+
+  <div class="stage" style="justify-content:flex-start;">
+    <figure class="variant" style="margin:0;">
+      <div class="anim-controls">
+        <button class="play-btn" id="anim-btn" type="button">▶ 9:22の切替を再生</button>
+        <span class="anim-hint">クリックで 9:05 ⇄ 9:22 を切り替え</span>
+      </div>
+
+      <div id="anim">
+        <div class="menubar" style="margin-bottom:14px;">
+          <span class="mb-swap">
+            <span class="mb-a">
+              <svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 1.5l4 4.5-4 4.5M6.5 1.5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              25m left&nbsp;&nbsp;Design review: website…
+            </span>
+            <span class="mb-b">
+              <svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 1.5l4 4.5-4 4.5M6.5 1.5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              8m&nbsp;&nbsp;Product sync
+            </span>
+          </span>
+          <span class="mb-clock"><span class="mb-swap"><span class="mb-a">Mon 9:05 AM</span><span class="mb-b">Mon 9:22 AM</span></span></span>
+        </div>
+
+        <div class="popover">
+          <!-- full NOW hero (state A) -->
+          <div class="hero now full-version">
+            <div class="hero-top">
+              <span class="hero-kicker">Now · started 5m ago</span>
+              <span class="hero-count">25m left</span>
+            </div>
+            <div class="hero-progress"><i class="anim-progress"></i></div>
+            <p class="hero-title">Design review: website screenshots</p>
+            <p class="hero-meta">9:00 – 9:30 AM · Google Meet · Maya Chen, Ren Sato</p>
+            <div class="hero-actions">
+              <span class="btn btn-primary">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+                Join Google Meet
+              </span>
+              <span class="btn btn-quiet">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+                Notes
+              </span>
+            </div>
+          </div>
+
+          <!-- NOW strip (state B) -->
+          <div class="now-strip strip-version">
+            <span class="ns-dot"></span>
+            <span class="ns-kicker">Now</span>
+            <span class="ns-title">Design review: website screenshots</span>
+            <span class="ns-left">8m left</span>
+            <span class="ns-progress"><i class="anim-progress"></i></span>
+          </div>
+
+          <!-- UP NEXT hero (state B) -->
+          <div class="hero next-hero">
+            <div class="hero-top">
+              <span class="hero-kicker">Up next</span>
+              <span class="hero-count">in 8m</span>
+            </div>
+            <p class="hero-title">Product sync</p>
+            <p class="hero-meta">9:30 – 10:00 AM · Google Meet · Alex Kim, Sam Rivera</p>
+            <div class="hero-actions">
+              <span class="btn btn-primary">
+                <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+                Join Google Meet
+              </span>
+              <span class="btn btn-quiet">
+                <svg width="11" height="13" viewBox="0 0 12 14"><path d="M1 2.5A1.5 1.5 0 012.5 1H7l4 4v6.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 1v4h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+                Notes
+              </span>
+            </div>
+          </div>
+
+          <div class="list">
+            <div class="sec">Today</div>
+
+            <div class="next-row">
+              <div class="row">
+                <span class="bar" style="background:var(--cal-green)"></span>
+                <span class="time">9:30 AM</span>
+                <div class="row-main">
+                  <div class="row-title">Product sync</div>
+                  <div class="row-sub">Google Meet · Alex Kim, Sam Rivera · in 25m</div>
+                </div>
+                <div class="row-actions">
+                  <span class="icon-btn" title="Join video call">
+                    <svg width="15" height="11" viewBox="0 0 20 14"><rect x="0" y="1" width="13" height="12" rx="3" fill="currentColor"/><path d="M14.5 5.2L19 2.4v9.2l-4.5-2.8z" fill="currentColor"/></svg>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="bar" style="background:var(--cal-orange)"></span>
+              <span class="time">10:30 AM</span>
+              <div class="row-main">
+                <div class="row-title">Project work block</div>
+                <div class="row-sub">Desk</div>
+              </div>
+            </div>
+
+            <div class="gap-divider">free until 1:30 PM</div>
+
+            <div class="row">
+              <span class="bar" style="background:var(--cal-red)"></span>
+              <span class="time">1:30 PM</span>
+              <div class="row-main">
+                <div class="row-title">Focus: Until copy polish</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pop-footer">
+            <span class="f-btn" title="Quit Until">
+              <svg width="12" height="12" viewBox="0 0 14 14"><path d="M7 1v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.2 3.2a5 5 0 11-6.4 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </span>
+            <span>Updated just now</span>
+            <span class="grow"></span>
+            <span class="f-btn" title="Refresh">
+              <svg width="13" height="13" viewBox="0 0 14 14"><path d="M12 7a5 5 0 11-1.5-3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12.2 1.6v2.6H9.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="f-btn" title="Preferences">
+              <svg width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7 1.2v2M7 10.8v2M1.2 7h2M10.8 7h2M2.9 2.9l1.4 1.4M9.7 9.7l1.4 1.4M11.1 2.9L9.7 4.3M4.3 9.7l-1.4 1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <figcaption class="variant-note">
+        ①NOWヒーローが縮んでストリップに → ②UP NEXTヒーローが下に展開 → ③リストの該当行が消える、を一連のイージングで。
+        ポップオーバーが開いている最中に切替時刻を跨いだ場合もこの動きになる。<b>reduce motion時はクロスフェードのみ。</b>
+      </figcaption>
+    </figure>
+  </div>
+
+  <!-- ===================== strip micro-variants ===================== -->
+  <h2 class="section-title">ストリップの表現バリエーション</h2>
+  <p class="section-sub">情報量と主張の強さのトレードオフ。本命はV1。</p>
+
+  <div class="strip-samples">
+    <div class="strip-sample">
+      <span class="variant-label">V1 — 本命: kicker + 下端プログレス</span>
+      <div class="shell">
+        <div class="now-strip">
+          <span class="ns-dot"></span>
+          <span class="ns-kicker">Now</span>
+          <span class="ns-title">Design review: website screenshots</span>
+          <span class="ns-left">8m left</span>
+          <span class="ns-progress"><i style="width:73%"></i></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="strip-sample">
+      <span class="variant-label">V2 — 最小: ドットとタイトルだけ</span>
+      <div class="shell">
+        <div class="now-strip">
+          <span class="ns-dot"></span>
+          <span class="ns-title">Design review: website screenshots</span>
+          <span class="ns-left">8m left</span>
+        </div>
+      </div>
+      <p class="variant-note">静かだが、ヒーローのNOW（緑kicker）との連続性が弱く、進捗も見えない。</p>
+    </div>
+
+    <div class="strip-sample">
+      <span class="variant-label">V3 — 背景フィルで進捗を塗る</span>
+      <div class="shell">
+        <div class="now-strip v3">
+          <span class="v3-fill"></span>
+          <span class="ns-dot"></span>
+          <span class="ns-kicker">Now</span>
+          <span class="ns-title">Design review: website screenshots</span>
+          <span class="ns-left">8m left</span>
+        </div>
+      </div>
+      <p class="variant-note">グランスでは最強だが、塗りがタイトルの可読性と喧嘩しがち。ダークでは特に。</p>
+    </div>
+  </div>
+
+  <!-- ---------- decisions ---------- -->
+  <section class="decisions">
+    <h2>設計判断メモ</h2>
+    <dl>
+      <dt>ストリップの出現条件</dt>
+      <dd>「ヒーロー（=メニューバーのイベント）が進行中でない」∧「進行中のイベントが存在する」∧「そのイベントがメニューバーskipされていない」。imminent切替時だけでなく、この条件を満たす状態なら常に出るので、特別なモードを持たない。</dd>
+
+      <dt>ヒーロー = メニューバー不変</dt>
+      <dd>ヒーローに載るのは今までどおりメニューバーがカウントダウンしているイベントのみ。ストリップは別枠なので、「メニューバー・通知・ヒーローが同じイベントを指す」既存のメンタルモデルを壊さない。</dd>
+
+      <dt>重複排除</dt>
+      <dd>ストリップに載ったイベントはヒーロー同様リストから消える。「一つのイベントは一箇所」の原則を維持し、リストは純粋に「このあと来るもの」になる。</dd>
+
+      <dt>ストリップのアクション</dt>
+      <dd>ホバーで再入室（ビデオ）・ノートのアイコンが出現、右クリックは行と共通のコンテキストメニュー。クリックで詳細展開（ヒーローと同じtoggle）。会議の終盤に一度抜けた会議へ戻る・ノートを開く、が1クリックで残る。</dd>
+
+      <dt>複数進行中のとき</dt>
+      <dd>ダブルブッキング時は「終了が最も近い」進行中イベントをストリップに出す（=次に手が空くまでの時間）。現状の「開始が最も早い進行中を選ぶ」挙動（pickMenubarEvent）はヒーロー側の切替バウンスも起こすので、実装時にあわせて見直す。</dd>
+
+      <dt>縦コスト</dt>
+      <dd>ストリップは約32px。切替時にNOWヒーロー（約130px）が消えるので、切替後の合計高さはむしろ現行より低い。リストの初期表示行数は減らない。</dd>
+    </dl>
+  </section>
+
+  <p class="fine">
+    モックはHTML（システムフォント・実寸390px）。実装はSwiftUIの PanelView に NowStrip を追加し、
+    リストのdedupを「ヒーロー ∪ ストリップ」に拡張する想定。ライト・ダーク両テーマ対応 — OSの外観設定に追従します。
+  </p>
+</div>
+
+<script>
+  const anim = document.getElementById('anim');
+  const btn = document.getElementById('anim-btn');
+  btn.addEventListener('click', () => {
+    anim.classList.toggle('switched');
+    btn.textContent = anim.classList.contains('switched')
+      ? '⟲ 9:05に戻す'
+      : '▶ 9:22の切替を再生';
+  });
+</script>
