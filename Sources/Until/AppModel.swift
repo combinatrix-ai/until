@@ -1019,7 +1019,7 @@ final class AppModel: ObservableObject {
     rawEvents = DemoCalendarData.events(
       now: now,
       selectedIds: config.selectedCalendarIds,
-      includeNowEvent: runtimeOptions.demoNowEvent
+      scenario: runtimeOptions.demoScenario
     )
     state.auth = DemoCalendarData.accountState()
     state.lastSync = now

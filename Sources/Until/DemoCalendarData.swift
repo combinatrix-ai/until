@@ -1,8 +1,22 @@
 import Foundation
 
 struct AppRuntimeOptions: Hashable {
+  /// Pins which state `DemoCalendarData` composes, so a single `--demo-mode`
+  /// run can reproduce different popover states on demand for README
+  /// screenshots.
+  enum DemoScenario: Hashable {
+    /// Default: every event re-anchored into the future, half-hour aligned —
+    /// nothing is ever in progress.
+    case upcoming
+    /// `--demo-now` / `UNTIL_DEMO_NOW`: pins the green in-progress "Now" hero.
+    case inProgress
+    /// `--demo-overlap` / `UNTIL_DEMO_OVERLAP`: pins the NOW strip above the
+    /// "Up next" hero.
+    case overlap
+  }
+
   var demoMode: Bool
-  var demoNowEvent: Bool = false
+  var demoScenario: DemoScenario = .upcoming
 
   static func fromProcess(
     arguments: [String] = CommandLine.arguments,
@@ -10,15 +24,25 @@ struct AppRuntimeOptions: Hashable {
   ) -> AppRuntimeOptions {
     let demoFlags = Set(["--demo-mode"])
     let demoNowFlags = Set(["--demo-now"])
+    let demoOverlapFlags = Set(["--demo-overlap"])
     let processArguments = arguments.dropFirst()
     let hasFlag = processArguments.contains { demoFlags.contains($0) }
     let hasNowFlag = processArguments.contains { demoNowFlags.contains($0) }
+    let hasOverlapFlag = processArguments.contains { demoOverlapFlags.contains($0) }
     let envValue = environment["UNTIL_DEMO_MODE"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     let hasEnv = ["1", "true", "yes", "on"].contains(envValue ?? "")
     let envNowValue = environment["UNTIL_DEMO_NOW"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     let hasNowEnv = ["1", "true", "yes", "on"].contains(envNowValue ?? "")
-    let demoNowEvent = hasNowFlag || hasNowEnv
-    return AppRuntimeOptions(demoMode: hasFlag || hasEnv || demoNowEvent, demoNowEvent: demoNowEvent)
+    let envOverlapValue = environment["UNTIL_DEMO_OVERLAP"]?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased()
+    let hasOverlapEnv = ["1", "true", "yes", "on"].contains(envOverlapValue ?? "")
+    let hasNow = hasNowFlag || hasNowEnv
+    let hasOverlap = hasOverlapFlag || hasOverlapEnv
+    // Overlap is the superset state (in-progress event AND imminent next), so
+    // it wins when both flags are given.
+    let scenario: DemoScenario = hasOverlap ? .overlap : (hasNow ? .inProgress : .upcoming)
+    return AppRuntimeOptions(demoMode: hasFlag || hasEnv || hasNow || hasOverlap, demoScenario: scenario)
   }
 }
 
@@ -66,10 +90,14 @@ enum DemoCalendarData {
     }
   }
 
-  static func events(now: Date, selectedIds: [String], includeNowEvent: Bool) -> [CalendarEvent] {
+  static func events(
+    now: Date,
+    selectedIds: [String],
+    scenario: AppRuntimeOptions.DemoScenario
+  ) -> [CalendarEvent] {
     let selectedCalendars = calendars(selectedIds: selectedIds).filter(\.selected)
     let selectedCalendarIds = Set(selectedCalendars.map(\.id))
-    return eventDefinitions(now: now, includeNowEvent: includeNowEvent)
+    return eventDefinitions(now: now, scenario: scenario)
       .filter { selectedCalendarIds.contains($0.calendar.id) }
       .sorted { $0.startDate < $1.startDate }
   }
@@ -117,16 +145,37 @@ enum DemoCalendarData {
     )
   ]
 
-  private static func eventDefinitions(now: Date, includeNowEvent: Bool) -> [CalendarEvent] {
+  private static func eventDefinitions(
+    now: Date,
+    scenario: AppRuntimeOptions.DemoScenario
+  ) -> [CalendarEvent] {
     let today = Calendar.current.startOfDay(for: now)
     let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today) ?? today
-    // With the in-progress demo event included, push the schedule anchor out
-    // far enough that "Design review" never falls inside the imminent-next
-    // lead window (5 min) and never overlaps the in-progress event's end.
-    let scheduleAnchor = includeNowEvent ? minutes(from: now, 25) : now
+    // The schedule anchor decides when "Design review" (the next timed
+    // event) starts, relative to `now`:
+    // - `.upcoming`: the next half-hour — nothing is ever in progress.
+    // - `.inProgress`: pushed 25 min out (then rounded to the next half
+    //   hour) so it stays OUTSIDE the imminent-next lead window (5 min)
+    //   while "Launch standup" runs — otherwise the hero would immediately
+    //   switch away from the in-progress event it's meant to demo.
+    // - `.overlap`: pinned to exactly 4 min out, with NO half-hour rounding,
+    //   so it lands INSIDE the lead window while the standup is still
+    //   running — that is what pins the NOW strip above the "Up next" hero.
+    //   Anchoring relative to `now` (rather than wall-clock minutes) means
+    //   every demo re-anchor reproduces the same state, unlike the default
+    //   mode's :23/:53 half-hour rule.
+    let nextSlot: Date
+    switch scenario {
+    case .upcoming:
+      nextSlot = nextHalfHour(after: now)
+    case .inProgress:
+      nextSlot = nextHalfHour(after: minutes(from: now, 25))
+    case .overlap:
+      nextSlot = minutes(from: now, 4)
+    }
     let context = DemoContext(
       now: now,
-      nextSlot: nextHalfHour(after: scheduleAnchor),
+      nextSlot: nextSlot,
       personal: calendarRef(for: calendarDefinitions[0]),
       family: calendarRef(for: calendarDefinitions[1]),
       work: calendarRef(for: calendarDefinitions[2]),
@@ -140,8 +189,13 @@ enum DemoCalendarData {
       + syncAndFocusSpecs(context)
       + holdAndPickupSpecs(context)
       + tomorrowSpecs(context)
-    if includeNowEvent {
-      specs += inProgressSpecs(context)
+    switch scenario {
+    case .upcoming:
+      break
+    case .inProgress:
+      specs += inProgressSpecs(context, startOffset: -5, endOffset: 25)
+    case .overlap:
+      specs += inProgressSpecs(context, startOffset: -22, endOffset: 8)
     }
     return specs.compactMap { event($0, now: now) }
   }
@@ -327,19 +381,28 @@ enum DemoCalendarData {
     ]
   }
 
-  /// Only included when `--demo-now` / `UNTIL_DEMO_NOW` opts in: a single
-  /// event straddling "now" so the popover's in-progress "Up next" hero can
-  /// be demoed (default demo mode anchors everything to the next half-hour
-  /// so nothing is ever in progress).
-  private static func inProgressSpecs(_ ctx: DemoContext) -> [DemoEventSpec] {
+  /// Only included for `.inProgress`/`.overlap` (never `.upcoming`, which
+  /// anchors everything into the future so nothing is ever in progress): a
+  /// single event straddling "now", `startOffset`/`endOffset` minutes away,
+  /// so the popover's in-progress "Now" hero or NOW strip can be demoed.
+  /// - `.inProgress` passes -5/25: comfortably inside its run so the hero
+  ///   reads as freshly started.
+  /// - `.overlap` passes -22/8 (~73% elapsed, "8m left") so the strip reads
+  ///   as a meeting about to wrap, distinct from the fresh "Design review"
+  ///   the hero switches to.
+  private static func inProgressSpecs(
+    _ ctx: DemoContext,
+    startOffset: Int,
+    endOffset: Int
+  ) -> [DemoEventSpec] {
     [
       DemoEventSpec(
         id: "launch-standup",
         title: "Launch standup",
         description: "Check screenshot capture progress and flag any launch blockers.",
         location: "Google Meet",
-        start: minutes(from: ctx.now, -5),
-        end: minutes(from: ctx.now, 25),
+        start: minutes(from: ctx.now, startOffset),
+        end: minutes(from: ctx.now, endOffset),
         calendar: ctx.launch,
         accountEmail: workAccountEmail,
         attendees: [
