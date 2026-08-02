@@ -106,7 +106,6 @@ final class GoogleAuth: Identifiable {
       accessToken: exchanged.accessToken,
       refreshToken: exchanged.refreshToken,
       expiryDate: Date().addingTimeInterval(TimeInterval(exchanged.expiresIn)),
-      tokenType: exchanged.tokenType,
       grantedScopes: exchanged.scope.map { Array(parseGrantedScopes($0)).sorted() }
     )
     try KeychainStore.upsert(stored)
@@ -135,7 +134,6 @@ final class GoogleAuth: Identifiable {
     let refreshed = try await refresh(refreshToken: token.refreshToken)
     token.accessToken = refreshed.accessToken
     token.expiryDate = Date().addingTimeInterval(TimeInterval(refreshed.expiresIn))
-    token.tokenType = refreshed.tokenType
     // Refresh responses may omit `scope`; only overwrite when present so we
     // don't clobber the grant set with an unknown value.
     if let scope = refreshed.scope {
@@ -239,7 +237,6 @@ private struct TokenResponse: Decodable {
   var accessToken: String
   var expiresIn: Int
   var refreshToken: String
-  var tokenType: String
   /// Google's space-separated granted scopes. Absent from some refresh
   /// responses, in which case the caller keeps the previously stored value.
   var scope: String?
@@ -248,7 +245,6 @@ private struct TokenResponse: Decodable {
     case accessToken = "access_token"
     case expiresIn = "expires_in"
     case refreshToken = "refresh_token"
-    case tokenType = "token_type"
     case scope
   }
 
@@ -257,7 +253,6 @@ private struct TokenResponse: Decodable {
     accessToken = try container.decode(String.self, forKey: .accessToken)
     expiresIn = try container.decodeIfPresent(Int.self, forKey: .expiresIn) ?? 3600
     refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshToken) ?? ""
-    tokenType = try container.decodeIfPresent(String.self, forKey: .tokenType) ?? "Bearer"
     scope = try container.decodeIfPresent(String.self, forKey: .scope)
   }
 }

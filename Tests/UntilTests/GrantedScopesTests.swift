@@ -65,7 +65,6 @@ final class GrantedScopesTests: XCTestCase {
       accessToken: "at",
       refreshToken: "rt",
       expiryDate: Date().addingTimeInterval(3600),
-      tokenType: "Bearer",
       grantedScopes: grantedScopes
     )
     return GoogleAuth(config: AppConfig.default, token: token)
@@ -134,7 +133,6 @@ final class StoredTokenDecodingTests: XCTestCase {
       accessToken: "at",
       refreshToken: "rt",
       expiryDate: Date(timeIntervalSinceReferenceDate: 123),
-      tokenType: "Bearer",
       grantedScopes: [driveFileScope]
     )
     let data = try JSONEncoder().encode(original)

@@ -1,11 +1,11 @@
 import Foundation
 
 enum RuleEngine {
-  static func apply(_ rule: Rule, to events: [CalendarEvent], now: Date) -> [CalendarEvent] {
-    events.filter { evaluate(rule, event: $0, now: now) }
+  static func apply(_ rule: Rule, to events: [CalendarEvent]) -> [CalendarEvent] {
+    events.filter { evaluate(rule, event: $0) }
   }
 
-  static func evaluate(_ rule: Rule, event: CalendarEvent, now: Date) -> Bool {
+  static func evaluate(_ rule: Rule, event: CalendarEvent) -> Bool {
     let result: Bool
     switch rule.kind {
     case .group:
@@ -13,17 +13,17 @@ enum RuleEngine {
       if children.isEmpty {
         result = true
       } else if rule.groupOperator == .any {
-        result = children.contains { evaluate($0, event: event, now: now) }
+        result = children.contains { evaluate($0, event: event) }
       } else {
-        result = children.allSatisfy { evaluate($0, event: event, now: now) }
+        result = children.allSatisfy { evaluate($0, event: event) }
       }
     case .cond:
-      result = evaluateCondition(rule, event: event, now: now)
+      result = evaluateCondition(rule, event: event)
     }
     return (rule.negate ?? false) ? !result : result
   }
 
-  private static func evaluateCondition(_ rule: Rule, event: CalendarEvent, now: Date) -> Bool {
+  private static func evaluateCondition(_ rule: Rule, event: CalendarEvent) -> Bool {
     let field = rule.field ?? ""
     let operatorId = rule.operatorId ?? ""
     let value = rule.value ?? .null

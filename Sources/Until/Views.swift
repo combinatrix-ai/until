@@ -112,13 +112,8 @@ struct PanelView: View {
   /// Identifies which events currently occupy the hero and NOW strip slots,
   /// so `content` can key a single `.animation` on it (see `heroStripSlots`'s
   /// use there) that fires only when a slot's occupant actually changes.
-  private struct HeroStripSlots: Hashable {
-    var heroActionKey: String?
-    var stripActionKey: String?
-  }
-
-  private var heroStripSlots: HeroStripSlots {
-    HeroStripSlots(heroActionKey: heroEvent?.actionKey, stripActionKey: nowStripEvent?.actionKey)
+  private var heroStripSlots: [String?] {
+    [heroEvent?.actionKey, nowStripEvent?.actionKey]
   }
 
   /// Neither the hero event nor the NOW strip event may also appear in the

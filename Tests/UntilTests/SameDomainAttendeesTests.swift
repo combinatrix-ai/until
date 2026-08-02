@@ -18,7 +18,7 @@ final class SameDomainAttendeesTests: XCTestCase {
   ) -> Attendee {
     Attendee(
       email: email, name: "", responseStatus: "accepted",
-      selfUser: selfUser, organizer: false, optional: false, resource: resource
+      selfUser: selfUser, resource: resource
     )
   }
 

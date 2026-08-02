@@ -120,7 +120,7 @@ final class CalendarClient {
     }
     let attendees = normalizeAttendees(raw.attendees ?? [])
     let selfAttendee = attendees.first { $0.selfUser }
-    let note = findExistingNote(raw)
+    let noteURL = findExistingNote(raw)
 
     return CalendarEvent(
       id: raw.id,
@@ -138,14 +138,10 @@ final class CalendarClient {
       attendees: attendees,
       attendeeCount: attendees.count,
       organizer: raw.organizer?.email ?? "",
-      creator: raw.creator?.email ?? "",
       selfResponse: selfAttendee?.responseStatus ?? "none",
       isRecurring: raw.recurringEventId != nil,
-      hangoutLink: raw.hangoutLink ?? "",
       conferenceUrl: conferenceURL(for: raw),
-      notesUrl: note?.url ?? "",
-      notesFileId: note?.fileId ?? "",
-      visibility: raw.visibility ?? "default",
+      notesUrl: noteURL ?? "",
       colorId: raw.colorId ?? "",
       transparency: raw.transparency == "transparent" ? "free" : "busy",
       htmlLink: raw.htmlLink ?? ""
@@ -159,8 +155,6 @@ final class CalendarClient {
         name: $0.displayName ?? $0.email ?? "",
         responseStatus: $0.responseStatus ?? "needsAction",
         selfUser: $0.selfUser ?? false,
-        organizer: $0.organizer ?? false,
-        optional: $0.optional ?? false,
         resource: $0.resource ?? false
       )
     }
@@ -170,7 +164,6 @@ final class CalendarClient {
     CalendarRef(
       id: calendar.id,
       googleId: calendar.googleId,
-      name: calendar.name,
       primary: calendar.primary,
       backgroundColor: calendar.backgroundColor
     )
@@ -212,13 +205,11 @@ private struct RawEvent: Decodable {
   var htmlLink: String?
   var hangoutLink: String?
   var colorId: String?
-  var visibility: String?
   var transparency: String?
   var recurringEventId: String?
   var start: RawEventDate?
   var end: RawEventDate?
   var organizer: RawPerson?
-  var creator: RawPerson?
   var conferenceData: RawConferenceData?
   var attendees: [RawAttendee]?
   var attachments: [RawAttachment]?
@@ -231,7 +222,6 @@ private struct RawEventDate: Decodable {
 
 private struct RawPerson: Decodable {
   var email: String?
-  var displayName: String?
 }
 
 private struct RawConferenceData: Decodable {
@@ -248,33 +238,26 @@ private struct RawAttendee: Decodable {
   var displayName: String?
   var responseStatus: String?
   var selfUser: Bool?
-  var organizer: Bool?
-  var optional: Bool?
   var resource: Bool?
 
   enum CodingKeys: String, CodingKey {
-    case email, displayName, responseStatus, organizer, optional, resource
+    case email, displayName, responseStatus, resource
     case selfUser = "self"
   }
 }
 
 private struct RawAttachment: Decodable {
-  var fileId: String?
   var fileUrl: String?
-  var title: String?
   var mimeType: String?
 }
 
 private let googleDocMimeType = "application/vnd.google-apps.document"
 
-private func findExistingNote(_ event: RawEvent) -> (fileId: String, url: String)? {
+private func findExistingNote(_ event: RawEvent) -> String? {
   if let attachment = event.attachments?.first(where: isNotesAttachment), let url = attachment.fileUrl {
-    return (attachment.fileId ?? GoogleDocLinks.documentId(from: url) ?? "", url)
+    return url
   }
-  if let descriptionUrl = GoogleDocLinks.documentURL(from: event.description) {
-    return (GoogleDocLinks.documentId(from: descriptionUrl) ?? "", descriptionUrl)
-  }
-  return nil
+  return GoogleDocLinks.documentURL(from: event.description)
 }
 
 private func isNotesAttachment(_ attachment: RawAttachment) -> Bool {

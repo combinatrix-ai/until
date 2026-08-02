@@ -552,7 +552,6 @@ final class AppModel: ObservableObject {
       rawEvents = rawEvents.map { current in
         guard current.actionKey == key else { return current }
         var next = current
-        next.hangoutLink = "https://meet.google.com/demo-until-app"
         next.conferenceUrl = "https://meet.google.com/demo-until-app"
         return next
       }
@@ -713,14 +712,14 @@ final class AppModel: ObservableObject {
     let now = Date()
     let refreshed = refreshedRawEvents(now: now)
     let matched = refreshed.reduce(0) { count, event in
-      count + (RuleEngine.evaluate(rule, event: event, now: now) ? 1 : 0)
+      count + (RuleEngine.evaluate(rule, event: event) ? 1 : 0)
     }
     let sample = refreshed.prefix(25).map { event in
       FilterPreviewSample(
         id: "\(event.account.email)-\(event.calendar.id)-\(event.id)-\(event.startISO)",
         title: event.title,
         startDate: event.startDate,
-        passed: RuleEngine.evaluate(rule, event: event, now: now)
+        passed: RuleEngine.evaluate(rule, event: event)
       )
     }
     return FilterPreviewResult(matched: matched, total: refreshed.count, sample: sample)
@@ -729,14 +728,13 @@ final class AppModel: ObservableObject {
   private func reapplyFilter() {
     let now = Date()
     let refreshed = refreshedRawEvents(now: now)
-    let passed = RuleEngine.apply(config.filterRules, to: refreshed, now: now)
+    let passed = RuleEngine.apply(config.filterRules, to: refreshed)
       .filter { $0.endDate > now }
     let timed = passed.filter { !$0.allDay }.sorted(by: compareEvents)
     let allDay = passed.filter(\.allDay).sorted { $0.startDate < $1.startDate }
     state.events = timed
     state.allDayEvents = allDay
     state.next = AppModel.pickMenubarEvent(config: config, timed: timed, allDay: allDay, now: now)
-    state.filterError = nil
     let notificationEvents = config.notifyVideoOnly ? timed.filter { !$0.conferenceUrl.isEmpty } : timed
     guard !runtimeOptions.demoMode else { return }
     Task {
@@ -1031,11 +1029,10 @@ final class AppModel: ObservableObject {
   private func updateAuthState() {
     let accountStates = accounts
       .filter(\.isAuthenticated)
-      .map { AccountState(email: $0.email, authenticated: true) }
+      .map { AccountState(email: $0.email) }
       .sorted { $0.email < $1.email }
     state.auth = AuthState(
       authenticated: !accountStates.isEmpty,
-      email: accountStates.first?.email ?? "",
       accounts: accountStates
     )
   }

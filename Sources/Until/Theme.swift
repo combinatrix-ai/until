@@ -15,7 +15,6 @@ enum Theme {
   enum Radius {
     static let sm: CGFloat = 6
     static let md: CGFloat = 10
-    static let lg: CGFloat = 14
   }
 
   /// Hairline border used to separate a surface from its background.
@@ -99,12 +98,6 @@ struct SectionHeader<Accessory: View>: View {
       Spacer(minLength: Theme.Spacing.sm)
       accessory()
     }
-  }
-}
-
-extension SectionHeader where Accessory == EmptyView {
-  init(_ title: String, subtitle: String? = nil) {
-    self.init(title, subtitle: subtitle, accessory: { EmptyView() })
   }
 }
 

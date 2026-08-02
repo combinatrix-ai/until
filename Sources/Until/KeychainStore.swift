@@ -6,7 +6,6 @@ struct StoredToken: Codable, Hashable {
   var accessToken: String
   var refreshToken: String
   var expiryDate: Date
-  var tokenType: String
   /// Scopes Google reported as granted for this token. Existing keychain
   /// entries predate this field, so decoding must tolerate its absence — a nil
   /// value means "unknown" and is treated as "all scopes granted" until the
@@ -18,14 +17,12 @@ struct StoredToken: Codable, Hashable {
     accessToken: String,
     refreshToken: String,
     expiryDate: Date,
-    tokenType: String,
     grantedScopes: [String]? = nil
   ) {
     self.email = email
     self.accessToken = accessToken
     self.refreshToken = refreshToken
     self.expiryDate = expiryDate
-    self.tokenType = tokenType
     self.grantedScopes = grantedScopes
   }
 
@@ -35,7 +32,6 @@ struct StoredToken: Codable, Hashable {
     accessToken = try container.decode(String.self, forKey: .accessToken)
     refreshToken = try container.decode(String.self, forKey: .refreshToken)
     expiryDate = try container.decode(Date.self, forKey: .expiryDate)
-    tokenType = try container.decode(String.self, forKey: .tokenType)
     grantedScopes = try container.decodeIfPresent([String].self, forKey: .grantedScopes)
   }
 }

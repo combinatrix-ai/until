@@ -1,34 +1,30 @@
 import Foundation
 
-struct Attendee: Codable, Hashable {
+struct Attendee: Hashable {
   var email: String
   var name: String
   var responseStatus: String
   var selfUser: Bool
-  var organizer: Bool
-  var optional: Bool
   var resource: Bool
 }
 
-struct CalendarRef: Codable, Hashable {
+struct CalendarRef: Hashable {
   var id: String
   var googleId: String
-  var name: String
   var primary: Bool
   var backgroundColor: String
 }
 
-struct AccountRef: Codable, Hashable {
+struct AccountRef: Hashable {
   var email: String
 }
 
-struct CalendarEvent: Identifiable, Codable, Hashable {
+struct CalendarEvent: Identifiable, Hashable {
   var id: String
   var title: String
   var description: String
   var location: String
   var startISO: String
-  var endISO: String
   var allDay: Bool
   var status: String
   var startMinutesFromNow: Int
@@ -38,19 +34,15 @@ struct CalendarEvent: Identifiable, Codable, Hashable {
   var attendees: [Attendee]
   var attendeeCount: Int
   var organizer: String
-  var creator: String
   var selfResponse: String
   var isRecurring: Bool
-  var hangoutLink: String
   var conferenceUrl: String
   var notesUrl: String
-  var notesFileId: String
-  var visibility: String
   var colorId: String
   var transparency: String
   var htmlLink: String
 
-  // Parsed once at construction from `startISO`/`endISO`. These were previously
+  // Parsed once at construction from the source ISO strings. These were previously
   // computed properties that reparsed the ISO strings on every access; they are
   // read O(n log n) times per UI tick (sort comparators, filters, day grouping),
   // so caching avoids repeated `ISO8601DateFormatter` work.
@@ -78,14 +70,10 @@ struct CalendarEvent: Identifiable, Codable, Hashable {
     attendees: [Attendee],
     attendeeCount: Int,
     organizer: String,
-    creator: String,
     selfResponse: String,
     isRecurring: Bool,
-    hangoutLink: String,
     conferenceUrl: String,
     notesUrl: String,
-    notesFileId: String,
-    visibility: String,
     colorId: String,
     transparency: String,
     htmlLink: String
@@ -99,7 +87,6 @@ struct CalendarEvent: Identifiable, Codable, Hashable {
     self.description = description
     self.location = location
     self.startISO = startISO
-    self.endISO = endISO
     self.allDay = allDay
     self.status = status
     self.startMinutesFromNow = startMinutesFromNow
@@ -109,14 +96,10 @@ struct CalendarEvent: Identifiable, Codable, Hashable {
     self.attendees = attendees
     self.attendeeCount = attendeeCount
     self.organizer = organizer
-    self.creator = creator
     self.selfResponse = selfResponse
     self.isRecurring = isRecurring
-    self.hangoutLink = hangoutLink
     self.conferenceUrl = conferenceUrl
     self.notesUrl = notesUrl
-    self.notesFileId = notesFileId
-    self.visibility = visibility
     self.colorId = colorId
     self.transparency = transparency
     self.htmlLink = htmlLink
@@ -124,77 +107,6 @@ struct CalendarEvent: Identifiable, Codable, Hashable {
     self.endDate = end
   }
 
-  enum CodingKeys: String, CodingKey {
-    case id, title, description, location, startISO, endISO, allDay, status
-    case startMinutesFromNow, durationMinutes, calendar, account, attendees
-    case attendeeCount, organizer, creator, selfResponse, isRecurring
-    case hangoutLink, conferenceUrl, notesUrl, notesFileId, visibility
-    case colorId, transparency, htmlLink
-  }
-
-  init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    id = try container.decode(String.self, forKey: .id)
-    title = try container.decode(String.self, forKey: .title)
-    description = try container.decode(String.self, forKey: .description)
-    location = try container.decode(String.self, forKey: .location)
-    startISO = try container.decode(String.self, forKey: .startISO)
-    endISO = try container.decode(String.self, forKey: .endISO)
-    allDay = try container.decode(Bool.self, forKey: .allDay)
-    status = try container.decode(String.self, forKey: .status)
-    startMinutesFromNow = try container.decode(Int.self, forKey: .startMinutesFromNow)
-    durationMinutes = try container.decode(Int.self, forKey: .durationMinutes)
-    calendar = try container.decode(CalendarRef.self, forKey: .calendar)
-    account = try container.decode(AccountRef.self, forKey: .account)
-    attendees = try container.decode([Attendee].self, forKey: .attendees)
-    attendeeCount = try container.decode(Int.self, forKey: .attendeeCount)
-    organizer = try container.decode(String.self, forKey: .organizer)
-    creator = try container.decode(String.self, forKey: .creator)
-    selfResponse = try container.decode(String.self, forKey: .selfResponse)
-    isRecurring = try container.decode(Bool.self, forKey: .isRecurring)
-    hangoutLink = try container.decode(String.self, forKey: .hangoutLink)
-    conferenceUrl = try container.decode(String.self, forKey: .conferenceUrl)
-    notesUrl = try container.decode(String.self, forKey: .notesUrl)
-    notesFileId = try container.decode(String.self, forKey: .notesFileId)
-    visibility = try container.decode(String.self, forKey: .visibility)
-    colorId = try container.decode(String.self, forKey: .colorId)
-    transparency = try container.decode(String.self, forKey: .transparency)
-    htmlLink = try container.decode(String.self, forKey: .htmlLink)
-    // Parse once on decode; fall back to `.distantPast` so a corrupt persisted
-    // value never renders as "happening now".
-    startDate = ISO8601DateFormatter.shared.date(fromAnyInternetDate: startISO) ?? .distantPast
-    endDate = ISO8601DateFormatter.shared.date(fromAnyInternetDate: endISO) ?? .distantPast
-  }
-
-  func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(id, forKey: .id)
-    try container.encode(title, forKey: .title)
-    try container.encode(description, forKey: .description)
-    try container.encode(location, forKey: .location)
-    try container.encode(startISO, forKey: .startISO)
-    try container.encode(endISO, forKey: .endISO)
-    try container.encode(allDay, forKey: .allDay)
-    try container.encode(status, forKey: .status)
-    try container.encode(startMinutesFromNow, forKey: .startMinutesFromNow)
-    try container.encode(durationMinutes, forKey: .durationMinutes)
-    try container.encode(calendar, forKey: .calendar)
-    try container.encode(account, forKey: .account)
-    try container.encode(attendees, forKey: .attendees)
-    try container.encode(attendeeCount, forKey: .attendeeCount)
-    try container.encode(organizer, forKey: .organizer)
-    try container.encode(creator, forKey: .creator)
-    try container.encode(selfResponse, forKey: .selfResponse)
-    try container.encode(isRecurring, forKey: .isRecurring)
-    try container.encode(hangoutLink, forKey: .hangoutLink)
-    try container.encode(conferenceUrl, forKey: .conferenceUrl)
-    try container.encode(notesUrl, forKey: .notesUrl)
-    try container.encode(notesFileId, forKey: .notesFileId)
-    try container.encode(visibility, forKey: .visibility)
-    try container.encode(colorId, forKey: .colorId)
-    try container.encode(transparency, forKey: .transparency)
-    try container.encode(htmlLink, forKey: .htmlLink)
-  }
 }
 
 /// One event as it appears on a specific day. A multi-day all-day event yields
@@ -238,14 +150,8 @@ enum PopoverListItem: Identifiable, Hashable {
   }
 }
 
-struct MeetingNoteResult: Codable, Hashable {
-  var fileId: String
-  var fileName: String
+struct MeetingNoteResult: Hashable {
   var webViewLink: String
-  var folderId: String
-  var sharedWith: [String]
-  var skippedExternal: [String]
-  var reused: Bool
   /// When set, the notes folder was (re)resolved to an app-managed folder — the
   /// stored one was missing or inaccessible. Callers persist this into config.
   var resolvedFolder: DriveFolderRef?
@@ -263,22 +169,9 @@ struct TemplateDocResult: Hashable {
   var resolvedFolder: DriveFolderRef?
 }
 
-enum DriveFolderSource: String, Codable, Hashable {
-  case myDrive
-  case sharedDrive
-  case sharedWithMe
-}
-
 struct DriveFolderRef: Identifiable, Codable, Hashable {
   var id: String
   var name: String
-  var source: DriveFolderSource
-  var driveId: String?
-  var path: [String]
-
-  var displayPath: String {
-    path.isEmpty ? name : path.joined(separator: " / ")
-  }
 }
 
 struct ExternalSharePrompt: Identifiable, Hashable {
@@ -288,7 +181,7 @@ struct ExternalSharePrompt: Identifiable, Hashable {
   var id: String { event.actionKey }
 }
 
-struct CalendarSummary: Identifiable, Codable, Hashable {
+struct CalendarSummary: Identifiable, Hashable {
   var id: String
   var googleId: String
   var name: String
@@ -301,23 +194,20 @@ struct CalendarSummary: Identifiable, Codable, Hashable {
 struct AccountState: Identifiable, Hashable {
   var id: String { email }
   var email: String
-  var authenticated: Bool
 }
 
 struct AuthState: Hashable {
   var authenticated: Bool
-  var email: String
   var accounts: [AccountState]
 }
 
 struct AppState: Hashable {
-  var auth = AuthState(authenticated: false, email: "", accounts: [])
+  var auth = AuthState(authenticated: false, accounts: [])
   var events: [CalendarEvent] = []
   var allDayEvents: [CalendarEvent] = []
   var next: CalendarEvent?
   var lastSync: Date?
   var lastError: String?
-  var filterError: String?
 }
 
 enum NotificationAuthorizationState: Hashable {
@@ -568,6 +458,12 @@ struct AppConfig: Codable, Hashable {
       .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
   }
 
+  private static func resolvedCredential(buildTime: String, stored: String?) -> String {
+    if !buildTime.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return buildTime }
+    let stored = stored?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return stored.isEmpty ? buildTime : stored
+  }
+
   /// Default note title pattern. Supports `{date}` and `{title}` tokens.
   static let defaultNoteTitleTemplate = "Meeting notes - {date} - {title}"
 
@@ -685,17 +581,10 @@ struct AppConfig: Codable, Hashable {
     let oauth = try container.nestedContainer(keyedBy: OAuthKeys.self, forKey: .oauth)
     let storedClientId = try oauth.decodeIfPresent(String.self, forKey: .clientId)
     let storedClientSecret = try oauth.decodeIfPresent(String.self, forKey: .clientSecret)
-    // Build-time credentials (from Info.plist / env) are the source of truth and
-    // win over any value persisted in config.json, so rotating .env takes effect
-    // without clearing config. Fall back to a stored value only when the build
-    // injected none.
-    func resolve(buildTime: String, stored: String?) -> String {
-      if !buildTime.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return buildTime }
-      let stored = stored?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-      return stored.isEmpty ? buildTime : stored
-    }
-    oauthClientId = resolve(buildTime: defaults.oauthClientId, stored: storedClientId)
-    oauthClientSecret = resolve(buildTime: defaults.oauthClientSecret, stored: storedClientSecret)
+    // Build-time credentials win over persisted values so rotating .env takes
+    // effect without clearing config.
+    oauthClientId = Self.resolvedCredential(buildTime: defaults.oauthClientId, stored: storedClientId)
+    oauthClientSecret = Self.resolvedCredential(buildTime: defaults.oauthClientSecret, stored: storedClientSecret)
     filterRules = try container.decode(.filterRules, default: defaults.filterRules)
     selectedCalendarIds = try container.decode(.selectedCalendarIds, default: defaults.selectedCalendarIds)
     lookaheadHours = try container.decode(.lookaheadHours, default: defaults.lookaheadHours)

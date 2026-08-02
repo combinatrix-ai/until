@@ -115,8 +115,8 @@ final class HotkeyManager {
 /// C-compatible Carbon event callback. Recovers the `HotkeyManager` from
 /// `userData` and hops to the main actor to run the stored handler.
 private func hotkeyEventCallback(
-  _ nextHandler: EventHandlerCallRef?,
-  _ event: EventRef?,
+  _: EventHandlerCallRef?,
+  _: EventRef?,
   _ userData: UnsafeMutableRawPointer?
 ) -> OSStatus {
   guard let userData else { return noErr }

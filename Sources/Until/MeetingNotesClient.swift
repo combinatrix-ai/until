@@ -36,15 +36,9 @@ final class MeetingNotesClient {
     options: NoteCreationOptions
   ) async throws -> MeetingNoteResult {
     let latest = try await fetchEvent(calendarId: event.calendar.googleId, eventId: event.id)
-    if let existingNote = findExistingNote(latest) {
+    if let existingNoteURL = findExistingNote(latest) {
       return MeetingNoteResult(
-        fileId: existingNote.fileId,
-        fileName: existingNote.title,
-        webViewLink: existingNote.url,
-        folderId: "",
-        sharedWith: [],
-        skippedExternal: [],
-        reused: true,
+        webViewLink: existingNoteURL,
         resolvedFolder: nil,
         templateError: nil
       )
@@ -71,7 +65,7 @@ final class MeetingNotesClient {
       attendeeEmails: attendeeEmails
     )
 
-    let shareResult = await shareWithAttendees(
+    _ = await shareWithAttendees(
       fileId: file.id,
       emails: attendeeEmails,
       ownerDomain: emailDomain(auth.email),
@@ -80,13 +74,7 @@ final class MeetingNotesClient {
     try await attachToEvent(calendarId: event.calendar.googleId, event: latest, file: file)
 
     return MeetingNoteResult(
-      fileId: file.id,
-      fileName: file.name,
       webViewLink: file.webViewLink,
-      folderId: folderId,
-      sharedWith: shareResult.sharedWith,
-      skippedExternal: shareResult.skippedExternal,
-      reused: false,
       resolvedFolder: resolution.updatedFolder,
       templateError: templateError
     )
@@ -186,9 +174,6 @@ final class MeetingNotesClient {
         if (try? await renameFolder(id: verified, name: desiredName)) != nil {
           var renamed = storedRef
           renamed.name = desiredName
-          if !renamed.path.isEmpty {
-            renamed.path[renamed.path.count - 1] = desiredName
-          }
           return FolderResolution(folderId: verified, updatedFolder: renamed)
         }
         return FolderResolution(folderId: verified, updatedFolder: nil)
@@ -226,17 +211,10 @@ final class MeetingNotesClient {
     return file.id
   }
 
-  /// Finds or creates the app-managed notes folder and returns a full ref
-  /// (with a `My Drive / <name>` path) for persisting into config.
+  /// Finds or creates the app-managed notes folder and returns its persisted ref.
   private func findOrCreateFolderRef(name: String) async throws -> DriveFolderRef {
     let id = try await findOrCreateFolder(name: name)
-    return DriveFolderRef(
-      id: id,
-      name: name,
-      source: .myDrive,
-      driveId: nil,
-      path: ["My Drive", name]
-    )
+    return DriveFolderRef(id: id, name: name)
   }
 
   private func findOrCreateFolder(name: String) async throws -> String {
@@ -602,10 +580,9 @@ private struct DriveFile: Decodable {
   var id: String
   var name: String
   var webViewLink: String
-  var driveId: String?
 
   enum CodingKeys: String, CodingKey {
-    case id, name, webViewLink, driveId
+    case id, name, webViewLink
   }
 
   init(from decoder: Decoder) throws {
@@ -613,7 +590,6 @@ private struct DriveFile: Decodable {
     id = try container.decodeIfPresent(String.self, forKey: .id) ?? ""
     name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
     webViewLink = try container.decodeIfPresent(String.self, forKey: .webViewLink) ?? ""
-    driveId = try container.decodeIfPresent(String.self, forKey: .driveId)
   }
 }
 
@@ -637,28 +613,11 @@ private let docMimeType = "application/vnd.google-apps.document"
 private let folderMimeType = "application/vnd.google-apps.folder"
 private let defaultMeetingNotesFolderName = "Meeting Notes"
 
-private struct ExistingNote {
-  var fileId: String
-  var title: String
-  var url: String
-}
-
-private func findExistingNote(_ event: GoogleEvent) -> ExistingNote? {
+private func findExistingNote(_ event: GoogleEvent) -> String? {
   if let attachment = event.attachments?.first(where: isNotesAttachment), let url = attachment.fileUrl {
-    return ExistingNote(
-      fileId: attachment.fileId ?? GoogleDocLinks.documentId(from: url) ?? "",
-      title: attachment.title ?? "Existing notes",
-      url: url
-    )
+    return url
   }
-  if let descriptionUrl = GoogleDocLinks.documentURL(from: event.description) {
-    return ExistingNote(
-      fileId: GoogleDocLinks.documentId(from: descriptionUrl) ?? "",
-      title: "Description notes",
-      url: descriptionUrl
-    )
-  }
-  return nil
+  return GoogleDocLinks.documentURL(from: event.description)
 }
 
 private func isNotesAttachment(_ attachment: GoogleAttachment) -> Bool {

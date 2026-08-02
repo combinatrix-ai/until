@@ -70,8 +70,7 @@ enum DemoCalendarData {
   static func accountState() -> AuthState {
     AuthState(
       authenticated: true,
-      email: personalAccountEmail,
-      accounts: accountEmails.map { AccountState(email: $0, authenticated: true) }
+      accounts: accountEmails.map { AccountState(email: $0) }
     )
   }
 
@@ -104,13 +103,7 @@ enum DemoCalendarData {
 
   static func noteResult(for event: CalendarEvent) -> MeetingNoteResult {
     MeetingNoteResult(
-      fileId: "demo-note-\(event.id)",
-      fileName: "Meeting notes - \(event.title)",
-      webViewLink: "https://docs.google.com/document/d/demo-\(event.id)/edit",
-      folderId: "demo-meeting-notes",
-      sharedWith: event.attendees.filter { !$0.selfUser && !$0.resource }.map(\.email),
-      skippedExternal: [],
-      reused: false
+      webViewLink: "https://docs.google.com/document/d/demo-\(event.id)/edit"
     )
   }
 
@@ -433,14 +426,10 @@ enum DemoCalendarData {
       attendees: normalizedAttendees(spec.attendees, accountEmail: spec.accountEmail),
       attendeeCount: spec.attendees.filter { !$0.resource }.count,
       organizer: spec.accountEmail,
-      creator: spec.accountEmail,
       selfResponse: spec.selfResponse,
       isRecurring: spec.id == "product-sync",
-      hangoutLink: spec.conferenceUrl,
       conferenceUrl: spec.conferenceUrl,
       notesUrl: spec.notesUrl,
-      notesFileId: spec.notesUrl.isEmpty ? "" : "demo-\(spec.id)",
-      visibility: "default",
       colorId: spec.colorId,
       transparency: spec.transparency,
       htmlLink: "https://calendar.google.com/calendar/event?eid=demo-\(spec.id)"
@@ -457,8 +446,6 @@ enum DemoCalendarData {
     _ name: String,
     _ responseStatus: String,
     selfUser: Bool = false,
-    organizer: Bool = false,
-    optional: Bool = false,
     resource: Bool = false
   ) -> Attendee {
     Attendee(
@@ -466,8 +453,6 @@ enum DemoCalendarData {
       name: name,
       responseStatus: responseStatus,
       selfUser: selfUser,
-      organizer: organizer,
-      optional: optional,
       resource: resource
     )
   }
@@ -476,7 +461,6 @@ enum DemoCalendarData {
     CalendarRef(
       id: definition.id,
       googleId: definition.googleId,
-      name: definition.name,
       primary: definition.primary,
       backgroundColor: definition.backgroundColor
     )
