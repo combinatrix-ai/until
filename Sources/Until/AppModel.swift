@@ -1086,6 +1086,7 @@ final class AppModel: ObservableObject {
         noteErrors[key] = NoteIssue(message: templateError, kind: .retry)
       }
       await refresh()
+      presentNoteShareFailureAlert(for: result.failedShareEmails)
       openNote(url: result.webViewLink, accountEmail: event.account.email)
     } catch {
       let message = error.localizedDescription
@@ -1097,6 +1098,17 @@ final class AppModel: ObservableObject {
         noteErrors[key] = NoteIssue(message: message, kind: .retry)
       }
     }
+  }
+
+  private func presentNoteShareFailureAlert(for failedEmails: [String]) {
+    guard !failedEmails.isEmpty else { return }
+    let alert = NSAlert()
+    alert.alertStyle = .warning
+    alert.messageText = loc("Edit access could not be granted")
+    alert.informativeText = "\(loc("The note was created, but edit access could not be granted to:"))\n" +
+      failedEmails.joined(separator: "\n")
+    alert.addButton(withTitle: loc("OK"))
+    alert.runModal()
   }
 
   private func openNote(url rawValue: String, accountEmail: String) {

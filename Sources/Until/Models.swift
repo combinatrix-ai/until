@@ -155,6 +155,9 @@ struct MeetingNoteResult: Hashable {
   /// When set, the configured template couldn't be copied and the built-in
   /// template was used for this note; surfaced to the user as a per-event note.
   var templateError: String?
+  /// Attendee addresses for which the post-creation Drive writer grant failed.
+  /// Note creation itself still succeeds, so callers surface this separately.
+  var failedShareEmails: [String] = []
 }
 
 /// Result of creating an app-managed template Google Doc under `drive.file`.

@@ -104,6 +104,9 @@
 
 /* MARK: - Error overlays (Views) */
 "Retry" = "Retry";
+"Edit access could not be granted" = "Edit access could not be granted";
+"The note was created, but edit access could not be granted to:" = "The note was created, but edit access could not be granted to:";
+"OK" = "OK";
 "Google Drive permission isn't granted. Creating notes docs requires Drive access — reauthorize and check the Google Drive checkbox." = "Google Drive permission isn't granted. Creating notes docs requires Drive access — reauthorize and check the Google Drive checkbox.";
 
 /* MARK: - Settings sections (Views) */

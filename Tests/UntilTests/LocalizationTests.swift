@@ -22,7 +22,12 @@ final class LocalizationTests: XCTestCase {
       ("all-day", "終日"),
       ("now", "今"),
       ("Launch at login", "ログイン時に起動"),
-      ("Skip in menubar", "メニューバーでスキップ")
+      ("Skip in menubar", "メニューバーでスキップ"),
+      ("Edit access could not be granted", "編集権限を付与できませんでした"),
+      (
+        "The note was created, but edit access could not be granted to:",
+        "議事録は作成されましたが、次の参加者に編集権限を付与できませんでした:"
+      )
     ]
 
     for testCase in cases {

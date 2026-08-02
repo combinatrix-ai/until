@@ -65,7 +65,7 @@ final class MeetingNotesClient {
       attendeeEmails: attendeeEmails
     )
 
-    _ = await shareWithAttendees(
+    let failedShareEmails = await shareWithAttendees(
       fileId: file.id,
       emails: attendeeEmails,
       ownerDomain: emailDomain(auth.email),
@@ -76,7 +76,8 @@ final class MeetingNotesClient {
     return MeetingNoteResult(
       webViewLink: file.webViewLink,
       resolvedFolder: resolution.updatedFolder,
-      templateError: templateError
+      templateError: templateError,
+      failedShareEmails: failedShareEmails
     )
   }
 
@@ -387,13 +388,11 @@ final class MeetingNotesClient {
     emails: [String],
     ownerDomain: String?,
     shareExternalAttendees: Bool
-  ) async -> (sharedWith: [String], skippedExternal: [String]) {
-    var sharedWith: [String] = []
-    var skippedExternal: [String] = []
+  ) async -> [String] {
+    var failedEmails: [String] = []
 
     for email in emails {
       if isExternalEmail(email, ownerDomain: ownerDomain), !shareExternalAttendees {
-        skippedExternal.append(email)
         continue
       }
       do {
@@ -410,13 +409,12 @@ final class MeetingNotesClient {
           "role": "writer",
           "emailAddress": email
         ])
-        sharedWith.append(email)
       } catch {
-        continue
+        failedEmails.append(email)
       }
     }
 
-    return (sharedWith, skippedExternal)
+    return failedEmails
   }
 
   func addConference(for event: CalendarEvent) async throws -> String {

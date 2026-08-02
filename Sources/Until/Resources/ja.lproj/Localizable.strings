@@ -104,6 +104,9 @@
 
 /* MARK: - Error overlays (Views) */
 "Retry" = "再試行";
+"Edit access could not be granted" = "編集権限を付与できませんでした";
+"The note was created, but edit access could not be granted to:" = "議事録は作成されましたが、次の参加者に編集権限を付与できませんでした:";
+"OK" = "OK";
 "Google Drive permission isn't granted. Creating notes docs requires Drive access — reauthorize and check the Google Drive checkbox." = "Google Drive の権限が許可されていません。メモ作成には Drive へのアクセスが必要です。再認可して「Google ドライブ」にチェックを入れてください。";
 
 /* MARK: - Settings sections (Views) */
