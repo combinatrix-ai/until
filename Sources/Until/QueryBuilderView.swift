@@ -144,6 +144,11 @@ private struct RuleGroupView: View {
         }
       },
       set: { value in
+        // Selecting a group mode also repairs any condition metadata left by
+        // malformed persisted data, restoring the group's canonical shape.
+        rule.field = nil
+        rule.operatorId = nil
+        rule.value = nil
         switch value {
         case "include_any":
           rule.negate = false
@@ -193,6 +198,9 @@ private struct RuleGroupView: View {
     var next = children
     next.append(FilterCatalog.defaultRule())
     rule.kind = .group
+    rule.field = nil
+    rule.operatorId = nil
+    rule.value = nil
     rule.children = next
     if rule.groupOperator == nil { rule.groupOperator = .and }
   }
@@ -201,6 +209,9 @@ private struct RuleGroupView: View {
     var next = children
     next.append(.group(.and, [FilterCatalog.defaultRule()]))
     rule.kind = .group
+    rule.field = nil
+    rule.operatorId = nil
+    rule.value = nil
     rule.children = next
     if rule.groupOperator == nil { rule.groupOperator = .and }
   }
@@ -292,6 +303,8 @@ private struct ConditionRuleView: View {
         let field = FilterCatalog.field(fieldId)
         let filterOperator = field.operators[0]
         rule.kind = .cond
+        rule.groupOperator = nil
+        rule.children = nil
         rule.field = field.id
         rule.operatorId = filterOperator.id
         rule.value = FilterCatalog.defaultValue(for: filterOperator.value)
@@ -304,6 +317,8 @@ private struct ConditionRuleView: View {
       get: { currentOperator.id },
       set: { operatorId in
         let filterOperator = currentField.operators.first { $0.id == operatorId } ?? currentField.operators[0]
+        rule.groupOperator = nil
+        rule.children = nil
         rule.operatorId = filterOperator.id
         rule.value = FilterCatalog.defaultValue(for: filterOperator.value)
       }

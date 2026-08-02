@@ -2,20 +2,28 @@ import Foundation
 
 enum RuleEngine {
   static func apply(_ rule: Rule, to events: [CalendarEvent]) -> [CalendarEvent] {
-    events.filter { evaluate(rule, event: $0) }
+    guard RuleValidator.isValid(rule) else { return [] }
+    return events.filter { evaluateUnchecked(rule, event: $0) }
   }
 
   static func evaluate(_ rule: Rule, event: CalendarEvent) -> Bool {
+    guard RuleValidator.isValid(rule) else { return false }
+    return evaluateUnchecked(rule, event: event)
+  }
+
+  private static func evaluateUnchecked(_ rule: Rule, event: CalendarEvent) -> Bool {
     let result: Bool
     switch rule.kind {
     case .group:
-      let children = rule.children ?? []
+      guard let children = rule.children, let groupOperator = rule.groupOperator else {
+        return false
+      }
       if children.isEmpty {
         result = true
-      } else if rule.groupOperator == .any {
-        result = children.contains { evaluate($0, event: event) }
+      } else if groupOperator == .any {
+        result = children.contains { evaluateUnchecked($0, event: event) }
       } else {
-        result = children.allSatisfy { evaluate($0, event: event) }
+        result = children.allSatisfy { evaluateUnchecked($0, event: event) }
       }
     case .cond:
       result = evaluateCondition(rule, event: event)
@@ -24,9 +32,11 @@ enum RuleEngine {
   }
 
   private static func evaluateCondition(_ rule: Rule, event: CalendarEvent) -> Bool {
-    let field = rule.field ?? ""
-    let operatorId = rule.operatorId ?? ""
-    let value = rule.value ?? .null
+    guard let field = rule.field,
+          let operatorId = rule.operatorId,
+          let value = rule.value else {
+      return false
+    }
 
     if let actual = stringValue(for: field, event: event) {
       return compareString(actual, operatorId, value)
@@ -43,7 +53,9 @@ enum RuleEngine {
 
     switch field {
     case "calendar": return compareCalendar(event.calendar, operatorId, value)
-    case "startsWithin": return event.startMinutesFromNow >= 0 && event.startMinutesFromNow <= Int(value.number)
+    case "startsWithin":
+      guard operatorId == "within", case .number(let minutes) = value else { return false }
+      return event.startMinutesFromNow >= 0 && Double(event.startMinutesFromNow) <= minutes
     case "hour":
       let hour = Calendar.current.component(.hour, from: event.startDate)
       return compareNumber(Double(hour), operatorId, value)
@@ -51,11 +63,16 @@ enum RuleEngine {
       let weekday = Calendar.current.component(.weekday, from: event.startDate) - 1
       return compareEnum(String(weekday), operatorId, value)
     case "attendee":
-      let needle = value.string.lowercased()
+      guard case .string(let needleValue) = value else { return false }
+      let needle = needleValue.lowercased()
       let contains = event.attendees.contains { $0.email.lowercased().contains(needle) }
-      return operatorId == "excludes" ? !contains : contains
+      switch operatorId {
+      case "includes": return contains
+      case "excludes": return !contains
+      default: return false
+      }
     default:
-      return true
+      return false
     }
   }
 
@@ -105,10 +122,12 @@ enum RuleEngine {
     case "ends_with": return actualLowercased.hasSuffix(valueLowercased)
     case "equals": return actualLowercased == valueLowercased
     case "not_equals": return actualLowercased != valueLowercased
-    case "matches": return actual.range(of: value.string, options: [.regularExpression, .caseInsensitive]) != nil
+    case "matches":
+      guard case .string = value else { return false }
+      return actual.range(of: value.string, options: [.regularExpression, .caseInsensitive]) != nil
     case "is_empty": return actual.isEmpty
     case "is_not_empty": return !actual.isEmpty
-    default: return true
+    default: return false
     }
   }
 
@@ -120,7 +139,7 @@ enum RuleEngine {
     case "is_none_of": return !value.stringArray.contains(actual)
     case "is_empty": return actual.isEmpty
     case "is_set": return !actual.isEmpty
-    default: return true
+    default: return false
     }
   }
 
@@ -133,7 +152,7 @@ enum RuleEngine {
     case "is_not": return !matchesSingle
     case "is_any_of": return matchesAny
     case "is_none_of": return !matchesAny
-    default: return true
+    default: return false
     }
   }
 
@@ -141,7 +160,7 @@ enum RuleEngine {
     switch operatorId {
     case "is_true": return actual
     case "is_false": return !actual
-    default: return true
+    default: return false
     }
   }
 
@@ -155,13 +174,13 @@ enum RuleEngine {
     case "neq": return actual != value.number
     case "between", "not_between":
       return compareRange(actual, operatorId, value)
-    default: return true
+    default: return false
     }
   }
 
   private static func compareRange(_ actual: Double, _ operatorId: String, _ value: RuleValue) -> Bool {
     let bounds = value.numberArray
-    guard bounds.count == 2 else { return true }
+    guard bounds.count == 2, bounds[0] <= bounds[1] else { return false }
     let isInside = actual >= bounds[0] && actual <= bounds[1]
     return operatorId == "between" ? isInside : !isInside
   }

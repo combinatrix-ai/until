@@ -74,6 +74,7 @@ final class AppModel: ObservableObject {
   }
 
   func saveConfig(_ next: AppConfig) {
+    guard RuleValidator.validate(next.filterRules) == nil else { return }
     config = normalized(next)
     if runtimeOptions.demoMode {
       loadDemoData(now: Date())

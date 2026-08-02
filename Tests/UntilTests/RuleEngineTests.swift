@@ -133,25 +133,20 @@ final class RuleEngineTests: XCTestCase {
     XCTAssertTrue(RuleEngine.evaluate(.condition("durationMinutes", "not_between", .numbers([50, 60])), event: event))
   }
 
-  /// `compareRange` does `guard bounds.count == 2 else { return true }`. With
-  /// min > max (e.g. [60, 30]) there are still exactly 2 bounds, so it proceeds
-  /// to the actual inequality check: `actual >= 60 && actual <= 30`, which is
-  /// never satisfiable -> `isInside` is always false -> "between" is always
-  /// false and "not_between" is always true, regardless of `actual`.
-  func testBetweenWithInvertedBoundsIsAlwaysFalse() {
+  /// Inverted ranges are malformed and therefore fail closed for both
+  /// operators.
+  func testBetweenWithInvertedBoundsFailsClosed() {
     let event = makeEvent(durationMinutes: 45)
     XCTAssertFalse(RuleEngine.evaluate(.condition("durationMinutes", "between", .numbers([60, 30])), event: event))
-    XCTAssertTrue(RuleEngine.evaluate(.condition("durationMinutes", "not_between", .numbers([60, 30])), event: event))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("durationMinutes", "not_between", .numbers([60, 30])), event: event))
   }
 
-  /// With a missing bound (only 1 number, or none), `bounds.count != 2`, so the
-  /// guard fires and `compareRange` returns `true` unconditionally -- for BOTH
-  /// "between" and "not_between".
-  func testBetweenWithMissingBoundReturnsTrue() {
+  /// Malformed ranges fail closed for both range operators.
+  func testBetweenWithMissingBoundFailsClosed() {
     let event = makeEvent(durationMinutes: 999)
-    XCTAssertTrue(RuleEngine.evaluate(.condition("durationMinutes", "between", .number(30)), event: event))
-    XCTAssertTrue(RuleEngine.evaluate(.condition("durationMinutes", "not_between", .number(30)), event: event))
-    XCTAssertTrue(RuleEngine.evaluate(.condition("durationMinutes", "between", .numbers([])), event: event))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("durationMinutes", "between", .number(30)), event: event))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("durationMinutes", "not_between", .number(30)), event: event))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("durationMinutes", "between", .numbers([])), event: event))
   }
 
   // MARK: - Special fields
@@ -161,12 +156,12 @@ final class RuleEngineTests: XCTestCase {
     let soon = makeEvent(startMinutesFromNow: 10)
     let past = makeEvent(startMinutesFromNow: -5)
     let far = makeEvent(startMinutesFromNow: 120)
-    XCTAssertTrue(RuleEngine.evaluate(.condition("startsWithin", "", .number(30)), event: soon))
-    XCTAssertFalse(RuleEngine.evaluate(.condition("startsWithin", "", .number(30)), event: past))
-    XCTAssertFalse(RuleEngine.evaluate(.condition("startsWithin", "", .number(30)), event: far))
+    XCTAssertTrue(RuleEngine.evaluate(.condition("startsWithin", "within", .number(30)), event: soon))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("startsWithin", "within", .number(30)), event: past))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("startsWithin", "within", .number(30)), event: far))
     // Boundary: exactly equal to value passes (<=).
     let boundary = makeEvent(startMinutesFromNow: 30)
-    XCTAssertTrue(RuleEngine.evaluate(.condition("startsWithin", "", .number(30)), event: boundary))
+    XCTAssertTrue(RuleEngine.evaluate(.condition("startsWithin", "within", .number(30)), event: boundary))
   }
 
   func testHourFieldUsesEventStartDateComponent() {
@@ -202,9 +197,9 @@ final class RuleEngineTests: XCTestCase {
     let event = makeEvent(attendees: [
       Attendee(email: "Alice@Example.com", name: "Alice", responseStatus: "accepted", selfUser: false, resource: false)
     ])
-    XCTAssertTrue(RuleEngine.evaluate(.condition("attendee", "contains", .string("alice")), event: event))
-    XCTAssertTrue(RuleEngine.evaluate(.condition("attendee", "contains", .string("EXAMPLE.COM")), event: event))
-    XCTAssertFalse(RuleEngine.evaluate(.condition("attendee", "contains", .string("bob")), event: event))
+    XCTAssertTrue(RuleEngine.evaluate(.condition("attendee", "includes", .string("alice")), event: event))
+    XCTAssertTrue(RuleEngine.evaluate(.condition("attendee", "includes", .string("EXAMPLE.COM")), event: event))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("attendee", "includes", .string("bob")), event: event))
     XCTAssertFalse(RuleEngine.evaluate(.condition("attendee", "excludes", .string("alice")), event: event))
     XCTAssertTrue(RuleEngine.evaluate(.condition("attendee", "excludes", .string("bob")), event: event))
   }
@@ -295,23 +290,82 @@ final class RuleEngineTests: XCTestCase {
     XCTAssertFalse(RuleEngine.evaluate(rule, event: event2))
   }
 
-  // MARK: - Unknown field / operator: permissive default
+  // MARK: - Unknown field / operator: fail closed
 
-  /// `evaluateCondition` falls through string/enum/bool/number lookups (all
-  /// return nil for an unrecognized field) and hits the `switch field` with a
-  /// `default: return true`.
-  func testUnknownFieldReturnsTrue() {
+  func testUnknownFieldReturnsFalse() {
     let event = makeEvent()
-    XCTAssertTrue(RuleEngine.evaluate(.condition("madeUpField", "equals", .string("x")), event: event))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("madeUpField", "equals", .string("x")), event: event))
   }
 
-  /// Each `compareX` helper has `default: return true` for an unrecognized
-  /// operator id, so a known field with a bogus operator is also permissive.
-  func testUnknownOperatorReturnsTrue() {
+  func testUnknownOperatorReturnsFalse() {
     let event = makeEvent(title: "Sync")
-    XCTAssertTrue(RuleEngine.evaluate(.condition("title", "made_up_operator", .string("x")), event: event))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("title", "made_up_operator", .string("x")), event: event))
     let numEvent = makeEvent(durationMinutes: 10)
-    XCTAssertTrue(RuleEngine.evaluate(.condition("durationMinutes", "made_up_operator", .number(5)), event: numEvent))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("durationMinutes", "made_up_operator", .number(5)), event: numEvent))
+  }
+
+  // MARK: - Rule validation
+
+  func testInvalidRegexIsRejected() {
+    XCTAssertEqual(
+      RuleValidator.validate(.condition("title", "matches", .string("["))),
+      .invalidRegex
+    )
+  }
+
+  func testEmptyRegexMatchesEveryString() {
+    let event = makeEvent(title: "Any title")
+    XCTAssertTrue(RuleEngine.evaluate(.condition("title", "matches", .string("")), event: event))
+  }
+
+  func testNumberValidationRejectsNonFiniteAndInvertedRanges() {
+    XCTAssertEqual(
+      RuleValidator.validate(.condition("durationMinutes", "eq", .number(.infinity))),
+      .nonFiniteNumber
+    )
+    XCTAssertEqual(
+      RuleValidator.validate(.condition("durationMinutes", "between", .numbers([60, 30]))),
+      .invalidNumberRange
+    )
+  }
+
+  func testMalformedGroupIsRejected() {
+    let malformed = Rule(
+      kind: .group,
+      groupOperator: nil,
+      children: [.condition("title", "contains", .string("sync"))]
+    )
+    XCTAssertEqual(RuleValidator.validate(malformed), .malformedGroup)
+  }
+
+  func testFilterCatalogDefaultsMatchValidatorContract() {
+    for field in FilterCatalog.fields {
+      for filterOperator in field.operators {
+        let rule = Rule.condition(
+          field.id,
+          filterOperator.id,
+          FilterCatalog.defaultValue(for: filterOperator.value)
+        )
+        let validationError = RuleValidator.validate(rule)
+        if field.id == "calendar", case .calendars = filterOperator.value {
+          // The editor intentionally starts a single-calendar picker at its
+          // incomplete "Choose calendar" placeholder.
+          XCTAssertEqual(validationError, .invalidChoice, "\(field.id).\(filterOperator.id)")
+        } else {
+          XCTAssertNil(validationError, "\(field.id).\(filterOperator.id)")
+        }
+      }
+    }
+  }
+
+  func testEmptySingleCalendarSelectionIsRejected() {
+    XCTAssertEqual(
+      RuleValidator.validate(.condition("calendar", "is", .string(""))),
+      .invalidChoice
+    )
+    XCTAssertNil(
+      RuleValidator.validate(.condition("calendar", "is", .string("calendar-id")))
+    )
   }
 
   func testRuleEngineApplyFiltersEvents() {

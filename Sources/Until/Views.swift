@@ -1436,6 +1436,9 @@ struct SettingsView: View {
     self.model = model
     _draft = State(initialValue: model.config)
     _usesCustomFetchWindow = State(initialValue: !Self.isPresetFetchWindow(model.config.lookaheadHours))
+    _selection = State(
+      initialValue: RuleValidator.isValid(model.config.filterRules) ? .accounts : .filter
+    )
   }
 
   var body: some View {
@@ -1475,6 +1478,7 @@ struct SettingsView: View {
   /// fields don't trigger a network refresh on every keystroke.
   private func scheduleSave(_ config: AppConfig) {
     guard config != model.config else { return }
+    guard RuleValidator.validate(config.filterRules) == nil else { return }
     saveTask?.cancel()
     saveTask = Task { @MainActor in
       try? await Task.sleep(nanoseconds: 500_000_000)
@@ -1702,6 +1706,14 @@ struct SettingsView: View {
         // several seconds, so it was removed.
         QueryBuilderView(rule: $draft.filterRules, calendars: model.calendars)
           .padding(.bottom, 4)
+        if let validationError = RuleValidator.validate(draft.filterRules) {
+          Text(validationError.message)
+            .font(.caption)
+            .foregroundStyle(.red)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 4)
+        }
         FilterPreviewView(result: preview)
       })
     }

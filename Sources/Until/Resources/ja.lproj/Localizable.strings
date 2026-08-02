@@ -165,6 +165,16 @@
 "Reset to defaults" = "デフォルトに戻す";
 "%1$d of %2$d events match" = "%2$d件中%1$d件が一致";
 "No events loaded to preview yet." = "プレビューできる予定がまだ読み込まれていません。";
+"Fix this filter group: choose a group mode and keep only nested rules." = "フィルターグループを修正してください。グループのモードを選び、入れ子のルールだけを含めてください。";
+"Fix this filter rule: choose a field, operator, and matching value." = "フィルタールールを修正してください。フィールド、演算子、対応する値を選んでください。";
+"Choose a field from the list for this filter rule." = "フィルタールールのフィールドを一覧から選んでください。";
+"Choose an operator supported by the selected field." = "選択したフィールドに対応する演算子を選んでください。";
+"Enter a value for this filter rule." = "フィルタールールの値を入力してください。";
+"Use the value type shown for this operator." = "この演算子に表示されている値の種類を使ってください。";
+"Choose a value from the list." = "一覧から値を選んでください。";
+"Enter a finite number." = "有限の数値を入力してください。";
+"Enter two finite numbers with Min no greater than Max." = "有限の数値を2つ入力し、最小値を最大値以下にしてください。";
+"Enter a valid regular expression." = "有効な正規表現を入力してください。";
 
 /* MARK: - Settings: Accounts tab (Views) */
 "Google Accounts" = "Googleアカウント";
