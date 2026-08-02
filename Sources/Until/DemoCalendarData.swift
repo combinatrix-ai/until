@@ -424,7 +424,6 @@ enum DemoCalendarData {
       calendar: spec.calendar,
       account: AccountRef(email: spec.accountEmail),
       attendees: normalizedAttendees(spec.attendees, accountEmail: spec.accountEmail),
-      attendeeCount: spec.attendees.filter { !$0.resource }.count,
       organizer: spec.accountEmail,
       selfResponse: spec.selfResponse,
       isRecurring: spec.id == "product-sync",

@@ -136,7 +136,6 @@ final class CalendarClient {
       calendar: calendarRef(from: calendar),
       account: AccountRef(email: calendar.accountEmail),
       attendees: attendees,
-      attendeeCount: attendees.count,
       organizer: raw.organizer?.email ?? "",
       selfResponse: selfAttendee?.responseStatus ?? "none",
       isRecurring: raw.recurringEventId != nil,

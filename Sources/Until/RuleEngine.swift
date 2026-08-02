@@ -106,7 +106,7 @@ enum RuleEngine {
 
   private static func numberValue(for field: String, event: CalendarEvent) -> Double? {
     switch field {
-    case "attendeeCount": return Double(event.attendeeCount)
+    case "attendeeCount": return Double(event.attendees.filter { !$0.resource }.count)
     case "durationMinutes": return Double(event.durationMinutes)
     default: return nil
     }

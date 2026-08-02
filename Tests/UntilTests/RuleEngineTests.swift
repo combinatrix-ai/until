@@ -120,9 +120,15 @@ final class RuleEngineTests: XCTestCase {
   }
 
   func testAttendeeCountNumberField() {
-    let event = makeEvent(attendeeCount: 5)
-    XCTAssertTrue(RuleEngine.evaluate(.condition("attendeeCount", "gte", .number(5)), event: event))
-    XCTAssertFalse(RuleEngine.evaluate(.condition("attendeeCount", "gt", .number(5)), event: event))
+    let event = makeEvent(attendees: [
+      Attendee(email: "me@example.com", name: "Me", responseStatus: "accepted", selfUser: true, resource: false),
+      Attendee(email: "guest@example.com", name: "Guest", responseStatus: "accepted", selfUser: false, resource: false),
+      Attendee(email: "room@example.com", name: "Room", responseStatus: "accepted", selfUser: false, resource: true)
+    ])
+    // The self attendee counts, while resource attendees do not.
+    XCTAssertTrue(RuleEngine.evaluate(.condition("attendeeCount", "eq", .number(2)), event: event))
+    XCTAssertTrue(RuleEngine.evaluate(.condition("attendeeCount", "gte", .number(2)), event: event))
+    XCTAssertFalse(RuleEngine.evaluate(.condition("attendeeCount", "gt", .number(2)), event: event))
   }
 
   func testBetweenAndNotBetween() {
@@ -275,7 +281,16 @@ final class RuleEngineTests: XCTestCase {
   }
 
   func testNestedGroups() {
-    let event = makeEvent(title: "Sync", allDay: false, attendeeCount: 3)
+    let attendees = (0..<3).map { index in
+      Attendee(
+        email: "guest\(index)@example.com",
+        name: "Guest \(index)",
+        responseStatus: "accepted",
+        selfUser: false,
+        resource: false
+      )
+    }
+    let event = makeEvent(title: "Sync", allDay: false, attendees: attendees)
     // (title contains "sync" AND allDay is_false) OR (attendeeCount gt 100)
     let rule = Rule.group(.any, [
       .group(.and, [
@@ -286,7 +301,7 @@ final class RuleEngineTests: XCTestCase {
     ])
     XCTAssertTrue(RuleEngine.evaluate(rule, event: event))
 
-    let event2 = makeEvent(title: "Other", allDay: true, attendeeCount: 3)
+    let event2 = makeEvent(title: "Other", allDay: true, attendees: attendees)
     XCTAssertFalse(RuleEngine.evaluate(rule, event: event2))
   }
 

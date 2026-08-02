@@ -32,7 +32,6 @@ struct CalendarEvent: Identifiable, Hashable {
   var calendar: CalendarRef
   var account: AccountRef
   var attendees: [Attendee]
-  var attendeeCount: Int
   var organizer: String
   var selfResponse: String
   var isRecurring: Bool
@@ -68,7 +67,6 @@ struct CalendarEvent: Identifiable, Hashable {
     calendar: CalendarRef,
     account: AccountRef,
     attendees: [Attendee],
-    attendeeCount: Int,
     organizer: String,
     selfResponse: String,
     isRecurring: Bool,
@@ -94,7 +92,6 @@ struct CalendarEvent: Identifiable, Hashable {
     self.calendar = calendar
     self.account = account
     self.attendees = attendees
-    self.attendeeCount = attendeeCount
     self.organizer = organizer
     self.selfResponse = selfResponse
     self.isRecurring = isRecurring
