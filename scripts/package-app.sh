@@ -70,8 +70,6 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <string>13.0</string>
   <key>LSUIElement</key>
   <true/>
-  <key>NSCalendarsUsageDescription</key>
-  <string>Until reads Google Calendar events through Google OAuth.</string>
   <key>NSUserNotificationAlertStyle</key>
   <string>alert</string>
   <key>GoogleOAuthClientID</key>

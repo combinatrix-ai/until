@@ -1,7 +1,7 @@
 # Until - build & run
 
 macOS menubar calendar app (Swift + SwiftUI/AppKit). Shows your next Google
-Calendar event in the menubar, filtered by a user-authored JS expression.
+Calendar event in the menubar, filtered by user-authored structured rules.
 The SwiftPM package, target, and product are **Until** (bundle id `ai.combinatrix.until`).
 
 ## Install

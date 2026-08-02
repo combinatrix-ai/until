@@ -192,7 +192,6 @@
 "Your saved template couldn’t be opened, so built-in notes were used — try Create template." = "Your saved template couldn’t be opened, so built-in notes were used — try Create template.";
 "Meeting Notes" = "Meeting Notes";
 "Optional — title & template" = "Optional — title & template";
-"The notes folder is created automatically in your Drive. Notes use a built-in template unless you create your own, which you can edit in Google Docs. Notes need Drive and Docs access — reconnect Google if creation fails." = "The notes folder is created automatically in your Drive. Notes use a built-in template unless you create your own, which you can edit in Google Docs. Notes need Drive and Docs access — reconnect Google if creation fails.";
 "primary" = "primary";
 
 /* MARK: - Query builder (QueryBuilderView) */

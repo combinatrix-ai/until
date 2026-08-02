@@ -192,7 +192,6 @@
 "Your saved template couldn’t be opened, so built-in notes were used — try Create template." = "保存済みのテンプレートを開けなかったため、組み込みの議事録を使用しました。テンプレートを作成し直してください。";
 "Meeting Notes" = "議事録";
 "Optional — title & template" = "任意 — タイトル・テンプレート";
-"The notes folder is created automatically in your Drive. Notes use a built-in template unless you create your own, which you can edit in Google Docs. Notes need Drive and Docs access — reconnect Google if creation fails." = "議事録フォルダはDrive内に自動的に作成されます。独自のテンプレートを作成しない限り、議事録は組み込みテンプレートを使用します。作成したテンプレートはGoogleドキュメントで編集できます。作成にはDriveとDocsへのアクセスが必要です。作成に失敗する場合はGoogleに再接続してください。";
 "primary" = "メイン";
 
 /* MARK: - Query builder (QueryBuilderView) */
