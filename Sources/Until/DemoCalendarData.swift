@@ -75,7 +75,6 @@ enum DemoCalendarData {
   }
 
   static func calendars(selectedIds: [String]) -> [CalendarSummary] {
-    let allSelected = selectedIds.isEmpty
     return calendarDefinitions.map { definition in
       CalendarSummary(
         id: definition.id,
@@ -83,7 +82,7 @@ enum DemoCalendarData {
         name: definition.name,
         primary: definition.primary,
         backgroundColor: definition.backgroundColor,
-        selected: allSelected || selectedIds.contains(definition.id) || selectedIds.contains(definition.googleId),
+        selected: isCalendarSelected(definition.id, selectedIds: selectedIds),
         accountEmail: definition.accountEmail
       )
     }

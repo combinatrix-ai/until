@@ -12,7 +12,6 @@ final class CalendarClient {
     let email = await auth.email
     let data: CalendarListResponse = try await get(base.appending(path: "users/me/calendarList")
       .appending(queryItems: [URLQueryItem(name: "minAccessRole", value: "reader")]))
-    let allSelected = selectedIds.isEmpty
     return data.items.map { item in
       let key = calendarKey(accountEmail: email, calendarId: item.id)
       return CalendarSummary(
@@ -21,7 +20,7 @@ final class CalendarClient {
         name: item.summaryOverride ?? item.summary,
         primary: item.primary ?? false,
         backgroundColor: item.backgroundColor ?? "#888",
-        selected: allSelected || selectedIds.contains(key) || selectedIds.contains(item.id),
+        selected: isCalendarSelected(key, selectedIds: selectedIds),
         accountEmail: email
       )
     }
@@ -266,6 +265,15 @@ private func isNotesAttachment(_ attachment: RawAttachment) -> Bool {
 
 private func calendarKey(accountEmail: String, calendarId: String) -> String {
   "\(accountEmail)::\(calendarId)"
+}
+
+/// Returns whether a calendar is selected by the persisted selection.
+///
+/// A non-empty selection contains account-scoped keys (`email::calendarId`).
+/// Deliberately do not accept a bare Google calendar id here: the same id (most
+/// notably `primary`) can exist in multiple connected accounts.
+func isCalendarSelected(_ key: String, selectedIds: [String]) -> Bool {
+  selectedIds.isEmpty || selectedIds.contains(key)
 }
 
 /// Converts an all-day `date` (yyyy-MM-dd) into a full ISO timestamp at local
