@@ -23,6 +23,10 @@ final class LocalizationTests: XCTestCase {
       ("now", "今"),
       ("Launch at login", "ログイン時に起動"),
       ("Skip in menubar", "メニューバーでスキップ"),
+      ("No more events today", "今日はこのあと予定なし"),
+      ("until %@", "%@まで"),
+      ("Free", "空き"),
+      ("Next: %@", "次の予定: %@"),
       ("Edit access could not be granted", "編集権限を付与できませんでした"),
       (
         "The note was created, but edit access could not be granted to:",

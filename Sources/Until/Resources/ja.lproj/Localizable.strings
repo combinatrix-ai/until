@@ -44,6 +44,9 @@
 "Join" = "参加";
 "Open notes" = "議事録を開く";
 "free until %@" = "%@まで空き";
+"No more events today" = "今日はこのあと予定なし";
+"until %@" = "%@まで";
+"Next: %@" = "次の予定: %@";
 
 /* MARK: - NOW strip (Views) */
 "Now" = "進行中";
@@ -276,7 +279,7 @@
 "Confirmed" = "確定";
 "Cancelled" = "キャンセル済み";
 "Busy" = "予定あり";
-"Free" = "予定なし";
+"Free" = "空き";
 "Sunday" = "日曜日";
 "Monday" = "月曜日";
 "Tuesday" = "火曜日";

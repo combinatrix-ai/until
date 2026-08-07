@@ -31,6 +31,11 @@ final class AppModel: ObservableObject {
   /// `EventNotifier` uses to pick its notification backend.
   let launchAtLoginAvailable = Bundle.main.bundleURL.pathExtension == "app"
 
+  enum FreeDayHeroDecision: Equatable {
+    case notFree
+    case free(next: CalendarEvent?)
+  }
+
   /// Sparkle updater. Lives on the model so the Settings "Check for Updates"
   /// button can drive it (the status item no longer has a menu). `startingUpdater`
   /// fires on init, so creating it here also kicks off scheduled background checks.
@@ -969,6 +974,29 @@ final class AppModel: ObservableObject {
       }
     }
     return soonestEnding
+  }
+
+  /// Pure decision for the popover's free-day hero. A timed event that starts
+  /// today and has not ended suppresses the hero; all-day events do not, which
+  /// matches `insertingFreeGaps`'s free-time semantics. The next event is the
+  /// earliest future timed event in the same list the popover displays, so
+  /// menubar-skipped events remain eligible here.
+  static func freeDayHeroNextEvent(
+    timed candidates: [CalendarEvent],
+    now: Date
+  ) -> FreeDayHeroDecision {
+    let calendar = Calendar.current
+    let timed = candidates.filter { !$0.allDay }
+    if timed.contains(where: { event in
+      calendar.isDate(event.startDate, inSameDayAs: now) && event.endDate > now
+    }) {
+      return .notFree
+    }
+
+    let next = timed
+      .filter { $0.startDate > now }
+      .min { lhs, rhs in lhs.startDate < rhs.startDate }
+    return .free(next: next)
   }
 
   private func compareEvents(_ lhs: CalendarEvent, _ rhs: CalendarEvent) -> Bool {

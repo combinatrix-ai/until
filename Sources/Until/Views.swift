@@ -38,29 +38,15 @@ struct PanelView: View {
       .frame(maxHeight: .infinity)
     } else {
       VStack(spacing: 0) {
-        // The NOW strip and hero pin the in-progress event and the menubar's
-        // countdown event (see `AppModel.nowStripEvent` / `AppModel.menubarEvent`)
-        // above the list so their join/notes actions never require scrolling.
-        // All-day menubar events have no meaningful countdown, so the hero is
-        // skipped entirely for them. Both slots are keyed by actionKey and
-        // animated together (`heroStripSlots`) so a swap crossfades instead of
-        // the text morphing in place; the animation is keyed on that identity
-        // alone, so the periodic `TimelineView` countdown tick inside each
-        // section never triggers it.
-        VStack(spacing: 0) {
-          if let strip = nowStripEvent {
-            NowStripSection(event: strip, model: model)
-              .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
-            Divider()
-          }
-          if let hero = heroEvent {
-            HeroSection(event: hero, model: model)
-              .id(hero.actionKey)
-              .transition(.opacity)
-            Divider()
-          }
+        // The NOW strip and hero pin the in-progress event, the menubar's
+        // countdown event, or the free-day state above the list so their
+        // content never requires scrolling. All-day menubar events have no
+        // meaningful countdown, so they leave the timed hero slot available
+        // for the free-day state. The slot is reevaluated every 30 seconds so
+        // the hero can appear when the last event ends without a calendar poll.
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+          heroSlot(now: context.date)
         }
-        .animation(.easeInOut(duration: 0.3), value: heroStripSlots)
         // Cached events remain visible; the error rides above them as a compact
         // banner so a transient outage doesn't hide the whole panel.
         if let error = model.state.lastError {
@@ -106,14 +92,77 @@ struct PanelView: View {
   /// hero — the in-progress event that isn't already the hero. `nil` renders
   /// no strip.
   private var nowStripEvent: CalendarEvent? {
-    model.nowStripEvent
+    nowStripEvent(at: Date())
+  }
+
+  private func nowStripEvent(at now: Date) -> CalendarEvent? {
+    AppModel.pickNowStripEvent(
+      menubarEvent: model.menubarEvent,
+      config: model.config,
+      timed: model.state.events,
+      now: now
+    )
+  }
+
+  private func freeDayDecision(
+    hero: CalendarEvent?,
+    nowStrip: CalendarEvent?,
+    now: Date
+  ) -> AppModel.FreeDayHeroDecision {
+    guard hero == nil, nowStrip == nil else { return .notFree }
+    return AppModel.freeDayHeroNextEvent(timed: model.state.events, now: now)
   }
 
   /// Identifies which events currently occupy the hero and NOW strip slots,
   /// so `content` can key a single `.animation` on it (see `heroStripSlots`'s
   /// use there) that fires only when a slot's occupant actually changes.
   private var heroStripSlots: [String?] {
-    [heroEvent?.actionKey, nowStripEvent?.actionKey]
+    let now = Date()
+    let hero = heroEvent
+    let strip = nowStripEvent(at: now)
+    let freeDay = freeDayDecision(hero: hero, nowStrip: strip, now: now)
+    return heroStripSlots(hero: hero, nowStrip: strip, freeDay: freeDay)
+  }
+
+  private func heroStripSlots(
+    hero: CalendarEvent?,
+    nowStrip: CalendarEvent?,
+    freeDay: AppModel.FreeDayHeroDecision
+  ) -> [String?] {
+    let freeDaySlot: String?
+    if case .free = freeDay {
+      freeDaySlot = "free-day"
+    } else {
+      freeDaySlot = nil
+    }
+    return [hero?.actionKey ?? freeDaySlot, nowStrip?.actionKey]
+  }
+
+  @ViewBuilder
+  private func heroSlot(now: Date) -> some View {
+    let hero = heroEvent
+    let strip = nowStripEvent(at: now)
+    let freeDay = freeDayDecision(hero: hero, nowStrip: strip, now: now)
+
+    VStack(spacing: 0) {
+      if let strip {
+        NowStripSection(event: strip, model: model)
+          .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
+        Divider()
+      }
+      if let hero {
+        HeroSection(event: hero, model: model)
+          .id(hero.actionKey)
+          .transition(.opacity)
+        Divider()
+      } else if case .free(let nextEvent) = freeDay {
+        FreeDayHeroSection(nextEvent: nextEvent, now: now)
+          .id("free-day")
+          .transition(.opacity)
+        Divider()
+      }
+    }
+    .animation(.easeInOut(duration: 0.3), value: heroStripSlots)
   }
 
   /// Neither the hero event nor the NOW strip event may also appear in the
@@ -344,6 +393,79 @@ private struct HeroSection: View {
     TimelineView(.periodic(from: .now, by: 30)) { context in
       HeroContent(event: event, model: model, now: context.date)
     }
+  }
+}
+
+/// The non-interactive hero shown when there are no remaining timed events
+/// today. The containing hero slot supplies a 30-second timeline so its
+/// time-dependent decision is reevaluated while the popover remains open.
+private struct FreeDayHeroSection: View {
+  var nextEvent: CalendarEvent?
+  var now: Date
+
+  var body: some View {
+    FreeDayHeroContent(nextEvent: nextEvent, now: now)
+  }
+}
+
+private struct FreeDayHeroContent: View {
+  var nextEvent: CalendarEvent?
+  var now: Date
+
+  private var nextWhen: String? {
+    guard let nextEvent else { return nil }
+    return "\(inlineDay(nextEvent.startDate)) \(clock(nextEvent.startDate))"
+  }
+
+  private var nextSummary: String? {
+    guard let nextEvent, let nextWhen else { return nil }
+    return "\(nextWhen) \(nextEvent.title)"
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+      HStack(alignment: .firstTextBaseline) {
+        Text(loc("No more events today"))
+          .font(.caption.weight(.bold))
+          .tracking(0.8)
+          .textCase(.uppercase)
+          .foregroundStyle(Color.green)
+        Spacer(minLength: Theme.Spacing.sm)
+        if let nextWhen {
+          Text(loc("until %@", nextWhen))
+            .font(.system(size: 12, weight: .semibold))
+            .monospacedDigit()
+            .foregroundStyle(Color.green)
+        }
+      }
+
+      HStack(spacing: Theme.Spacing.sm) {
+        Image(systemName: "sun.max.fill")
+          .foregroundStyle(Color.green)
+        Text(loc("Free"))
+      }
+      .font(.system(size: 16, weight: .semibold))
+
+      if let nextSummary {
+        Text(loc("Next: %@", nextSummary))
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
+    }
+    .padding(.horizontal, Theme.Spacing.lg)
+    .padding(.top, Theme.Spacing.md + 2)
+    .padding(.bottom, Theme.Spacing.md + 3)
+  }
+
+  /// Mid-sentence day wording: "Today"/"Tomorrow" read as ordinary words and
+  /// lowercase naturally, but formatter output ("Friday, Aug 14") must keep
+  /// its casing.
+  private func inlineDay(_ date: Date) -> String {
+    let header = dayHeader(date, now: now)
+    return header == loc("Today") || header == loc("Tomorrow")
+      ? header.lowercased()
+      : header
   }
 }
 
