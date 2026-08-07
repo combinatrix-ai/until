@@ -13,6 +13,9 @@ struct AppRuntimeOptions: Hashable {
     /// `--demo-overlap` / `UNTIL_DEMO_OVERLAP`: pins the NOW strip above the
     /// "Up next" hero.
     case overlap
+    /// `--demo-free` / `UNTIL_DEMO_FREE`: pins the free-day hero with an
+    /// all-day event today and a timed event tomorrow.
+    case freeDay
   }
 
   var demoMode: Bool
@@ -25,10 +28,12 @@ struct AppRuntimeOptions: Hashable {
     let demoFlags = Set(["--demo-mode"])
     let demoNowFlags = Set(["--demo-now"])
     let demoOverlapFlags = Set(["--demo-overlap"])
+    let demoFreeFlags = Set(["--demo-free"])
     let processArguments = arguments.dropFirst()
     let hasFlag = processArguments.contains { demoFlags.contains($0) }
     let hasNowFlag = processArguments.contains { demoNowFlags.contains($0) }
     let hasOverlapFlag = processArguments.contains { demoOverlapFlags.contains($0) }
+    let hasFreeFlag = processArguments.contains { demoFreeFlags.contains($0) }
     let envValue = environment["UNTIL_DEMO_MODE"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     let hasEnv = ["1", "true", "yes", "on"].contains(envValue ?? "")
     let envNowValue = environment["UNTIL_DEMO_NOW"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -37,12 +42,23 @@ struct AppRuntimeOptions: Hashable {
       .trimmingCharacters(in: .whitespacesAndNewlines)
       .lowercased()
     let hasOverlapEnv = ["1", "true", "yes", "on"].contains(envOverlapValue ?? "")
+    let envFreeValue = environment["UNTIL_DEMO_FREE"]?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased()
+    let hasFreeEnv = ["1", "true", "yes", "on"].contains(envFreeValue ?? "")
     let hasNow = hasNowFlag || hasNowEnv
     let hasOverlap = hasOverlapFlag || hasOverlapEnv
+    let hasFree = hasFreeFlag || hasFreeEnv
     // Overlap is the superset state (in-progress event AND imminent next), so
-    // it wins when both flags are given.
-    let scenario: DemoScenario = hasOverlap ? .overlap : (hasNow ? .inProgress : .upcoming)
-    return AppRuntimeOptions(demoMode: hasFlag || hasEnv || hasNow || hasOverlap, demoScenario: scenario)
+    // it wins when both flags are given. It also wins over the free-day flag
+    // if several demo switches are supplied together.
+    let scenario: DemoScenario = hasOverlap
+      ? .overlap
+      : (hasFree ? .freeDay : (hasNow ? .inProgress : .upcoming))
+    return AppRuntimeOptions(
+      demoMode: hasFlag || hasEnv || hasNow || hasOverlap || hasFree,
+      demoScenario: scenario
+    )
   }
 }
 
@@ -164,6 +180,8 @@ enum DemoCalendarData {
       nextSlot = nextHalfHour(after: minutes(from: now, 25))
     case .overlap:
       nextSlot = minutes(from: now, 4)
+    case .freeDay:
+      nextSlot = date(on: tomorrow, hour: 10, minute: 0)
     }
     let context = DemoContext(
       now: now,
@@ -176,6 +194,9 @@ enum DemoCalendarData {
       tomorrow: tomorrow,
       dayAfterTomorrow: Calendar.current.date(byAdding: .day, value: 2, to: today) ?? tomorrow
     )
+    if case .freeDay = scenario {
+      return freeDaySpecs(context).compactMap { event($0, now: now) }
+    }
     var specs = runAndLaunchSpecs(context)
       + reviewAndCaptureSpecs(context)
       + syncAndFocusSpecs(context)
@@ -188,8 +209,66 @@ enum DemoCalendarData {
       specs += inProgressSpecs(context, startOffset: -5, endOffset: 25)
     case .overlap:
       specs += inProgressSpecs(context, startOffset: -22, endOffset: 8)
+    case .freeDay:
+      break
     }
     return specs.compactMap { event($0, now: now) }
+  }
+
+  /// A wall-clock-independent fixture for the free-day hero: the timed
+  /// commitments are always already over relative to the supplied `now`, the
+  /// all-day event demonstrates that it does not suppress the hero, and the
+  /// next timed event is fixed on the next local calendar day.
+  private static func freeDaySpecs(_ ctx: DemoContext) -> [DemoEventSpec] {
+    [
+      DemoEventSpec(
+        id: "free-day-focus",
+        title: "Focus block",
+        description: "A completed focus block for the free-day demo.",
+        start: minutes(from: ctx.now, -180),
+        end: minutes(from: ctx.now, -120),
+        calendar: ctx.work,
+        accountEmail: workAccountEmail,
+        colorId: "4",
+        transparency: "busy"
+      ),
+      DemoEventSpec(
+        id: "free-day-lunch",
+        title: "Lunch",
+        start: minutes(from: ctx.now, -90),
+        end: minutes(from: ctx.now, -60),
+        calendar: ctx.personal,
+        accountEmail: personalAccountEmail,
+        colorId: "6",
+        transparency: "busy"
+      ),
+      DemoEventSpec(
+        id: "free-day-all-day",
+        title: "Company holiday",
+        start: ctx.today,
+        end: ctx.tomorrow,
+        allDay: true,
+        calendar: ctx.launch,
+        accountEmail: workAccountEmail,
+        colorId: "9",
+        transparency: "busy"
+      ),
+      DemoEventSpec(
+        id: "free-day-tomorrow",
+        title: "Standup",
+        start: date(on: ctx.tomorrow, hour: 10, minute: 0),
+        end: date(on: ctx.tomorrow, hour: 10, minute: 30),
+        calendar: ctx.work,
+        accountEmail: workAccountEmail,
+        attendees: [
+          attendee("maya@acme.co", "Maya Chen", "accepted"),
+          attendee("ren@acme.co", "Ren Sato", "accepted")
+        ],
+        conferenceUrl: "https://meet.google.com/free-day-demo",
+        colorId: "3",
+        transparency: "busy"
+      )
+    ]
   }
 
   private static func runAndLaunchSpecs(_ ctx: DemoContext) -> [DemoEventSpec] {

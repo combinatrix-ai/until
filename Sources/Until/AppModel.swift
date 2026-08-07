@@ -50,6 +50,10 @@ final class AppModel: ObservableObject {
   private var clockTimer: Timer?
   private var wakeObserver: NSObjectProtocol?
   private var signInTask: Task<Void, Never>?
+  /// Distinguishes an in-flight fetch from a snapshot whose shaping inputs
+  /// have since changed. Older results may still refresh the cache, but they
+  /// must never restore coverage metadata for the newer inputs.
+  private var calendarRefreshGeneration = 0
 
   init(options: AppRuntimeOptions = .fromProcess()) {
     runtimeOptions = options
@@ -78,8 +82,17 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Invalidates the calendar snapshot before a shaping input changes or a
+  /// calendar-list refresh fails. The next complete event refresh is the only
+  /// path that can publish a new non-nil coverage end.
+  private func invalidateCalendarCoverage() {
+    calendarRefreshGeneration += 1
+    state.calendarCoverageEnd = nil
+  }
+
   func saveConfig(_ next: AppConfig) {
     guard RuleValidator.validate(next.filterRules) == nil else { return }
+    invalidateCalendarCoverage()
     config = normalized(next)
     if runtimeOptions.demoMode {
       loadDemoData(now: Date())
@@ -178,6 +191,7 @@ final class AppModel: ObservableObject {
       let isNewAccount = !accounts.contains { $0.email.caseInsensitiveCompare(auth.email) == .orderedSame }
       accounts.removeAll { $0.email.caseInsensitiveCompare(auth.email) == .orderedSame }
       accounts.append(auth)
+      invalidateCalendarCoverage()
       updateAuthState()
       await refreshCalendars()
       if isNewAccount {
@@ -209,6 +223,7 @@ final class AppModel: ObservableObject {
       try await auth.login(loginHint: expectedEmail, expectedEmail: expectedEmail)
       accounts.removeAll { $0.email.caseInsensitiveCompare(expectedEmail) == .orderedSame }
       accounts.append(auth)
+      invalidateCalendarCoverage()
       updateAuthState()
       await refreshCalendars()
       await refresh()
@@ -227,12 +242,14 @@ final class AppModel: ObservableObject {
       if let email {
         let removed = accounts.first(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame })
         accounts.removeAll { $0.email.caseInsensitiveCompare(email) == .orderedSame }
+        invalidateCalendarCoverage()
         removeAccountConfiguration(email: email)
         try await removed?.revokeAndLogout()
       } else {
         let removed = accounts
         try KeychainStore.remove()
         accounts.removeAll()
+        invalidateCalendarCoverage()
         removeAllAccountConfiguration()
         for account in removed {
           try? await account.revokeAndLogout()
@@ -263,13 +280,21 @@ final class AppModel: ObservableObject {
     isRefreshing = true
     defer { isRefreshing = false }
 
-    let now = Date()
+    let fetchStart = Date()
+    let lookaheadHours = config.lookaheadHours
+    calendarRefreshGeneration += 1
+    let refreshGeneration = calendarRefreshGeneration
     let results = await fetchAllAccounts(
       selectedIds: config.selectedCalendarIds,
-      lookaheadHours: config.lookaheadHours,
-      now: now
+      lookaheadHours: lookaheadHours,
+      now: fetchStart
     )
-    applyFetchResults(results, now: now)
+    applyFetchResults(
+      results,
+      fetchStart: fetchStart,
+      lookaheadHours: lookaheadHours,
+      generation: refreshGeneration
+    )
     reapplyFilter()
   }
 
@@ -320,8 +345,17 @@ final class AppModel: ObservableObject {
   /// Aggregates per-account results, publishing the merged events/calendars
   /// only when at least one account succeeded — so a transient outage on
   /// every account leaves previously cached events (`rawEvents`) untouched
-  /// instead of wiping the panel.
-  private func applyFetchResults(_ results: [AccountFetchResult], now: Date) {
+  /// instead of wiping the panel. A result from a superseded refresh
+  /// generation is discarded wholesale: publishing any part of it (events,
+  /// sync time, error) could pair an older, shorter snapshot with newer
+  /// coverage metadata and let the free-day hero overclaim.
+  func applyFetchResults(
+    _ results: [AccountFetchResult],
+    fetchStart: Date,
+    lookaheadHours: Int,
+    generation: Int
+  ) {
+    guard generation == calendarRefreshGeneration else { return }
     var fetchedEvents: [CalendarEvent] = []
     var fetchedCalendars: [CalendarSummary] = []
     var errors: [String] = []
@@ -339,7 +373,14 @@ final class AppModel: ObservableObject {
     if anySucceeded {
       rawEvents = fetchedEvents.sorted { $0.startDate < $1.startDate }
       calendars = fetchedCalendars.sorted { $0.name < $1.name }
-      state.lastSync = now
+      state.lastSync = fetchStart
+    }
+    if errors.isEmpty && anySucceeded {
+      state.calendarCoverageEnd = fetchStart.addingTimeInterval(
+        TimeInterval(lookaheadHours) * 3600
+      )
+    } else {
+      state.calendarCoverageEnd = nil
     }
     state.lastError = errors.isEmpty ? nil : errors.joined(separator: "\n")
   }
@@ -351,6 +392,7 @@ final class AppModel: ObservableObject {
     }
     guard !accounts.isEmpty else {
       calendars = []
+      invalidateCalendarCoverage()
       return
     }
     let selectedIds = config.selectedCalendarIds
@@ -373,6 +415,7 @@ final class AppModel: ObservableObject {
       }
       calendars = next.sorted { $0.name < $1.name }
     } catch {
+      invalidateCalendarCoverage()
       state.lastError = error.localizedDescription
     }
   }
@@ -753,10 +796,11 @@ final class AppModel: ObservableObject {
   }
 
   /// The event shown in the menubar countdown — literally `state.next`
-  /// (see `reapplyFilter`/`pickMenubarEvent`), exposed under this name so the
-  /// popover's "Up next" hero renders the identical event rather than a second,
-  /// potentially-diverging computation. `AppDelegate`'s status item reads
-  /// `state.next` directly; this is just a semantic alias for the popover.
+  /// (see `reapplyFilter`/`pickMenubarEvent`). The popover uses this as its
+  /// would-be hero input, but may intentionally render a free-day hero instead
+  /// when this is a non-imminent event on a later calendar day. `AppDelegate`'s
+  /// status item reads `state.next` directly, so the menubar remains divergent
+  /// by design in that case.
   var menubarEvent: CalendarEvent? {
     state.next
   }
@@ -770,11 +814,11 @@ final class AppModel: ObservableObject {
 
   /// Events grouped into day sections for display. Multi-day all-day events are
   /// repeated on each day they cover, clamped to the lookahead window.
-  var daySections: [DaySection] {
+  func daySections(now: Date) -> [DaySection] {
     Self.groupByDay(
       timed: state.events,
       allDay: state.allDayEvents,
-      now: Date(),
+      now: now,
       lookaheadHours: config.lookaheadHours
     )
   }
@@ -976,11 +1020,12 @@ final class AppModel: ObservableObject {
     return soonestEnding
   }
 
-  /// Pure decision for the popover's free-day hero. A timed event that starts
-  /// today and has not ended suppresses the hero; all-day events do not, which
-  /// matches `insertingFreeGaps`'s free-time semantics. The next event is the
-  /// earliest future timed event in the same list the popover displays, so
-  /// menubar-skipped events remain eligible here.
+  /// Pure decision for the popover's free-day hero. A timed event that is
+  /// currently in progress — including one that started on a previous day —
+  /// or a timed event later today suppresses the hero. All-day events do not,
+  /// which matches `insertingFreeGaps`'s free-time semantics. The next event
+  /// is the earliest future timed event in the same list the popover displays,
+  /// so menubar-skipped events remain eligible here.
   static func freeDayHeroNextEvent(
     timed candidates: [CalendarEvent],
     now: Date
@@ -988,7 +1033,8 @@ final class AppModel: ObservableObject {
     let calendar = Calendar.current
     let timed = candidates.filter { !$0.allDay }
     if timed.contains(where: { event in
-      calendar.isDate(event.startDate, inSameDayAs: now) && event.endDate > now
+      event.endDate > now
+        && (event.startDate <= now || calendar.isDate(event.startDate, inSameDayAs: now))
     }) {
       return .notFree
     }
@@ -1051,6 +1097,9 @@ final class AppModel: ObservableObject {
     state.auth = DemoCalendarData.accountState()
     state.lastSync = now
     state.lastError = nil
+    state.calendarCoverageEnd = now.addingTimeInterval(
+      TimeInterval(max(0, config.lookaheadHours)) * 3600
+    )
     signInError = nil
     reapplyFilter()
   }
@@ -1273,7 +1322,7 @@ struct NoteIssue: Equatable {
 /// Per-account outcome of a refresh cycle. `error` is nil on success; on failure
 /// `calendars`/`events` are nil and the account is skipped without discarding
 /// other accounts' data.
-private struct AccountFetchResult {
+struct AccountFetchResult {
   var email: String
   var calendars: [CalendarSummary]?
   var events: [CalendarEvent]?

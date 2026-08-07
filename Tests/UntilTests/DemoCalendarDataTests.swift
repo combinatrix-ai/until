@@ -2,7 +2,7 @@ import XCTest
 @testable import Until
 
 /// Covers demo mode's runtime-option parsing (`--demo-mode` / `--demo-now` /
-/// `--demo-overlap`) and the opt-in demo scenarios
+/// `--demo-overlap` / `--demo-free`) and the opt-in demo scenarios
 /// (`DemoCalendarData.events(scenario:)`) that let the popover's in-progress
 /// "Now" hero and NOW strip be demoed without disturbing the default
 /// `--demo-mode` composition.
@@ -38,6 +38,18 @@ final class DemoCalendarDataTests: XCTestCase {
     let options = AppRuntimeOptions.fromProcess(arguments: ["until"], environment: ["UNTIL_DEMO_OVERLAP": "1"])
     XCTAssertTrue(options.demoMode)
     XCTAssertEqual(options.demoScenario, .overlap)
+  }
+
+  func testDemoFreeFlagImpliesDemoModeAndFreeDayScenario() {
+    let options = AppRuntimeOptions.fromProcess(arguments: ["until", "--demo-free"], environment: [:])
+    XCTAssertTrue(options.demoMode)
+    XCTAssertEqual(options.demoScenario, .freeDay)
+  }
+
+  func testDemoFreeEnvVarImpliesDemoModeAndFreeDayScenario() {
+    let options = AppRuntimeOptions.fromProcess(arguments: ["until"], environment: ["UNTIL_DEMO_FREE": "true"])
+    XCTAssertTrue(options.demoMode)
+    XCTAssertEqual(options.demoScenario, .freeDay)
   }
 
   func testDemoNowAndDemoOverlapFlagsTogetherPickOverlap() {
@@ -144,5 +156,74 @@ final class DemoCalendarDataTests: XCTestCase {
 
     let stripEvent = AppModel.pickNowStripEvent(menubarEvent: menubarEvent, config: config, timed: timed, now: now)
     XCTAssertEqual(stripEvent?.id, "launch-standup")
+  }
+
+  // MARK: - scenario: .freeDay is stable at any wall-clock time
+
+  func testFreeDayScenarioHasEndedTimedEventsAllDayTodayAndTomorrowNext() {
+    let now = makeDate(year: 2026, month: 7, day: 5, hour: 10)
+    let events = DemoCalendarData.events(now: now, selectedIds: [], scenario: .freeDay)
+    let calendar = Calendar.current
+    let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
+
+    let timed = events.filter { !$0.allDay }
+    let allDay = events.filter(\.allDay)
+    XCTAssertEqual(timed.map(\.id), ["free-day-focus", "free-day-lunch", "free-day-tomorrow"])
+    XCTAssertEqual(allDay.map(\.id), ["free-day-all-day"])
+    XCTAssertTrue(timed.filter { $0.id != "free-day-tomorrow" }.allSatisfy { event in
+      calendar.isDate(event.startDate, inSameDayAs: now) && event.endDate <= now
+    })
+    XCTAssertTrue(allDay.allSatisfy { calendar.isDate($0.startDate, inSameDayAs: now) })
+    guard let tomorrowEvent = timed.first(where: { $0.id == "free-day-tomorrow" }) else {
+      return XCTFail("Expected the free-day scenario's tomorrow event")
+    }
+    XCTAssertTrue(calendar.isDate(tomorrowEvent.startDate, inSameDayAs: tomorrow))
+    XCTAssertEqual(Calendar.current.component(.hour, from: tomorrowEvent.startDate), 10)
+    XCTAssertFalse(timed.contains { $0.startDate <= now && $0.endDate > now })
+  }
+
+  func testFreeDayScenarioKeepsTomorrowEventOnNextCalendarDayLateAtNight() {
+    let now = makeDate(year: 2026, month: 7, day: 5, hour: 23, minute: 50)
+    let events = DemoCalendarData.events(now: now, selectedIds: [], scenario: .freeDay)
+    let calendar = Calendar.current
+    let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
+
+    guard let tomorrowEvent = events.first(where: { $0.id == "free-day-tomorrow" }) else {
+      return XCTFail("Expected the free-day scenario's tomorrow event")
+    }
+    XCTAssertTrue(tomorrowEvent.startDate > now)
+    XCTAssertTrue(calendar.isDate(tomorrowEvent.startDate, inSameDayAs: tomorrow))
+    XCTAssertFalse(events.contains { !$0.allDay && $0.startDate <= now && $0.endDate > now })
+  }
+
+  func testFreeDayScenarioRendersFreeHeroAtDifferentWallClockAnchors() {
+    let anchors = [
+      makeDate(year: 2026, month: 7, day: 5, hour: 0, minute: 5),
+      makeDate(year: 2026, month: 7, day: 5, hour: 10),
+      makeDate(year: 2026, month: 7, day: 5, hour: 23, minute: 50)
+    ]
+
+    for now in anchors {
+      let events = DemoCalendarData.events(now: now, selectedIds: [], scenario: .freeDay)
+        .filter { $0.endDate > now }
+      let timed = events.filter { !$0.allDay }
+      let allDay = events.filter(\.allDay)
+      let menubarEvent = AppModel.pickMenubarEvent(
+        config: DemoCalendarData.config(),
+        timed: timed,
+        allDay: allDay,
+        now: now
+      )
+      let occupancy = PanelView.heroSlotOccupancy(
+        menubarEvent: menubarEvent,
+        config: DemoCalendarData.config(),
+        timed: timed,
+        now: now,
+        coverageEnd: .distantFuture
+      )
+
+      XCTAssertTrue(occupancy.showsFreeDayHero)
+      XCTAssertEqual(occupancy.freeDayNextEvent?.id, "free-day-tomorrow")
+    }
   }
 }

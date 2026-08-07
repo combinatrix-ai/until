@@ -208,6 +208,9 @@ struct AppState: Hashable {
   var next: CalendarEvent?
   var lastSync: Date?
   var lastError: String?
+  /// The `timeMax` of the latest complete calendar snapshot. `nil` means the
+  /// app cannot claim that the fetched events cover any particular horizon.
+  var calendarCoverageEnd: Date?
 }
 
 enum NotificationAuthorizationState: Hashable {

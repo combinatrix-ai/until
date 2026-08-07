@@ -1,5 +1,12 @@
 import SwiftUI
 
+struct HeroSlotOccupancy: Equatable {
+  var heroEvent: CalendarEvent?
+  var nowStripEvent: CalendarEvent?
+  var freeDayNextEvent: CalendarEvent?
+  var showsFreeDayHero: Bool
+}
+
 struct PanelView: View {
   @ObservedObject var model: AppModel
   var openSettings: () -> Void
@@ -7,21 +14,24 @@ struct PanelView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
-    VStack(spacing: 0) {
-      content
-      Divider()
-      footer
+    TimelineView(.periodic(from: .now, by: 30)) { context in
+      let now = context.date
+      VStack(spacing: 0) {
+        content(now: now)
+        Divider()
+        footer(now: now)
+      }
+      .frame(width: 390, height: 520)
+      // Solid surface matching the List's own background, so the hero, NOW
+      // strip, and footer don't show NSPopover's frosted material while the
+      // list body is opaque (the popover chrome — corners and arrow — is
+      // painted by `StatusBarController.popoverWillShow`).
+      .background(Color(nsColor: .textBackgroundColor))
     }
-    .frame(width: 390, height: 520)
-    // Solid surface matching the List's own background, so the hero, NOW
-    // strip, and footer don't show NSPopover's frosted material while the
-    // list body is opaque (the popover chrome — corners and arrow — is
-    // painted by `StatusBarController.popoverWillShow`).
-    .background(Color(nsColor: .textBackgroundColor))
   }
 
   @ViewBuilder
-  private var content: some View {
+  private func content(now: Date) -> some View {
     let hasEvents = !(model.state.events.isEmpty && model.state.allDayEvents.isEmpty)
     if !model.state.auth.authenticated {
       OnboardingView(model: model)
@@ -37,16 +47,17 @@ struct PanelView: View {
       )
       .frame(maxHeight: .infinity)
     } else {
+      let occupancy = heroSlotOccupancy(at: now)
+
       VStack(spacing: 0) {
         // The NOW strip and hero pin the in-progress event, the menubar's
         // countdown event, or the free-day state above the list so their
         // content never requires scrolling. All-day menubar events have no
         // meaningful countdown, so they leave the timed hero slot available
-        // for the free-day state. The slot is reevaluated every 30 seconds so
-        // the hero can appear when the last event ends without a calendar poll.
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-          heroSlot(now: context.date)
-        }
+        // for the free-day state. The same occupancy drives this slot and
+        // the list below it, so a displaced would-be hero remains listed.
+        heroSlot(occupancy: occupancy, now: now)
+
         // Cached events remain visible; the error rides above them as a compact
         // banner so a transient outage doesn't hide the whole panel.
         if let error = model.state.lastError {
@@ -55,17 +66,20 @@ struct PanelView: View {
             .padding(.top, Theme.Spacing.sm)
         }
         List {
-          ForEach(model.daySections) { section in
-            Section(dayHeader(section.day)) {
-              ForEach(listItems(for: section)) { item in
+          ForEach(model.daySections(now: now)) { section in
+            Section(dayHeader(section.day, now: now)) {
+              ForEach(listItems(for: section, occupancy: occupancy, now: now)) { item in
                 switch item {
                 case .event(let dayEvent):
                   EventRow(
                     event: dayEvent.event,
                     day: dayEvent.day,
                     model: model,
-                    relativeTimeSuffix: dayEvent.event.actionKey == upcomingRelativeTimeRowKey
-                      ? loc("in %@", relativeWhen(minutesFromNow(dayEvent.event.startDate)))
+                    relativeTimeSuffix: dayEvent.event.actionKey == upcomingRelativeTimeRowKey(
+                      occupancy: occupancy,
+                      now: now
+                    )
+                      ? loc("in %@", relativeWhen(minutesFromNow(dayEvent.event.startDate, now: now)))
                       : nil
                   )
                 case .gap(let gap):
@@ -80,108 +94,150 @@ struct PanelView: View {
     }
   }
 
-  /// The hero is shown only for a TIMED menubar event: a nil `menubarEvent`
-  /// means there's nothing to pin, and an all-day event has no countdown
-  /// worth pinning above the list.
-  private var heroEvent: CalendarEvent? {
-    guard let event = model.menubarEvent, !event.allDay else { return nil }
-    return event
-  }
-
-  /// The NOW strip's event (see `AppModel.nowStripEvent`) pinned above the
-  /// hero — the in-progress event that isn't already the hero. `nil` renders
-  /// no strip.
-  private var nowStripEvent: CalendarEvent? {
-    nowStripEvent(at: Date())
-  }
-
-  private func nowStripEvent(at now: Date) -> CalendarEvent? {
-    AppModel.pickNowStripEvent(
-      menubarEvent: model.menubarEvent,
-      config: model.config,
-      timed: model.state.events,
+  /// Purely computes the two pinned slots and the free-day precedence decision.
+  /// Snapshot coverage through the end of the local day is required before
+  /// making the free-day claim. The would-be menubar hero may be
+  /// intentionally displaced in the popover: a non-imminent event on a later
+  /// calendar day yields to the free-day hero, while the menubar keeps counting
+  /// down to that event.
+  @MainActor
+  static func heroSlotOccupancy(
+    menubarEvent: CalendarEvent?,
+    config: AppConfig,
+    timed: [CalendarEvent],
+    now: Date,
+    coverageEnd: Date?
+  ) -> HeroSlotOccupancy {
+    let nowStrip = AppModel.pickNowStripEvent(
+      menubarEvent: menubarEvent,
+      config: config,
+      timed: timed,
       now: now
+    )
+    let freeDayDecision = AppModel.freeDayHeroNextEvent(timed: timed, now: now)
+    // A polled `state.next` can outlive its event by a few seconds. It must not
+    // keep the stale countdown pinned while the clock has already reached the
+    // free-day state.
+    let wouldBeHero: CalendarEvent? = menubarEvent.flatMap { event -> CalendarEvent? in
+      guard !event.allDay, event.endDate > now else { return nil }
+      return event
+    }
+    let freeDayNextEvent: CalendarEvent?
+    if case .free(let nextEvent) = freeDayDecision {
+      freeDayNextEvent = nextEvent
+    } else {
+      freeDayNextEvent = nil
+    }
+
+    let calendar = Calendar.current
+    let endOfToday = calendar.date(
+      byAdding: .day,
+      value: 1,
+      to: calendar.startOfDay(for: now)
+    ) ?? now
+    let imminentLead = TimeInterval(max(0, config.notifyLeadMinutes) * 60)
+    let nextEventIsImminent = freeDayNextEvent.map {
+      $0.startDate.timeIntervalSince(now) <= imminentLead
+    } ?? false
+    let coverageCoversToday = coverageEnd.map { $0 >= endOfToday } ?? false
+
+    let freeDayWins: Bool
+    if nowStrip == nil,
+       coverageCoversToday,
+       case .free = freeDayDecision,
+       !nextEventIsImminent {
+      freeDayWins = wouldBeHero.map {
+        !calendar.isDate($0.startDate, inSameDayAs: now)
+      } ?? true
+    } else {
+      freeDayWins = false
+    }
+
+    return HeroSlotOccupancy(
+      heroEvent: freeDayWins ? nil : wouldBeHero,
+      nowStripEvent: nowStrip,
+      freeDayNextEvent: freeDayWins ? freeDayNextEvent : nil,
+      showsFreeDayHero: freeDayWins
     )
   }
 
-  private func freeDayDecision(
-    hero: CalendarEvent?,
-    nowStrip: CalendarEvent?,
-    now: Date
-  ) -> AppModel.FreeDayHeroDecision {
-    guard hero == nil, nowStrip == nil else { return .notFree }
-    return AppModel.freeDayHeroNextEvent(timed: model.state.events, now: now)
+  private func heroSlotOccupancy(at now: Date) -> HeroSlotOccupancy {
+    Self.heroSlotOccupancy(
+      menubarEvent: model.menubarEvent,
+      config: model.config,
+      timed: model.state.events,
+      now: now,
+      coverageEnd: model.state.calendarCoverageEnd
+    )
   }
 
-  /// Identifies which events currently occupy the hero and NOW strip slots,
-  /// so `content` can key a single `.animation` on it (see `heroStripSlots`'s
-  /// use there) that fires only when a slot's occupant actually changes.
-  private var heroStripSlots: [String?] {
-    let now = Date()
-    let hero = heroEvent
-    let strip = nowStripEvent(at: now)
-    let freeDay = freeDayDecision(hero: hero, nowStrip: strip, now: now)
-    return heroStripSlots(hero: hero, nowStrip: strip, freeDay: freeDay)
-  }
-
-  private func heroStripSlots(
-    hero: CalendarEvent?,
-    nowStrip: CalendarEvent?,
-    freeDay: AppModel.FreeDayHeroDecision
-  ) -> [String?] {
-    let freeDaySlot: String?
-    if case .free = freeDay {
-      freeDaySlot = "free-day"
-    } else {
-      freeDaySlot = nil
-    }
-    return [hero?.actionKey ?? freeDaySlot, nowStrip?.actionKey]
+  /// Identifies the actual occupants of the hero and NOW strip, so the slot
+  /// crossfade is keyed on what is rendered rather than on the menubar's
+  /// divergent would-be hero.
+  private func heroStripSlots(for occupancy: HeroSlotOccupancy) -> [String?] {
+    let heroSlot = occupancy.showsFreeDayHero
+      ? "free-day"
+      : occupancy.heroEvent?.actionKey
+    return [heroSlot, occupancy.nowStripEvent?.actionKey]
   }
 
   @ViewBuilder
-  private func heroSlot(now: Date) -> some View {
-    let hero = heroEvent
-    let strip = nowStripEvent(at: now)
-    let freeDay = freeDayDecision(hero: hero, nowStrip: strip, now: now)
+  private func heroSlot(occupancy: HeroSlotOccupancy, now: Date) -> some View {
 
     VStack(spacing: 0) {
-      if let strip {
-        NowStripSection(event: strip, model: model)
+      if let strip = occupancy.nowStripEvent {
+        NowStripSection(event: strip, model: model, now: now)
           .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
         Divider()
       }
-      if let hero {
-        HeroSection(event: hero, model: model)
+      if let hero = occupancy.heroEvent {
+        HeroSection(event: hero, model: model, now: now)
           .id(hero.actionKey)
           .transition(.opacity)
         Divider()
-      } else if case .free(let nextEvent) = freeDay {
-        FreeDayHeroSection(nextEvent: nextEvent, now: now)
+      } else if occupancy.showsFreeDayHero {
+        FreeDayHeroSection(nextEvent: occupancy.freeDayNextEvent, now: now)
           .id("free-day")
           .transition(.opacity)
         Divider()
       }
     }
-    .animation(.easeInOut(duration: 0.3), value: heroStripSlots)
+    .animation(.easeInOut(duration: 0.3), value: heroStripSlots(for: occupancy))
   }
 
   /// Neither the hero event nor the NOW strip event may also appear in the
   /// list below them; any gap large enough to earn a "free until …" divider
   /// is computed on whatever remains after that filter.
-  private func listItems(for section: DaySection) -> [PopoverListItem] {
-    let pinnedKeys = Set([heroEvent?.actionKey, nowStripEvent?.actionKey].compactMap { $0 })
-    let rows = section.rows.filter { !pinnedKeys.contains($0.event.actionKey) }
-    return AppModel.insertingFreeGaps(rows, now: Date())
+  private func listItems(
+    for section: DaySection,
+    occupancy: HeroSlotOccupancy,
+    now: Date
+  ) -> [PopoverListItem] {
+    let rows = Self.rowsExcludingRenderedSlots(section.rows, occupancy: occupancy)
+    return AppModel.insertingFreeGaps(rows, now: now)
+  }
+
+  static func rowsExcludingRenderedSlots(
+    _ rows: [DayEvent],
+    occupancy: HeroSlotOccupancy
+  ) -> [DayEvent] {
+    let pinnedKeys = Set([
+      occupancy.heroEvent?.actionKey,
+      occupancy.nowStripEvent?.actionKey
+    ].compactMap { $0 })
+    return rows.filter { !pinnedKeys.contains($0.event.actionKey) }
   }
 
   /// When the hero event is in progress, the first still-upcoming timed row
   /// in the list (across all sections, in the order they're shown) gets a
   /// "· in 25m" suffix appended to its metadata line.
-  private var upcomingRelativeTimeRowKey: String? {
-    guard let hero = heroEvent else { return nil }
-    let now = Date()
+  private func upcomingRelativeTimeRowKey(
+    occupancy: HeroSlotOccupancy,
+    now: Date
+  ) -> String? {
+    guard let hero = occupancy.heroEvent else { return nil }
     guard hero.startDate <= now, hero.endDate > now else { return nil }
-    for section in model.daySections {
+    for section in model.daySections(now: now) {
       for row in section.rows where row.event.actionKey != hero.actionKey {
         guard !row.event.allDay, row.event.startDate > now else { continue }
         return row.event.actionKey
@@ -190,11 +246,11 @@ struct PanelView: View {
     return nil
   }
 
-  private func minutesFromNow(_ date: Date) -> Int {
-    max(0, Int((date.timeIntervalSince(Date()) / 60).rounded()))
+  private func minutesFromNow(_ date: Date, now: Date) -> Int {
+    max(0, Int((date.timeIntervalSince(now) / 60).rounded()))
   }
 
-  private var footer: some View {
+  private func footer(now: Date) -> some View {
     HStack(spacing: Theme.Spacing.sm) {
       IconButton(systemImage: "power") {
         showQuitConfirm = true
@@ -205,7 +261,7 @@ struct PanelView: View {
         Button(loc("Cancel"), role: .cancel) {}
       }
 
-      Text(statusText)
+      Text(statusText(now: now))
         .font(.caption)
         .foregroundStyle(.secondary)
         .lineLimit(1)
@@ -224,9 +280,9 @@ struct PanelView: View {
     .padding(.vertical, Theme.Spacing.sm)
   }
 
-  private var statusText: String {
+  private func statusText(now: Date) -> String {
     guard let date = model.state.lastSync else { return loc("Not synced yet") }
-    let minutes = max(0, Int(Date().timeIntervalSince(date) / 60))
+    let minutes = max(0, Int(now.timeIntervalSince(date) / 60))
     return minutes == 0 ? loc("Updated just now") : loc("Updated %@ ago", relativeWhen(minutes))
   }
 }
@@ -382,17 +438,15 @@ private struct FeatureRow: View {
 /// the menubar countdown shows (`AppModel.menubarEvent`). Flat layout — no
 /// card background or rounded rect — so it reads as part of the popover's
 /// top edge rather than a separate surface; `PanelView` draws the hairline
-/// `Divider` below it. Wrapped in a 30s-periodic `TimelineView` so the
-/// relative time (and, in progress, the elapsed bar) keep ticking while the
-/// popover stays open.
+/// `Divider` below it. The containing panel timeline supplies the shared `now`
+/// so its relative time and elapsed bar stay in sync with the rest of the panel.
 private struct HeroSection: View {
   var event: CalendarEvent
   @ObservedObject var model: AppModel
+  var now: Date
 
   var body: some View {
-    TimelineView(.periodic(from: .now, by: 30)) { context in
-      HeroContent(event: event, model: model, now: context.date)
-    }
+    HeroContent(event: event, model: model, now: now)
   }
 }
 
@@ -442,6 +496,7 @@ private struct FreeDayHeroContent: View {
       HStack(spacing: Theme.Spacing.sm) {
         Image(systemName: "sun.max.fill")
           .foregroundStyle(Color.green)
+          .accessibilityHidden(true)
         Text(loc("Free"))
       }
       .font(.system(size: 16, weight: .semibold))
@@ -456,6 +511,17 @@ private struct FreeDayHeroContent: View {
     .padding(.horizontal, Theme.Spacing.lg)
     .padding(.top, Theme.Spacing.md + 2)
     .padding(.bottom, Theme.Spacing.md + 3)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(accessibilityLabel)
+  }
+
+  private var accessibilityLabel: String {
+    var parts = [loc("Free"), loc("No more events today")]
+    if let nextSummary {
+      parts.append(loc("Next: %@", nextSummary))
+    }
+    let isJapanese = Locale.current.identifier.hasPrefix("ja")
+    return parts.joined(separator: isJapanese ? "。" : ". ") + (isJapanese ? "。" : ".")
   }
 
   /// Mid-sentence day wording: "Today"/"Tomorrow" read as ordinary words and
@@ -663,17 +729,15 @@ private struct HeroProgressBar: View {
 /// The compact one-line strip pinned above the hero for an event that's in
 /// progress but isn't the hero (see `AppModel.nowStripEvent`) — e.g. once
 /// `menubarPrefersImminentNext` has switched the hero/menubar countdown to
-/// the next event while this one is still running. Wrapped in the same
-/// 30s-periodic `TimelineView` as `HeroSection` so its remaining time and
-/// progress fill keep ticking while the popover stays open.
+/// the next event while this one is still running. The containing panel
+/// timeline supplies the shared `now` for its remaining time and progress.
 private struct NowStripSection: View {
   var event: CalendarEvent
   @ObservedObject var model: AppModel
+  var now: Date
 
   var body: some View {
-    TimelineView(.periodic(from: .now, by: 30)) { context in
-      NowStripContent(event: event, model: model, now: context.date)
-    }
+    NowStripContent(event: event, model: model, now: now)
   }
 }
 
