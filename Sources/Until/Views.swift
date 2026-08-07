@@ -237,29 +237,7 @@ struct PanelView: View {
     let calendar = Calendar.current
     let today = calendar.startOfDay(for: now)
 
-    // `groupByDay` currently guarantees one section per day, but keep this
-    // helper defensive: if callers ever provide colliding sections, merge
-    // their rows instead of silently losing one section's events.
-    var sectionsByDay: [Date: DaySection] = [:]
-    for section in sections {
-      let day = calendar.startOfDay(for: section.day)
-      let rows = section.rows.map { DayEvent(day: day, event: $0.event) }
-      if var existing = sectionsByDay[day] {
-        existing.rows.append(contentsOf: rows)
-        existing.rows.sort { lhs, rhs in
-          if lhs.event.allDay != rhs.event.allDay {
-            return lhs.event.allDay
-          }
-          if lhs.event.startDate != rhs.event.startDate {
-            return lhs.event.startDate < rhs.event.startDate
-          }
-          return lhs.event.actionKey < rhs.event.actionKey
-        }
-        sectionsByDay[day] = existing
-      } else {
-        sectionsByDay[day] = DaySection(day: day, rows: rows)
-      }
-    }
+    let sectionsByDay = mergedSectionsByDay(sections, calendar: calendar)
 
     func visibleItems(for section: DaySection) -> [PopoverListItem]? {
       let rows = rowsExcludingRenderedSlots(section.rows, occupancy: occupancy)
@@ -323,6 +301,36 @@ struct PanelView: View {
     }
 
     return visible.sorted { $0.section.day < $1.section.day }
+  }
+
+  /// `groupByDay` currently guarantees one section per day, but keep this
+  /// helper defensive: if callers ever provide colliding sections, merge
+  /// their rows instead of silently losing one section's events.
+  private static func mergedSectionsByDay(
+    _ sections: [DaySection],
+    calendar: Calendar
+  ) -> [Date: DaySection] {
+    var sectionsByDay: [Date: DaySection] = [:]
+    for section in sections {
+      let day = calendar.startOfDay(for: section.day)
+      let rows = section.rows.map { DayEvent(day: day, event: $0.event) }
+      if var existing = sectionsByDay[day] {
+        existing.rows.append(contentsOf: rows)
+        existing.rows.sort { lhs, rhs in
+          if lhs.event.allDay != rhs.event.allDay {
+            return lhs.event.allDay
+          }
+          if lhs.event.startDate != rhs.event.startDate {
+            return lhs.event.startDate < rhs.event.startDate
+          }
+          return lhs.event.actionKey < rhs.event.actionKey
+        }
+        sectionsByDay[day] = existing
+      } else {
+        sectionsByDay[day] = DaySection(day: day, rows: rows)
+      }
+    }
+    return sectionsByDay
   }
 
   static func rowsExcludingRenderedSlots(
