@@ -73,7 +73,12 @@ struct PanelView: View {
   private func eventList(occupancy: HeroSlotOccupancy, now: Date) -> some View {
     List {
       ForEach(
-        Self.visibleSections(model.daySections(now: now), occupancy: occupancy, now: now),
+        Self.visibleSections(
+          model.daySections(now: now),
+          occupancy: occupancy,
+          now: now,
+          coverageEnd: model.state.calendarCoverageEnd
+        ),
         id: \.section.id
       ) { section, items in
         Section(dayHeader(section.day, now: now)) {
@@ -93,6 +98,8 @@ struct PanelView: View {
               )
             case .gap(let gap):
               FreeGapRow(until: gap.until)
+            case .freeDay:
+              FreeDayRow()
             }
           }
         }
@@ -217,18 +224,105 @@ struct PanelView: View {
   /// is computed on whatever remains after that filter. A section left with
   /// no rows at all is dropped entirely — its only events are already pinned
   /// above the list, and an empty day header under them would read as a free
-  /// day. Genuinely event-less days never produce a section in the first
-  /// place (see `AppModel.groupByDay`), so nothing is hidden by this.
+  /// day. Future days with no events are synthesized only when their complete
+  /// local day is inside the fetched snapshot window. This marker makes the same
+  /// implicit fetched-window claim as the existing "free until …" rows, so it
+  /// intentionally has no extra coverage or error gate.
   static func visibleSections(
     _ sections: [DaySection],
     occupancy: HeroSlotOccupancy,
-    now: Date
+    now: Date,
+    coverageEnd: Date?
   ) -> [(section: DaySection, items: [PopoverListItem])] {
-    sections.compactMap { section in
+    let calendar = Calendar.current
+    let today = calendar.startOfDay(for: now)
+
+    // `groupByDay` currently guarantees one section per day, but keep this
+    // helper defensive: if callers ever provide colliding sections, merge
+    // their rows instead of silently losing one section's events.
+    var sectionsByDay: [Date: DaySection] = [:]
+    for section in sections {
+      let day = calendar.startOfDay(for: section.day)
+      let rows = section.rows.map { DayEvent(day: day, event: $0.event) }
+      if var existing = sectionsByDay[day] {
+        existing.rows.append(contentsOf: rows)
+        existing.rows.sort { lhs, rhs in
+          if lhs.event.allDay != rhs.event.allDay {
+            return lhs.event.allDay
+          }
+          if lhs.event.startDate != rhs.event.startDate {
+            return lhs.event.startDate < rhs.event.startDate
+          }
+          return lhs.event.actionKey < rhs.event.actionKey
+        }
+        sectionsByDay[day] = existing
+      } else {
+        sectionsByDay[day] = DaySection(day: day, rows: rows)
+      }
+    }
+
+    func visibleItems(for section: DaySection) -> [PopoverListItem]? {
       let rows = rowsExcludingRenderedSlots(section.rows, occupancy: occupancy)
       guard !rows.isEmpty else { return nil }
-      return (section, AppModel.insertingFreeGaps(rows, now: now))
+      return AppModel.insertingFreeGaps(rows, now: now)
     }
+
+    // Real sections are appended directly, including sections outside the
+    // current coverage horizon. A far-future event therefore cannot make the
+    // synthesis loop walk all the way to its day.
+    var visible: [(section: DaySection, items: [PopoverListItem])] = []
+    for day in sectionsByDay.keys.sorted() {
+      guard let section = sectionsByDay[day], let items = visibleItems(for: section) else {
+        continue
+      }
+      visible.append((section, items))
+    }
+
+    // A day is fully covered only when the next local midnight is at or before
+    // the fetched snapshot's actual `timeMax`. Derive the last eligible day
+    // directly so a far-future real section cannot extend this bounded walk.
+    if let coverageEnd,
+       let firstFutureDay = calendar.date(byAdding: .day, value: 1, to: today),
+       let lastFullyCoveredDay = calendar.date(
+         byAdding: .day,
+         value: -1,
+         to: calendar.startOfDay(for: coverageEnd)
+       ) {
+      // Occupancy is checked before hero/NOW-strip deduplication: pinning an
+      // overnight event must not make its end day look empty. Timed intervals
+      // are [start, end), so an end exactly at local midnight belongs to the
+      // prior day. Testing overlap per candidate day (instead of enumerating
+      // each event's full duration) keeps the work bounded by the coverage
+      // horizon even for pathologically long events.
+      func isOccupiedByTimedEvent(_ day: Date) -> Bool {
+        guard let nextMidnight = calendar.date(byAdding: .day, value: 1, to: day) else {
+          return false
+        }
+        return sectionsByDay.values.contains { section in
+          section.rows.contains { row in
+            !row.event.allDay
+              && row.event.startDate < nextMidnight
+              && row.event.endDate > day
+          }
+        }
+      }
+
+      var day = calendar.startOfDay(for: firstFutureDay)
+      while day <= lastFullyCoveredDay {
+        if sectionsByDay[day] == nil, !isOccupiedByTimedEvent(day) {
+          visible.append((
+            DaySection(day: day, rows: []),
+            [.freeDay(day)]
+          ))
+        }
+        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day) else {
+          break
+        }
+        day = calendar.startOfDay(for: nextDay)
+      }
+    }
+
+    return visible.sorted { $0.section.day < $1.section.day }
   }
 
   static func rowsExcludingRenderedSlots(
@@ -929,6 +1023,29 @@ private struct FreeGapRow: View {
     }
     .padding(.vertical, Theme.Spacing.xs)
     .listRowSeparator(.hidden)
+  }
+}
+
+/// Slim marker for a future day with no events in the fetched window.
+private struct FreeDayRow: View {
+  var body: some View {
+    HStack(spacing: Theme.Spacing.sm) {
+      Rectangle().fill(Theme.hairline).frame(height: 1)
+      HStack(spacing: Theme.Spacing.xs) {
+        Image(systemName: "sun.max.fill")
+          .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
+        Text(loc("free all day"))
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+      }
+      .fixedSize()
+      Rectangle().fill(Theme.hairline).frame(height: 1)
+    }
+    .padding(.vertical, Theme.Spacing.xs)
+    .listRowSeparator(.hidden)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(loc("free all day"))
   }
 }
 

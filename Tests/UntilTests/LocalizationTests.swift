@@ -23,6 +23,7 @@ final class LocalizationTests: XCTestCase {
       ("now", "今"),
       ("Launch at login", "ログイン時に起動"),
       ("Skip in menubar", "メニューバーでスキップ"),
+      ("free all day", "終日空き"),
       ("No more events today", "今日はこのあと予定なし"),
       ("until %@", "%@まで"),
       ("Free", "空き"),

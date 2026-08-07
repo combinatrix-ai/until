@@ -44,6 +44,7 @@
 "Join" = "参加";
 "Open notes" = "議事録を開く";
 "free until %@" = "%@まで空き";
+"free all day" = "終日空き";
 "No more events today" = "今日はこのあと予定なし";
 "until %@" = "%@まで";
 "Next: %@" = "次の予定: %@";

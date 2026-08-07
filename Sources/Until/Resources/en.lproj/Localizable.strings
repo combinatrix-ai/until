@@ -44,6 +44,7 @@
 "Join" = "Join";
 "Open notes" = "Open notes";
 "free until %@" = "free until %@";
+"free all day" = "free all day";
 "No more events today" = "No more events today";
 "until %@" = "until %@";
 "Next: %@" = "Next: %@";

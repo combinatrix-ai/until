@@ -132,17 +132,19 @@ struct FreeGap: Identifiable, Hashable {
   var id: String { "gap::\(afterActionKey)::\(until.timeIntervalSinceReferenceDate)" }
 }
 
-/// One row rendered in the popover's event list: either a calendar event or a
-/// `FreeGap` divider. Keeps the free-gap insertion logic (`AppModel.insertingFreeGaps`)
-/// pure and independent of the SwiftUI list itself.
+/// One row rendered in the popover's event list: either a calendar event, a
+/// `FreeGap` divider, or a marker for a future day with no fetched events.
+/// Keeps the row-decision logic pure and independent of the SwiftUI list itself.
 enum PopoverListItem: Identifiable, Hashable {
   case event(DayEvent)
   case gap(FreeGap)
+  case freeDay(Date)
 
   var id: String {
     switch self {
     case .event(let dayEvent): return "event::\(dayEvent.id)"
     case .gap(let gap): return gap.id
+    case .freeDay(let day): return "free-day::\(day.timeIntervalSinceReferenceDate)"
     }
   }
 }
