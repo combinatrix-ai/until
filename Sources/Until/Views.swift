@@ -65,36 +65,40 @@ struct PanelView: View {
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.top, Theme.Spacing.sm)
         }
-        List {
-          ForEach(
-            Self.visibleSections(model.daySections(now: now), occupancy: occupancy, now: now),
-            id: \.section.id
-          ) { section, items in
-            Section(dayHeader(section.day, now: now)) {
-              ForEach(items) { item in
-                switch item {
-                case .event(let dayEvent):
-                  EventRow(
-                    event: dayEvent.event,
-                    day: dayEvent.day,
-                    model: model,
-                    relativeTimeSuffix: dayEvent.event.actionKey == upcomingRelativeTimeRowKey(
-                      occupancy: occupancy,
-                      now: now
-                    )
-                      ? loc("in %@", relativeWhen(minutesFromNow(dayEvent.event.startDate, now: now)))
-                      : nil
-                  )
-                case .gap(let gap):
-                  FreeGapRow(until: gap.until)
-                }
-              }
+        eventList(occupancy: occupancy, now: now)
+      }
+    }
+  }
+
+  private func eventList(occupancy: HeroSlotOccupancy, now: Date) -> some View {
+    List {
+      ForEach(
+        Self.visibleSections(model.daySections(now: now), occupancy: occupancy, now: now),
+        id: \.section.id
+      ) { section, items in
+        Section(dayHeader(section.day, now: now)) {
+          ForEach(items) { item in
+            switch item {
+            case .event(let dayEvent):
+              EventRow(
+                event: dayEvent.event,
+                day: dayEvent.day,
+                model: model,
+                relativeTimeSuffix: dayEvent.event.actionKey == upcomingRelativeTimeRowKey(
+                  occupancy: occupancy,
+                  now: now
+                )
+                  ? loc("in %@", relativeWhen(minutesFromNow(dayEvent.event.startDate, now: now)))
+                  : nil
+              )
+            case .gap(let gap):
+              FreeGapRow(until: gap.until)
             }
           }
         }
-        .listStyle(.inset)
       }
     }
+    .listStyle(.inset)
   }
 
   /// Purely computes the two pinned slots and the free-day precedence decision.
