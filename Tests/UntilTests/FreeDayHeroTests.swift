@@ -412,6 +412,78 @@ final class FreeDayHeroTests: XCTestCase {
     XCTAssertFalse(occupancy.showsFreeDayHero)
   }
 
+  func testSectionEmptiedByHeroPinningIsDropped() {
+    // 0:57, bbq today 18:00 as the UP NEXT hero and today's only event: the
+    // "Today" section must disappear rather than render an empty header.
+    let now = makeDate(year: 2026, month: 8, day: 8, hour: 0, minute: 57)
+    let bbq = makeEvent(
+      id: "bbq",
+      startISO: isoString(from: makeDate(year: 2026, month: 8, day: 8, hour: 18)),
+      endISO: isoString(from: makeDate(year: 2026, month: 8, day: 9, hour: 3))
+    )
+    let tomorrowEvent = makeEvent(
+      id: "post",
+      startISO: isoString(from: makeDate(year: 2026, month: 8, day: 9, hour: 8)),
+      endISO: isoString(from: makeDate(year: 2026, month: 8, day: 9, hour: 9))
+    )
+    let occupancy = PanelView.heroSlotOccupancy(
+      menubarEvent: bbq,
+      config: .default,
+      timed: [bbq, tomorrowEvent],
+      now: now,
+      coverageEnd: makeDate(year: 2026, month: 8, day: 10)
+    )
+    XCTAssertEqual(occupancy.heroEvent?.id, bbq.id)
+
+    let today = Calendar.current.startOfDay(for: now)
+    let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
+    let sections = [
+      DaySection(day: today, rows: [DayEvent(day: today, event: bbq)]),
+      DaySection(day: tomorrow, rows: [DayEvent(day: tomorrow, event: tomorrowEvent)])
+    ]
+
+    let visible = PanelView.visibleSections(sections, occupancy: occupancy, now: now)
+
+    XCTAssertEqual(visible.map(\.section.day), [tomorrow])
+    XCTAssertEqual(visible.first?.items.count, 1)
+  }
+
+  func testSectionWithRemainingRowsKeepsThemAfterHeroPinning() {
+    let now = makeDate(year: 2026, month: 8, day: 8, hour: 9)
+    let hero = makeEvent(
+      id: "hero",
+      startISO: isoString(from: makeDate(year: 2026, month: 8, day: 8, hour: 10)),
+      endISO: isoString(from: makeDate(year: 2026, month: 8, day: 8, hour: 11))
+    )
+    let later = makeEvent(
+      id: "later",
+      startISO: isoString(from: makeDate(year: 2026, month: 8, day: 8, hour: 15)),
+      endISO: isoString(from: makeDate(year: 2026, month: 8, day: 8, hour: 16))
+    )
+    let occupancy = PanelView.heroSlotOccupancy(
+      menubarEvent: hero,
+      config: .default,
+      timed: [hero, later],
+      now: now,
+      coverageEnd: makeDate(year: 2026, month: 8, day: 10)
+    )
+    let today = Calendar.current.startOfDay(for: now)
+    let sections = [
+      DaySection(day: today, rows: [DayEvent(day: today, event: hero), DayEvent(day: today, event: later)])
+    ]
+
+    let visible = PanelView.visibleSections(sections, occupancy: occupancy, now: now)
+
+    XCTAssertEqual(visible.count, 1)
+    XCTAssertEqual(
+      visible.first?.items.compactMap { item -> String? in
+        if case .event(let dayEvent) = item { return dayEvent.event.id }
+        return nil
+      },
+      [later.id]
+    )
+  }
+
   func testStaleRefreshGenerationIsDiscardedWholesale() {
     let model = AppModel(options: AppRuntimeOptions(demoMode: true))
     let newerFetchStart = makeDate(year: 2026, month: 7, day: 5, hour: 9)

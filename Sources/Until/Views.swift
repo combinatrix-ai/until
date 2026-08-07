@@ -66,9 +66,12 @@ struct PanelView: View {
             .padding(.top, Theme.Spacing.sm)
         }
         List {
-          ForEach(model.daySections(now: now)) { section in
+          ForEach(
+            Self.visibleSections(model.daySections(now: now), occupancy: occupancy, now: now),
+            id: \.section.id
+          ) { section, items in
             Section(dayHeader(section.day, now: now)) {
-              ForEach(listItems(for: section, occupancy: occupancy, now: now)) { item in
+              ForEach(items) { item in
                 switch item {
                 case .event(let dayEvent):
                   EventRow(
@@ -207,14 +210,21 @@ struct PanelView: View {
 
   /// Neither the hero event nor the NOW strip event may also appear in the
   /// list below them; any gap large enough to earn a "free until …" divider
-  /// is computed on whatever remains after that filter.
-  private func listItems(
-    for section: DaySection,
+  /// is computed on whatever remains after that filter. A section left with
+  /// no rows at all is dropped entirely — its only events are already pinned
+  /// above the list, and an empty day header under them would read as a free
+  /// day. Genuinely event-less days never produce a section in the first
+  /// place (see `AppModel.groupByDay`), so nothing is hidden by this.
+  static func visibleSections(
+    _ sections: [DaySection],
     occupancy: HeroSlotOccupancy,
     now: Date
-  ) -> [PopoverListItem] {
-    let rows = Self.rowsExcludingRenderedSlots(section.rows, occupancy: occupancy)
-    return AppModel.insertingFreeGaps(rows, now: now)
+  ) -> [(section: DaySection, items: [PopoverListItem])] {
+    sections.compactMap { section in
+      let rows = rowsExcludingRenderedSlots(section.rows, occupancy: occupancy)
+      guard !rows.isEmpty else { return nil }
+      return (section, AppModel.insertingFreeGaps(rows, now: now))
+    }
   }
 
   static func rowsExcludingRenderedSlots(
