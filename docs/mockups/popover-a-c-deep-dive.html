@@ -1,0 +1,493 @@
+<meta charset="utf-8">
+<title>Until — A / C 深掘りモック</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --ink: #1d1d1f;
+    --muted: #6e6e73;
+    --line: rgba(20, 22, 26, 0.10);
+    --accent: #0071e3;
+    --panel: #ffffff;
+    --panel-inset: #f5f5f7;
+    --hover: rgba(20, 22, 26, 0.045);
+    --hero-bg: linear-gradient(180deg, rgba(0, 113, 227, 0.07), rgba(0, 113, 227, 0.025));
+    --now: #248a3d;
+    --now-bg: linear-gradient(180deg, rgba(36, 138, 61, 0.10), rgba(36, 138, 61, 0.03));
+    --now-card: linear-gradient(180deg, rgba(36, 138, 61, 0.11), rgba(36, 138, 61, 0.045));
+    --now-btn-ink: #ffffff;
+    --shadow: 0 18px 50px rgba(20, 22, 26, 0.16), 0 2px 8px rgba(20, 22, 26, 0.08);
+    --fade-from: rgba(255,255,255,0.92);
+    --cal-blue: #4285f4; --cal-orange: #f4a742; --cal-green: #34a853;
+    --cal-red: #ea6060; --cal-teal: #2ec7c0; --cal-purple: #b07fe0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131316; --ink: #f5f5f7; --muted: #98989d;
+      --line: rgba(255,255,255,0.10); --accent: #0a84ff;
+      --panel: #262628; --panel-inset: #1e1e20;
+      --hover: rgba(255,255,255,0.055);
+      --hero-bg: linear-gradient(180deg, rgba(10,132,255,0.13), rgba(10,132,255,0.05));
+      --now: #32d74b;
+      --now-bg: linear-gradient(180deg, rgba(50,215,75,0.12), rgba(50,215,75,0.04));
+      --now-card: linear-gradient(180deg, rgba(50,215,75,0.14), rgba(50,215,75,0.05));
+      --now-btn-ink: #06230e;
+      --shadow: 0 18px 50px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+      --fade-from: rgba(38,38,40,0.92);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131316; --ink: #f5f5f7; --muted: #98989d;
+    --line: rgba(255,255,255,0.10); --accent: #0a84ff;
+    --panel: #262628; --panel-inset: #1e1e20;
+    --hover: rgba(255,255,255,0.055);
+    --hero-bg: linear-gradient(180deg, rgba(10,132,255,0.13), rgba(10,132,255,0.05));
+    --now: #32d74b;
+    --now-bg: linear-gradient(180deg, rgba(50,215,75,0.12), rgba(50,215,75,0.04));
+    --now-card: linear-gradient(180deg, rgba(50,215,75,0.14), rgba(50,215,75,0.05));
+    --now-btn-ink: #06230e;
+    --shadow: 0 18px 50px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+    --fade-from: rgba(38,38,40,0.92);
+  }
+  :root[data-theme="light"] {
+    --bg: #eef0f3; --ink: #1d1d1f; --muted: #6e6e73;
+    --line: rgba(20,22,26,0.10); --accent: #0071e3;
+    --panel: #ffffff; --panel-inset: #f5f5f7;
+    --hover: rgba(20,22,26,0.045);
+    --hero-bg: linear-gradient(180deg, rgba(0,113,227,0.07), rgba(0,113,227,0.025));
+    --now: #248a3d;
+    --now-bg: linear-gradient(180deg, rgba(36,138,61,0.10), rgba(36,138,61,0.03));
+    --now-card: linear-gradient(180deg, rgba(36,138,61,0.11), rgba(36,138,61,0.045));
+    --now-btn-ink: #ffffff;
+    --shadow: 0 18px 50px rgba(20,22,26,0.16), 0 2px 8px rgba(20,22,26,0.08);
+    --fade-from: rgba(255,255,255,0.92);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+  }
+  .page { max-width: 1120px; margin: 0 auto; padding: 48px 24px 96px; }
+
+  .pagehead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); font-size: 13px; margin: 0 0 32px; max-width: 660px; }
+  .theme-toggle {
+    flex: none; font: inherit; font-size: 12px; font-weight: 600;
+    color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer;
+  }
+
+  .sechead { margin: 40px 0 20px; }
+  .sechead h2 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+  .sechead p { font-size: 13px; color: var(--muted); margin: 0; max-width: 700px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 40px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+  .variant { min-width: 0; }
+  .variant h3 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+  .variant h3 .tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--accent); border: 1px solid currentColor; border-radius: 99px;
+    padding: 1px 8px; margin-right: 8px; vertical-align: 2px;
+  }
+  .variant .pitch { font-size: 12.5px; color: var(--muted); margin: 0 0 6px; }
+  .variant ul.notes { font-size: 12px; color: var(--muted); margin: 0 0 16px; padding-left: 18px; }
+  .variant ul.notes li { margin: 2px 0; }
+  .variant ul.notes b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- shared popover chrome ---------- */
+  .pop {
+    width: 356px; margin: 0 auto;
+    background: var(--panel); border-radius: 14px; box-shadow: var(--shadow);
+    border: 1px solid var(--line); overflow: hidden;
+    font-size: 13px;
+  }
+  .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 600; border-radius: 7px; padding: 4px 12px;
+    border: 1px solid var(--line); color: var(--ink); background: var(--panel);
+    white-space: nowrap;
+  }
+  .hero-inline .btn { padding: 4px 10px; }
+  .btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+  .btn.primary.green { background: var(--now); color: var(--now-btn-ink); }
+  .btn.quiet { border-color: transparent; background: var(--hover); }
+
+  .footer {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 12px;
+  }
+  .footer .spacer { flex: 1; }
+  .footer .ic { opacity: 0.75; }
+
+  .dayhead { font-size: 12px; font-weight: 700; color: var(--muted); padding: 10px 16px 4px; }
+
+  /* ---------- rail (shared with A-1 / A-2) ---------- */
+  .rail-list { position: relative; padding: 2px 0 10px; }
+  .rail-row { display: flex; align-items: flex-start; padding: 5px 16px; position: relative; }
+  .rail-row .time { width: 58px; flex: none; font-size: 11px; color: var(--muted); padding-top: 2px; text-align: right; padding-right: 10px; }
+  .rail-row .node { width: 22px; flex: none; display: flex; justify-content: center; position: relative; }
+  .rail-row .node::before {
+    content: ""; position: absolute; top: -8px; bottom: -8px; left: 50%;
+    width: 2px; margin-left: -1px; background: var(--line);
+  }
+  .rail-row.rail-top .node::before { top: 8px; }
+  .rail-row.rail-end .node::before { bottom: auto; height: 16px; }
+  .rail-row .dot {
+    position: relative; z-index: 1; width: 9px; height: 9px; border-radius: 50%;
+    margin-top: 5px; background: var(--cal-blue);
+    box-shadow: 0 0 0 3px var(--panel);
+  }
+  .rail-row .body { min-width: 0; padding-left: 10px; }
+  .rail-row .name { font-weight: 600; line-height: 1.3; }
+  .rail-row .sub { font-size: 11.5px; color: var(--muted); }
+  .rail-row.past { opacity: 0.5; }
+  .rail-row.past .name { text-decoration: line-through; text-decoration-color: var(--muted); text-decoration-thickness: 1px; }
+  .rail-gap { display: flex; align-items: center; padding: 3px 16px; }
+  .rail-gap .time { width: 58px; flex: none; }
+  .rail-gap .node { width: 22px; flex: none; display: flex; justify-content: center; align-self: stretch; }
+  .rail-gap .node i { width: 0; border-left: 2px dashed var(--line); display: block; }
+  .rail-gap .lbl { font-size: 11px; color: var(--muted); padding: 6px 0 6px 10px; }
+
+  /* next-row emphasis (A-1) */
+  .rail-row.next .name { font-weight: 700; }
+  .rail-row.next .nextchip {
+    display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
+    color: var(--accent); border: 1px solid currentColor; border-radius: 99px;
+    padding: 0 6px; margin-left: 6px; vertical-align: 1px;
+  }
+
+  /* ---------- A-1: hero embedded in the rail ---------- */
+  .peek { position: relative; max-height: 46px; overflow: hidden; }
+  .peek::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, var(--fade-from), transparent 90%);
+    pointer-events: none;
+  }
+  .scrollhint {
+    text-align: center; font-size: 10px; color: var(--muted);
+    padding: 4px 0 0; letter-spacing: 0.04em;
+  }
+  .hero-inline-wrap { display: flex; padding: 4px 16px 4px; position: relative; }
+  .hero-inline-wrap .time { width: 58px; flex: none; font-size: 11px; font-weight: 700; color: var(--now); padding-top: 12px; text-align: right; padding-right: 10px; }
+  .hero-inline-wrap .node { width: 22px; flex: none; display: flex; justify-content: center; position: relative; }
+  .hero-inline-wrap .node::before {
+    content: ""; position: absolute; top: -10px; bottom: -10px; left: 50%;
+    width: 2px; margin-left: -1px; background: var(--line);
+  }
+  .hero-inline-wrap .dot {
+    position: relative; z-index: 1; width: 13px; height: 13px; border-radius: 50%;
+    margin-top: 11px; background: var(--now);
+    box-shadow: 0 0 0 3px var(--panel), 0 0 0 6px color-mix(in srgb, var(--now) 25%, transparent);
+  }
+  .hero-inline {
+    flex: 1; min-width: 0; margin-left: 10px;
+    background: var(--now-card);
+    border: 1px solid color-mix(in srgb, var(--now) 35%, transparent);
+    border-radius: 10px; padding: 9px 12px 10px;
+  }
+  .hero-inline .kicker { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+  .hero-inline .kicker .label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--now); }
+  .hero-inline .kicker .count { font-size: 12px; font-weight: 700; color: var(--now); }
+  .hero-inline .title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
+  .hero-inline .meta { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .hero-inline .actions { display: flex; gap: 7px; margin-top: 8px; }
+  .hero-inline.blue { background: var(--hero-bg); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .hero-inline.blue .kicker .label, .hero-inline.blue .kicker .count { color: var(--accent); }
+  .hero-inline-wrap.blue .time { color: var(--accent); }
+  .hero-inline-wrap.blue .dot { background: var(--accent); box-shadow: 0 0 0 3px var(--panel), 0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent); }
+
+  /* ---------- A-2: pinned header + item stays in rail ---------- */
+  .hero { padding: 14px 16px 14px; background: var(--hero-bg); }
+  .hero.now { background: var(--now-bg); }
+  .hero .kicker { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .hero .kicker .label { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; color: var(--accent); }
+  .hero .kicker .count { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .hero.now .kicker .label, .hero.now .kicker .count { color: var(--now); }
+  .hero .title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
+  .hero .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .hero .actions { display: flex; gap: 8px; margin-top: 10px; }
+
+  .rail-row.current { position: relative; }
+  .rail-row.current::before {
+    content: ""; position: absolute; inset: 1px 8px; border-radius: 8px;
+    background: var(--now-card); pointer-events: none;
+  }
+  .rail-row.current .time, .rail-row.current .node, .rail-row.current .body { position: relative; z-index: 1; }
+  .rail-row.current .time { color: var(--now); font-weight: 700; }
+  .rail-row.current .dot { background: var(--now); width: 11px; height: 11px; margin-top: 4px; }
+  .rail-row.current .name { font-weight: 700; }
+  .rail-row.current .nowchip {
+    display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
+    color: var(--now); border: 1px solid currentColor; border-radius: 99px;
+    padding: 0 6px; margin-left: 6px; vertical-align: 1px;
+  }
+
+  /* ---------- C: typographic, two states ---------- */
+  .pop.mono-v { font-size: 13px; }
+  .mono-hero { padding: 16px 18px 14px; }
+  .mono-hero .kicker { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+  .mono-hero .kicker .label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; color: var(--accent); }
+  .mono-hero .kicker .until { font-size: 11px; color: var(--muted); }
+  .mono-hero.now .kicker .label { color: var(--now); }
+  .mono-hero .count { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; color: var(--accent); }
+  .mono-hero.now .count { color: var(--now); }
+  .mono-hero .count small { font-size: 16px; font-weight: 700; letter-spacing: 0; margin-left: 3px; }
+  .mono-hero .count small.pre { margin-left: 0; margin-right: 3px; }
+  .mono-hero .title { font-size: 14px; font-weight: 600; margin-top: 5px; color: var(--ink); }
+  .mono-hero .meta { font-size: 12px; color: var(--muted); }
+  .mono-hero .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .progress { height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--now) 18%, transparent); margin-top: 12px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 17%; border-radius: 2px; background: var(--now); }
+  .mono-rule { height: 1px; background: var(--line); margin: 0 18px; }
+  .mono-list { padding: 8px 0 10px; }
+  .mono-row { display: flex; align-items: baseline; gap: 9px; padding: 5px 18px; }
+  .mono-row .t { width: 44px; flex: none; font-size: 11.5px; color: var(--muted); text-align: right; }
+  .mono-row .d { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--cal-blue); align-self: center; }
+  .mono-row .name { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mono-row .rel { margin-left: auto; flex: none; font-size: 11px; color: var(--muted); }
+  .mono-row.past { opacity: 0.45; }
+  .mono-row.hi .name { font-weight: 700; }
+  .mono-row.hi .rel { color: var(--accent); font-weight: 600; }
+  .mono-gap { text-align: center; font-size: 11px; color: var(--muted); padding: 4px 18px; }
+  .mono-gap b { font-weight: 600; color: var(--ink); opacity: 0.75; }
+</style>
+
+<div class="page">
+  <div class="pagehead">
+    <div>
+      <h1>Until — A / C 深掘り</h1>
+      <p class="lede">A案は「ヒーローもタイムラインの一部」という前提で2方向。C案はビッグカウントダウンが NOW / NEXT どちらなのかを一目で区別できるかを、2状態並べて検証。</p>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">☀︎ / ☾ テーマ切替</button>
+  </div>
+
+  <div class="sechead">
+    <h2>A — ヒーローとタイムラインの関係</h2>
+    <p>A-1はヘッダーを廃止してヒーローをタイムライン内に埋め込む。開いた瞬間のスクロール位置が「今」で、過去は上にスクロールすると出てくる。A-2は現行のピン留めヘッダーを残しつつ、同じイベントをタイムライン側にも残して線を切らない。</p>
+  </div>
+
+  <div class="grid">
+    <!-- ============ A-1 ============ -->
+    <section class="variant">
+      <h3><span class="tag">A-1</span>埋め込みヒーロー(開いたら「今」が先頭)</h3>
+      <p class="pitch">ヘッダーという別世界をなくし、NOWカードがレールの上に直接乗る。NEXTはすぐ下の強調行なので、Now / Next が同じ視線移動の中にある。</p>
+      <ul class="notes">
+        <li><b>効き所:</b> タイムラインが1本で完結。過去↔今↔未来が同じ座標系</li>
+        <li><b>効き所:</b> NOWとNEXTが常に隣接して見える(会議中に「次どこ行くんだっけ」が速い)</li>
+        <li><b>論点:</b> スクロールで NOW カードが画面外に消える。ピン留め(スクロール時だけ縮小ヘッダー化)を足すか?</li>
+      </ul>
+      <div class="pop">
+        <div class="peek">
+          <div class="scrollhint">▲ earlier today</div>
+          <div class="rail-row past rail-top">
+            <div class="time mono">11:30</div>
+            <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+            <div class="body"><div class="name">Morning run</div><div class="sub">Riverside Park</div></div>
+          </div>
+        </div>
+        <div class="hero-inline-wrap">
+          <div class="time mono">12:55</div>
+          <div class="node"><span class="dot"></span></div>
+          <div class="hero-inline">
+            <div class="kicker"><span class="label">NOW · STARTED 5M AGO</span><span class="count">25m left</span></div>
+            <div class="title">Launch standup</div>
+            <div class="meta">12:55 – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+            <div class="actions"><span class="btn primary green">📹 Join Google Meet</span><span class="btn quiet">📝 Notes</span></div>
+          </div>
+        </div>
+        <div class="rail-row next">
+          <div class="time mono">1:30 PM</div>
+          <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+          <div class="body">
+            <div class="name">Design review: website screenshots<span class="nextchip">NEXT · in 29m</span></div>
+            <div class="sub">Google Meet · Maya Chen, Ren Sato</div>
+          </div>
+        </div>
+        <div class="rail-row">
+          <div class="time mono">3:00 PM</div>
+          <div class="node"><span class="dot" style="background: var(--cal-orange)"></span></div>
+          <div class="body"><div class="name">Project work block</div><div class="sub">Desk</div></div>
+        </div>
+        <div class="rail-gap">
+          <div class="time"></div>
+          <div class="node"><i></i></div>
+          <div class="lbl">free until 4:30 PM · 90m</div>
+        </div>
+        <div class="rail-row">
+          <div class="time mono">4:30 PM</div>
+          <div class="node"><span class="dot" style="background: var(--cal-green)"></span></div>
+          <div class="body"><div class="name">Product sync</div><div class="sub">Google Meet · Alex Kim, Sam Rivera</div></div>
+        </div>
+        <div class="rail-row rail-end">
+          <div class="time mono">6:00 PM</div>
+          <div class="node"><span class="dot" style="background: var(--cal-red)"></span></div>
+          <div class="body"><div class="name">Focus: Until copy polish</div></div>
+        </div>
+        <div class="footer"><span class="ic">⏻</span> Updated just now <span class="spacer"></span><span class="ic">↻</span><span class="ic">⚙︎</span></div>
+      </div>
+    </section>
+
+    <!-- ============ A-2 ============ -->
+    <section class="variant">
+      <h3><span class="tag">A-2</span>ピン留めヘッダー+タイムラインに残す</h3>
+      <p class="pitch">現行のヘッダーは維持(常時見える・アクションが一等地)。ただし同じイベントがタイムラインからも消えず、NOWチップ付きの強調行として線の上に残る。</p>
+      <ul class="notes">
+        <li><b>効き所:</b> Join/Notesが常に画面上部の同じ場所(筋肉記憶が効く)</li>
+        <li><b>効き所:</b> タイムラインは全イベントを含む完全な1日になる</li>
+        <li><b>論点:</b> 同じ情報が2回出る冗長さをどこまで許すか(行側は薄めに寄せる手も)</li>
+      </ul>
+      <div class="pop">
+        <div class="hero now">
+          <div class="kicker"><span class="label">NOW · STARTED 5M AGO</span><span class="count">25m left</span></div>
+          <div class="title">Launch standup</div>
+          <div class="meta">12:55 PM – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+          <div class="actions"><span class="btn primary green">📹 Join Google Meet</span><span class="btn quiet">📝 Notes</span></div>
+        </div>
+        <div class="dayhead">Today</div>
+        <div class="rail-list">
+          <div class="rail-row past rail-top">
+            <div class="time mono">all-day</div>
+            <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+            <div class="body"><div class="name">Launch assets due 📎</div></div>
+          </div>
+          <div class="rail-row past">
+            <div class="time mono">11:30</div>
+            <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+            <div class="body"><div class="name">Morning run</div><div class="sub">Riverside Park</div></div>
+          </div>
+          <div class="rail-row current">
+            <div class="time mono">12:55</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="body"><div class="name">Launch standup<span class="nowchip">NOW</span></div><div class="sub">ends 1:25 PM</div></div>
+          </div>
+          <div class="rail-row">
+            <div class="time mono">1:30 PM</div>
+            <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+            <div class="body"><div class="name">Design review: website screenshots</div><div class="sub">Google Meet · Maya Chen, Ren Sato</div></div>
+          </div>
+          <div class="rail-row">
+            <div class="time mono">3:00 PM</div>
+            <div class="node"><span class="dot" style="background: var(--cal-orange)"></span></div>
+            <div class="body"><div class="name">Project work block</div><div class="sub">Desk</div></div>
+          </div>
+          <div class="rail-gap">
+            <div class="time"></div>
+            <div class="node"><i></i></div>
+            <div class="lbl">free until 4:30 PM · 90m</div>
+          </div>
+          <div class="rail-row rail-end">
+            <div class="time mono">4:30 PM</div>
+            <div class="node"><span class="dot" style="background: var(--cal-green)"></span></div>
+            <div class="body"><div class="name">Product sync</div><div class="sub">Google Meet · Alex Kim, Sam Rivera</div></div>
+          </div>
+        </div>
+        <div class="footer"><span class="ic">⏻</span> Updated just now <span class="spacer"></span><span class="ic">↻</span><span class="ic">⚙︎</span></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="sechead">
+    <h2>C — ビッグカウントダウンの NOW / NEXT 判別</h2>
+    <p>数字だけでは「次まで7分」なのか「残り7分」なのか判別できないので、(1)キッカー行のラベル+終端時刻 (2)数字の色(青=NEXT, 緑=NOW) (3)NOWのみ進捗バー、の3点で状態を刻む。左が NEXT、右が NOW。</p>
+  </div>
+
+  <div class="grid">
+    <!-- ============ C / NEXT ============ -->
+    <section class="variant">
+      <h3><span class="tag">C</span>NEXT状態 — 「in 7 min」</h3>
+      <ul class="notes">
+        <li>ラベルは <b>UP NEXT · 2:00 PM</b>(開始時刻を添える)</li>
+        <li>数字は<b>アクセント色(青)</b>+接頭辞「in」で「まだ始まってない」を示す</li>
+        <li>進捗バーなし=未開始、の消極的シグナルも兼ねる</li>
+      </ul>
+      <div class="pop mono-v">
+        <div class="mono-hero">
+          <div class="kicker"><span class="label">UP NEXT</span><span class="until mono">starts 2:00 PM</span></div>
+          <div class="count mono"><small class="pre">in</small>7<small>min</small></div>
+          <div class="title">Design review: website screenshots</div>
+          <div class="meta">2:00 – 2:45 PM · Google Meet · Maya Chen, Ren Sato</div>
+          <div class="actions"><span class="btn primary">📹 Join</span><span class="btn quiet">📄 Open</span></div>
+        </div>
+        <div class="mono-rule"></div>
+        <div class="mono-list">
+          <div class="mono-row">
+            <span class="t mono">2:30</span><span class="d" style="background: var(--cal-blue)"></span>
+            <span class="name">Morning run · Riverside Park</span><span class="rel">in 37m</span>
+          </div>
+          <div class="mono-row">
+            <span class="t mono">3:30</span><span class="d" style="background: var(--cal-orange)"></span>
+            <span class="name">Project work block · Desk</span><span class="rel">in 1h 37m</span>
+          </div>
+          <div class="mono-gap">↓ <b>30m free</b> until 5:00</div>
+          <div class="mono-row">
+            <span class="t mono">5:00</span><span class="d" style="background: var(--cal-green)"></span>
+            <span class="name">Product sync · Google Meet</span><span class="rel">in 3h</span>
+          </div>
+          <div class="mono-gap">↓ <b>90m free</b> until 6:30</div>
+          <div class="mono-row">
+            <span class="t mono">6:30</span><span class="d" style="background: var(--cal-red)"></span>
+            <span class="name">Focus: Until copy polish</span><span class="rel">in 4h 30m</span>
+          </div>
+        </div>
+        <div class="footer"><span class="ic">⏻</span> Updated just now <span class="spacer"></span><span class="ic">↻</span><span class="ic">⚙︎</span></div>
+      </div>
+    </section>
+
+    <!-- ============ C / NOW ============ -->
+    <section class="variant">
+      <h3><span class="tag">C</span>NOW状態 — 「25 min left」</h3>
+      <ul class="notes">
+        <li>ラベルは <b>NOW · ends 1:25 PM</b>(終了時刻を添える)</li>
+        <li>数字は<b>NOW色(緑)</b>+接尾辞「left」で「進行中の残り」を示す</li>
+        <li>数字の下に<b>進捗バー</b>(経過17%)。緑+バーで開始済みが2重に伝わる</li>
+      </ul>
+      <div class="pop mono-v">
+        <div class="mono-hero now">
+          <div class="kicker"><span class="label">NOW</span><span class="until mono">ends 1:25 PM</span></div>
+          <div class="count mono">25<small>min left</small></div>
+          <div class="title">Launch standup</div>
+          <div class="meta">12:55 – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+          <div class="actions"><span class="btn primary green">📹 Join Google Meet</span><span class="btn quiet">📝 Notes</span></div>
+          <div class="progress"><i></i></div>
+        </div>
+        <div class="mono-rule"></div>
+        <div class="mono-list">
+          <div class="mono-row hi">
+            <span class="t mono">1:30</span><span class="d" style="background: var(--cal-blue)"></span>
+            <span class="name">Design review: website screenshots</span><span class="rel">in 29m</span>
+          </div>
+          <div class="mono-row">
+            <span class="t mono">3:00</span><span class="d" style="background: var(--cal-orange)"></span>
+            <span class="name">Project work block · Desk</span><span class="rel">in 1h 59m</span>
+          </div>
+          <div class="mono-gap">↓ <b>90m free</b> until 4:30</div>
+          <div class="mono-row">
+            <span class="t mono">4:30</span><span class="d" style="background: var(--cal-green)"></span>
+            <span class="name">Product sync · Google Meet</span><span class="rel">in 3h 29m</span>
+          </div>
+          <div class="mono-row">
+            <span class="t mono">6:00</span><span class="d" style="background: var(--cal-red)"></span>
+            <span class="name">Focus: Until copy polish</span><span class="rel">in 4h 59m</span>
+          </div>
+        </div>
+        <div class="footer"><span class="ic">⏻</span> Updated just now <span class="spacer"></span><span class="ic">↻</span><span class="ic">⚙︎</span></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const cur = root.dataset.theme || (dark ? "dark" : "light");
+    root.dataset.theme = cur === "dark" ? "light" : "dark";
+  }
+</script>
