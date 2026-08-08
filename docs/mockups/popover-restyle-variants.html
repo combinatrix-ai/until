@@ -1,0 +1,472 @@
+<meta charset="utf-8">
+<title>Until — ポップオーバー リスタイル4案</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --ink: #1d1d1f;
+    --muted: #6e6e73;
+    --line: rgba(20, 22, 26, 0.10);
+    --accent: #0071e3;
+    --panel: #ffffff;
+    --panel-inset: #f5f5f7;
+    --hover: rgba(20, 22, 26, 0.045);
+    --hero-bg: linear-gradient(180deg, rgba(0, 113, 227, 0.07), rgba(0, 113, 227, 0.025));
+    --now: #248a3d;
+    --now-bg: linear-gradient(180deg, rgba(36, 138, 61, 0.10), rgba(36, 138, 61, 0.03));
+    --now-btn-ink: #ffffff;
+    --shadow: 0 18px 50px rgba(20, 22, 26, 0.16), 0 2px 8px rgba(20, 22, 26, 0.08);
+    --hatch: rgba(20, 22, 26, 0.05);
+    --cal-blue: #4285f4; --cal-orange: #f4a742; --cal-green: #34a853;
+    --cal-red: #ea6060; --cal-teal: #2ec7c0; --cal-purple: #b07fe0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131316; --ink: #f5f5f7; --muted: #98989d;
+      --line: rgba(255,255,255,0.10); --accent: #0a84ff;
+      --panel: #262628; --panel-inset: #1e1e20;
+      --hover: rgba(255,255,255,0.055);
+      --hero-bg: linear-gradient(180deg, rgba(10,132,255,0.13), rgba(10,132,255,0.05));
+      --now: #32d74b;
+      --now-bg: linear-gradient(180deg, rgba(50,215,75,0.12), rgba(50,215,75,0.04));
+      --now-btn-ink: #06230e;
+      --shadow: 0 18px 50px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+      --hatch: rgba(255,255,255,0.05);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131316; --ink: #f5f5f7; --muted: #98989d;
+    --line: rgba(255,255,255,0.10); --accent: #0a84ff;
+    --panel: #262628; --panel-inset: #1e1e20;
+    --hover: rgba(255,255,255,0.055);
+    --hero-bg: linear-gradient(180deg, rgba(10,132,255,0.13), rgba(10,132,255,0.05));
+    --now: #32d74b;
+    --now-bg: linear-gradient(180deg, rgba(50,215,75,0.12), rgba(50,215,75,0.04));
+    --now-btn-ink: #06230e;
+    --shadow: 0 18px 50px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+    --hatch: rgba(255,255,255,0.05);
+  }
+  :root[data-theme="light"] {
+    --bg: #eef0f3; --ink: #1d1d1f; --muted: #6e6e73;
+    --line: rgba(20,22,26,0.10); --accent: #0071e3;
+    --panel: #ffffff; --panel-inset: #f5f5f7;
+    --hover: rgba(20,22,26,0.045);
+    --hero-bg: linear-gradient(180deg, rgba(0,113,227,0.07), rgba(0,113,227,0.025));
+    --now: #248a3d;
+    --now-bg: linear-gradient(180deg, rgba(36,138,61,0.10), rgba(36,138,61,0.03));
+    --now-btn-ink: #ffffff;
+    --shadow: 0 18px 50px rgba(20,22,26,0.16), 0 2px 8px rgba(20,22,26,0.08);
+    --hatch: rgba(20,22,26,0.05);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+  }
+  .page { max-width: 1120px; margin: 0 auto; padding: 48px 24px 96px; }
+
+  .pagehead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); font-size: 13px; margin: 0 0 40px; max-width: 640px; }
+  .theme-toggle {
+    flex: none; font: inherit; font-size: 12px; font-weight: 600;
+    color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer;
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 48px 40px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+  .variant { min-width: 0; }
+  .variant h2 { font-size: 16px; font-weight: 700; margin: 0 0 2px; }
+  .variant h2 .tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--accent); border: 1px solid currentColor; border-radius: 99px;
+    padding: 1px 8px; margin-right: 8px; vertical-align: 2px;
+  }
+  .variant .pitch { font-size: 12.5px; color: var(--muted); margin: 0 0 6px; }
+  .variant ul.notes { font-size: 12px; color: var(--muted); margin: 0 0 16px; padding-left: 18px; }
+  .variant ul.notes li { margin: 2px 0; }
+  .variant ul.notes b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- shared popover chrome ---------- */
+  .pop {
+    width: 356px; margin: 0 auto;
+    background: var(--panel); border-radius: 14px; box-shadow: var(--shadow);
+    border: 1px solid var(--line); overflow: hidden;
+    font-size: 13px;
+  }
+  .pop .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+  .hero { padding: 14px 16px 14px; background: var(--hero-bg); }
+  .hero.now { background: var(--now-bg); }
+  .hero .kicker { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .hero .kicker .label { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; color: var(--accent); }
+  .hero .kicker .count { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .hero.now .kicker .label, .hero.now .kicker .count { color: var(--now); }
+  .hero .title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
+  .hero .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .hero .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 600; border-radius: 7px; padding: 4px 12px;
+    border: 1px solid var(--line); color: var(--ink); background: var(--panel);
+  }
+  .btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+  .hero.now .btn.primary { background: var(--now); color: var(--now-btn-ink); }
+  .btn.quiet { border-color: transparent; background: var(--hover); }
+
+  .footer {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 12px;
+  }
+  .footer .spacer { flex: 1; }
+  .footer .ic { opacity: 0.75; }
+
+  .dayhead { font-size: 12px; font-weight: 700; color: var(--muted); padding: 10px 16px 4px; }
+
+  /* =========================================================
+     A. タイムライン・レール
+     ========================================================= */
+  .rail-list { position: relative; padding: 4px 0 10px; }
+  .rail-row { display: flex; align-items: flex-start; gap: 0; padding: 5px 16px; position: relative; }
+  .rail-row .time { width: 58px; flex: none; font-size: 11px; color: var(--muted); padding-top: 2px; text-align: right; padding-right: 10px; }
+  .rail-row .node { width: 22px; flex: none; display: flex; justify-content: center; position: relative; }
+  .rail-row .node::before {
+    content: ""; position: absolute; top: -8px; bottom: -8px; left: 50%;
+    width: 2px; margin-left: -1px; background: var(--line);
+  }
+  .rail-row:first-child .node::before { top: 8px; }
+  .rail-row:last-child .node::before { bottom: auto; height: 16px; }
+  .rail-row .dot {
+    position: relative; z-index: 1; width: 9px; height: 9px; border-radius: 50%;
+    margin-top: 5px; background: var(--cal-blue);
+    box-shadow: 0 0 0 3px var(--panel);
+  }
+  .rail-row .body { min-width: 0; padding-left: 10px; }
+  .rail-row .name { font-weight: 600; line-height: 1.3; }
+  .rail-row .sub { font-size: 11.5px; color: var(--muted); }
+  .rail-row.past { opacity: 0.5; }
+  .rail-row.past .name { text-decoration: line-through; text-decoration-color: var(--muted); text-decoration-thickness: 1px; }
+  .rail-gap { display: flex; align-items: center; padding: 3px 16px 3px; }
+  .rail-gap .time { width: 58px; flex: none; }
+  .rail-gap .node { width: 22px; flex: none; display: flex; justify-content: center; align-self: stretch; }
+  .rail-gap .node i { width: 0; border-left: 2px dashed var(--line); display: block; }
+  .rail-gap .lbl { font-size: 11px; color: var(--muted); padding: 6px 0 6px 10px; }
+  .now-line { display: flex; align-items: center; padding: 0 16px; height: 0; position: relative; z-index: 2; }
+  .now-line .time { width: 58px; flex: none; text-align: right; padding-right: 10px; font-size: 10px; font-weight: 700; color: var(--now); }
+  .now-line .bar { flex: 1; height: 2px; background: var(--now); border-radius: 1px; position: relative; }
+  .now-line .bar::before {
+    content: ""; position: absolute; left: 15px; top: 50%; width: 8px; height: 8px;
+    transform: translate(-50%, -50%); border-radius: 50%; background: var(--now);
+  }
+
+  /* =========================================================
+     B. プロポーショナル・ブロック
+     ========================================================= */
+  .blocks { padding: 10px 14px 12px; }
+  .block {
+    position: relative; display: flex; align-items: flex-start; gap: 8px;
+    border-radius: 8px; padding: 6px 10px 6px 12px; margin: 3px 0;
+    background: color-mix(in srgb, var(--c, var(--cal-blue)) 9%, var(--panel));
+    overflow: hidden;
+  }
+  .block::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--c, var(--cal-blue)); }
+  .block .name { font-weight: 600; line-height: 1.25; }
+  .block .sub { font-size: 11px; color: var(--muted); line-height: 1.3; }
+  .block .t { margin-left: auto; flex: none; font-size: 11px; color: var(--muted); padding-top: 1px; }
+  .block.allday { padding-top: 4px; padding-bottom: 4px; }
+  .gap-space {
+    display: flex; align-items: center; justify-content: center;
+    margin: 3px 0; border-radius: 8px;
+    background: repeating-linear-gradient(-45deg, transparent 0 5px, var(--hatch) 5px 6px);
+    color: var(--muted); font-size: 11px;
+  }
+
+  /* =========================================================
+     C. タイポグラフィック・モノ
+     ========================================================= */
+  .pop.mono-v { font-size: 13px; }
+  .mono-hero { padding: 18px 18px 14px; }
+  .mono-hero .count { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+  .mono-hero .count small { font-size: 17px; font-weight: 700; color: var(--muted); letter-spacing: 0; margin-left: 2px; }
+  .mono-hero .title { font-size: 14px; font-weight: 600; margin-top: 6px; }
+  .mono-hero .meta { font-size: 12px; color: var(--muted); }
+  .mono-hero .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .mono-rule { height: 1px; background: var(--line); margin: 0 18px; }
+  .mono-list { padding: 8px 0 10px; }
+  .mono-row { display: flex; align-items: baseline; gap: 9px; padding: 5px 18px; }
+  .mono-row .t { width: 44px; flex: none; font-size: 11.5px; color: var(--muted); text-align: right; }
+  .mono-row .d { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--cal-blue); align-self: center; }
+  .mono-row .name { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mono-row .rel { margin-left: auto; flex: none; font-size: 11px; color: var(--muted); }
+  .mono-row.past { opacity: 0.45; }
+  .mono-gap { text-align: center; font-size: 11px; color: var(--muted); padding: 4px 18px; }
+  .mono-gap b { font-weight: 600; color: var(--ink); opacity: 0.75; }
+
+  /* =========================================================
+     D. カード・デッキ
+     ========================================================= */
+  .deck { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .card-ev {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: var(--panel-inset); border: 1px solid var(--line);
+    border-radius: 10px; padding: 8px 12px;
+  }
+  .card-ev .stripe { flex: none; width: 4px; align-self: stretch; border-radius: 2px; background: var(--c, var(--cal-blue)); }
+  .card-ev .body { min-width: 0; flex: 1; }
+  .card-ev .name { font-weight: 600; line-height: 1.3; }
+  .card-ev .sub { font-size: 11.5px; color: var(--muted); }
+  .card-ev .t { flex: none; font-size: 11px; color: var(--muted); padding-top: 2px; }
+  .chip-gap { display: flex; justify-content: center; }
+  .chip-gap span {
+    font-size: 11px; color: var(--muted);
+    border: 1px dashed var(--line); border-radius: 99px; padding: 2px 12px;
+  }
+  .deck .dayhead { padding: 6px 4px 0; }
+</style>
+
+<div class="page">
+  <div class="pagehead">
+    <div>
+      <h1>Until — ポップオーバー リスタイル4案</h1>
+      <p class="lede">ヒーロー(UP NEXT / NOW)+当日リストという骨格は保ったまま、リスト部の「日の流れの見せ方」を変えた4方向。データは全案共通(README用デモと同じ)。右上でライト/ダーク切替。</p>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">☀︎ / ☾ テーマ切替</button>
+  </div>
+
+  <div class="grid">
+
+    <!-- ============ A ============ -->
+    <section class="variant">
+      <h2><span class="tag">A</span>タイムライン・レール</h2>
+      <p class="pitch">縦のレールとドットで「1日の流れ」を1本の線として見せる。NOWラインが現在位置を貫き、過去のイベントは薄く沈む。</p>
+      <ul class="notes">
+        <li><b>効き所:</b> 今日があとどれくらい残っているかが線の位置で直感的にわかる</li>
+        <li><b>トレードオフ:</b> カレンダー色がバー→ドットに縮むので色の主張は弱まる</li>
+      </ul>
+      <div class="pop">
+        <div class="hero now">
+          <div class="kicker"><span class="label">NOW · STARTED 5M AGO</span><span class="count">25m left</span></div>
+          <div class="title">Launch standup</div>
+          <div class="meta">12:55 PM – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+          <div class="actions"><span class="btn primary">📹 Join Google Meet</span><span class="btn quiet">📝 Notes</span></div>
+        </div>
+        <div class="dayhead">Today</div>
+        <div class="rail-list">
+          <div class="rail-row past">
+            <div class="time mono">all-day</div>
+            <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+            <div class="body"><div class="name">Launch assets due 📎</div></div>
+          </div>
+          <div class="rail-row past">
+            <div class="time mono">11:30</div>
+            <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+            <div class="body"><div class="name">Morning run</div><div class="sub">Riverside Park</div></div>
+          </div>
+          <div class="now-line">
+            <div class="time mono">1:01</div>
+            <div class="bar"></div>
+          </div>
+          <div class="rail-row">
+            <div class="time mono">1:30 PM</div>
+            <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+            <div class="body"><div class="name">Design review: website screenshots 📎</div><div class="sub">Google Meet · Maya Chen, Ren Sato</div></div>
+          </div>
+          <div class="rail-row">
+            <div class="time mono">3:00 PM</div>
+            <div class="node"><span class="dot" style="background: var(--cal-orange)"></span></div>
+            <div class="body"><div class="name">Project work block</div><div class="sub">Desk</div></div>
+          </div>
+          <div class="rail-gap">
+            <div class="time"></div>
+            <div class="node"><i></i></div>
+            <div class="lbl">free until 4:30 PM · 90m</div>
+          </div>
+          <div class="rail-row">
+            <div class="time mono">4:30 PM</div>
+            <div class="node"><span class="dot" style="background: var(--cal-green)"></span></div>
+            <div class="body"><div class="name">Product sync</div><div class="sub">Google Meet · Alex Kim, Sam Rivera</div></div>
+          </div>
+          <div class="rail-row">
+            <div class="time mono">6:00 PM</div>
+            <div class="node"><span class="dot" style="background: var(--cal-red)"></span></div>
+            <div class="body"><div class="name">Focus: Until copy polish</div></div>
+          </div>
+          <div class="rail-row">
+            <div class="time mono">7:00 PM</div>
+            <div class="node"><span class="dot" style="background: var(--cal-red)"></span></div>
+            <div class="body"><div class="name">School pickup</div><div class="sub">Maple Elementary · Avery</div></div>
+          </div>
+        </div>
+        <div class="footer"><span class="ic">⏻</span> Updated just now <span class="spacer"></span><span class="ic">↻</span><span class="ic">⚙︎</span></div>
+      </div>
+    </section>
+
+    <!-- ============ B ============ -->
+    <section class="variant">
+      <h2><span class="tag">B</span>プロポーショナル・ブロック</h2>
+      <p class="pitch">ブロックの高さ=所要時間のミニ・デイプランナー。空き時間は斜線の「余白」として物理的に見える。忙しい日と暇な日が一目で違って見える。</p>
+      <ul class="notes">
+        <li><b>効き所:</b> 「今日はどれくらい詰まってるか」の密度が形でわかる</li>
+        <li><b>トレードオフ:</b> 長い会議が縦幅を食う(高さに上限キャップは必要)</li>
+      </ul>
+      <div class="pop">
+        <div class="hero">
+          <div class="kicker"><span class="label">UP NEXT</span><span class="count">in 7m</span></div>
+          <div class="title">Design review: website screenshots</div>
+          <div class="meta">2:00 PM – 2:45 PM · Google Meet · Maya Chen, Ren Sato</div>
+          <div class="actions"><span class="btn primary">📹 Join</span><span class="btn quiet">📄 Open</span></div>
+        </div>
+        <div class="dayhead">Today</div>
+        <div class="blocks">
+          <div class="block allday" style="--c: var(--cal-blue)">
+            <div><div class="name">Launch assets due 📎</div></div>
+            <div class="t mono">all-day</div>
+          </div>
+          <div class="block" style="--c: var(--cal-blue); min-height: 46px;">
+            <div><div class="name">Design review: website screenshots</div><div class="sub">Google Meet · Maya Chen, Ren Sato</div></div>
+            <div class="t mono">2:00</div>
+          </div>
+          <div class="block" style="--c: var(--cal-blue); min-height: 36px;">
+            <div><div class="name">Morning run</div><div class="sub">Riverside Park</div></div>
+            <div class="t mono">2:30</div>
+          </div>
+          <div class="block" style="--c: var(--cal-orange); min-height: 56px;">
+            <div><div class="name">Project work block</div><div class="sub">Desk</div></div>
+            <div class="t mono">3:30</div>
+          </div>
+          <div class="gap-space" style="height: 44px;">free until 5:00 PM · 30m</div>
+          <div class="block" style="--c: var(--cal-green); min-height: 40px;">
+            <div><div class="name">Product sync</div><div class="sub">Google Meet · Alex Kim, Sam Rivera</div></div>
+            <div class="t mono">5:00</div>
+          </div>
+          <div class="gap-space" style="height: 58px;">free until 6:30 PM · 90m</div>
+          <div class="block" style="--c: var(--cal-red); min-height: 34px;">
+            <div><div class="name">Focus: Until copy polish</div></div>
+            <div class="t mono">6:30</div>
+          </div>
+          <div class="block" style="--c: var(--cal-red); min-height: 34px;">
+            <div><div class="name">School pickup</div><div class="sub">Maple Elementary · Avery</div></div>
+            <div class="t mono">7:00</div>
+          </div>
+        </div>
+        <div class="footer"><span class="ic">⏻</span> Updated just now <span class="spacer"></span><span class="ic">↻</span><span class="ic">⚙︎</span></div>
+      </div>
+    </section>
+
+    <!-- ============ C ============ -->
+    <section class="variant">
+      <h2><span class="tag">C</span>タイポグラフィック・モノ</h2>
+      <p class="pitch">カウントダウンの数字を主役にした静かなユーティリティ。色はドットだけ、各行の右端に相対時刻。「あと何分」を見る道具、に振り切る。</p>
+      <ul class="notes">
+        <li><b>効き所:</b> メニューバーアプリらしい密度と静けさ。情報量そのままで視覚ノイズ最小</li>
+        <li><b>トレードオフ:</b> 華やかさはない。Join動線の主張も1段弱まる</li>
+      </ul>
+      <div class="pop mono-v">
+        <div class="mono-hero">
+          <div class="count mono">7<small>min</small></div>
+          <div class="title">Design review: website screenshots</div>
+          <div class="meta">2:00 – 2:45 PM · Google Meet · Maya Chen, Ren Sato</div>
+          <div class="actions"><span class="btn primary">📹 Join</span><span class="btn quiet">📄 Open</span></div>
+        </div>
+        <div class="mono-rule"></div>
+        <div class="mono-list">
+          <div class="mono-row past">
+            <span class="t mono">—</span><span class="d" style="background: var(--cal-blue)"></span>
+            <span class="name">Launch assets due</span><span class="rel">all-day</span>
+          </div>
+          <div class="mono-row">
+            <span class="t mono">2:30</span><span class="d" style="background: var(--cal-blue)"></span>
+            <span class="name">Morning run · Riverside Park</span><span class="rel">in 37m</span>
+          </div>
+          <div class="mono-row">
+            <span class="t mono">3:30</span><span class="d" style="background: var(--cal-orange)"></span>
+            <span class="name">Project work block · Desk</span><span class="rel">in 1h 37m</span>
+          </div>
+          <div class="mono-gap">↓ <b>30m free</b> until 5:00</div>
+          <div class="mono-row">
+            <span class="t mono">5:00</span><span class="d" style="background: var(--cal-green)"></span>
+            <span class="name">Product sync · Google Meet</span><span class="rel">in 3h</span>
+          </div>
+          <div class="mono-gap">↓ <b>90m free</b> until 6:30</div>
+          <div class="mono-row">
+            <span class="t mono">6:30</span><span class="d" style="background: var(--cal-red)"></span>
+            <span class="name">Focus: Until copy polish</span><span class="rel">in 4h 30m</span>
+          </div>
+          <div class="mono-row">
+            <span class="t mono">7:00</span><span class="d" style="background: var(--cal-red)"></span>
+            <span class="name">School pickup · Maple Elementary</span><span class="rel">in 5h</span>
+          </div>
+        </div>
+        <div class="footer"><span class="ic">⏻</span> Updated just now <span class="spacer"></span><span class="ic">↻</span><span class="ic">⚙︎</span></div>
+      </div>
+    </section>
+
+    <!-- ============ D ============ -->
+    <section class="variant">
+      <h2><span class="tag">D</span>カード・デッキ</h2>
+      <p class="pitch">各イベントを角丸カードにして、空き時間は破線ピルのチップに。行間の罫線を全廃してカードの塊で区切る。触れる感じ・ホバーの受けが良い。</p>
+      <ul class="notes">
+        <li><b>効き所:</b> ホバー/展開(ノート・Meetボタン)との相性が良く、1件1件が掴みやすい</li>
+        <li><b>トレードオフ:</b> 縦方向の密度は現行フラットリストより下がる</li>
+      </ul>
+      <div class="pop">
+        <div class="hero">
+          <div class="kicker"><span class="label">UP NEXT</span><span class="count">in 7m</span></div>
+          <div class="title">Design review: website screenshots</div>
+          <div class="meta">2:00 PM – 2:45 PM · Google Meet · Maya Chen, Ren Sato</div>
+          <div class="actions"><span class="btn primary">📹 Join</span><span class="btn quiet">📄 Open</span></div>
+        </div>
+        <div class="deck">
+          <div class="dayhead">Today</div>
+          <div class="card-ev" style="--c: var(--cal-blue)">
+            <span class="stripe"></span>
+            <div class="body"><div class="name">Launch assets due 📎</div></div>
+            <div class="t mono">all-day</div>
+          </div>
+          <div class="card-ev" style="--c: var(--cal-blue)">
+            <span class="stripe"></span>
+            <div class="body"><div class="name">Morning run</div><div class="sub">Riverside Park</div></div>
+            <div class="t mono">2:30 PM</div>
+          </div>
+          <div class="card-ev" style="--c: var(--cal-orange)">
+            <span class="stripe"></span>
+            <div class="body"><div class="name">Project work block</div><div class="sub">Desk</div></div>
+            <div class="t mono">3:30 PM</div>
+          </div>
+          <div class="chip-gap"><span>🕐 free until 5:00 PM · 30m</span></div>
+          <div class="card-ev" style="--c: var(--cal-green)">
+            <span class="stripe"></span>
+            <div class="body"><div class="name">Product sync</div><div class="sub">Google Meet · Alex Kim, Sam Rivera</div></div>
+            <div class="t mono">5:00 PM</div>
+          </div>
+          <div class="chip-gap"><span>🕐 free until 6:30 PM · 90m</span></div>
+          <div class="card-ev" style="--c: var(--cal-red)">
+            <span class="stripe"></span>
+            <div class="body"><div class="name">Focus: Until copy polish</div></div>
+            <div class="t mono">6:30 PM</div>
+          </div>
+          <div class="card-ev" style="--c: var(--cal-red)">
+            <span class="stripe"></span>
+            <div class="body"><div class="name">School pickup</div><div class="sub">Maple Elementary · Avery</div></div>
+            <div class="t mono">7:00 PM</div>
+          </div>
+        </div>
+        <div class="footer"><span class="ic">⏻</span> Updated just now <span class="spacer"></span><span class="ic">↻</span><span class="ic">⚙︎</span></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const cur = root.dataset.theme || (dark ? "dark" : "light");
+    root.dataset.theme = cur === "dark" ? "light" : "dark";
+  }
+</script>
