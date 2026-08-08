@@ -95,7 +95,7 @@ struct PanelView: View {
       now: now,
       coverageEnd: model.state.calendarCoverageEnd
     )
-    let target = initialTimelineTarget(sections: sections, presentation: presentation)
+    let target = initialTimelineTarget(sections: sections, presentation: presentation, now: now)
 
     return GeometryReader { viewport in
       ZStack(alignment: .top) {
@@ -221,51 +221,62 @@ struct PanelView: View {
     }
   }
 
+  /// The item anchored to the top when the popover opens: whatever marks the
+  /// CURRENT MOMENT, never a merely-upcoming hero. Anchoring a future hero
+  /// would hide the now-line and everything between now and that event, so a
+  /// not-yet-started hero card simply sits below the anchor and scrolls into
+  /// view naturally (it is the next chronological item).
   private func initialTimelineTarget(
     sections: [(section: DaySection, items: [PopoverListItem])],
-    presentation: TimelinePresentation
+    presentation: TimelinePresentation,
+    now: Date
   ) -> String? {
-    if let hero = presentation.heroEvent {
-      for entry in sections {
-        if let item = entry.items.first(where: { item in
-          guard case .event(let dayEvent) = item else { return false }
-          return dayEvent.event.actionKey == hero.actionKey
-        }) {
-          return item.id
-        }
-      }
+    let items = sections.flatMap(\.items)
+    func eventItemID(_ event: CalendarEvent) -> String? {
+      items.first { item in
+        guard case .event(let dayEvent) = item else { return false }
+        return dayEvent.event.actionKey == event.actionKey
+      }?.id
     }
+
+    if let hero = presentation.heroEvent,
+       AppModel.menubarHeroState(event: hero, now: now) == .now,
+       let id = eventItemID(hero) {
+      return id
+    }
+    if let nowEvent = presentation.nowEmphasisEvent, let id = eventItemID(nowEvent) {
+      return id
+    }
+    // The free-day card renders above today's now-line, so it must win the
+    // anchor or it would be hidden right after opening.
     if presentation.showsFreeDayHero,
-       let freeDayHero = sections.flatMap(\.items).first(where: {
+       let freeDayHero = items.first(where: {
          if case .freeDayHero = $0 { return true }
          return false
        }) {
       return freeDayHero.id
     }
-    if let nowLine = sections.flatMap(\.items).first(where: {
+    if let nowLine = items.first(where: {
       if case .nowLine = $0 { return true }
       return false
     }) {
       return nowLine.id
     }
-    if let nowEvent = presentation.nowEmphasisEvent,
-       let item = sections.flatMap(\.items).first(where: { item in
-         guard case .event(let dayEvent) = item else { return false }
-         return dayEvent.event.actionKey == nowEvent.actionKey
-       }) {
-      return item.id
-    }
-    return sections.flatMap(\.items).first?.id
+    return items.first?.id
   }
+
+  /// Slightly below the very top, so the anchored item clears the top fade
+  /// gradient and the previous row peeks above it half-faded.
+  private static let initialScrollAnchor = UnitPoint(x: 0, y: 0.06)
 
   private func scrollToInitialTarget(_ target: String?, using proxy: ScrollViewProxy) {
     guard let target else { return }
     DispatchQueue.main.async {
       if reduceMotion {
-        proxy.scrollTo(target, anchor: .top)
+        proxy.scrollTo(target, anchor: Self.initialScrollAnchor)
       } else {
         withAnimation(.easeOut(duration: 0.15)) {
-          proxy.scrollTo(target, anchor: .top)
+          proxy.scrollTo(target, anchor: Self.initialScrollAnchor)
         }
       }
     }
@@ -510,8 +521,9 @@ private struct TimelineRailNode: View {
 private struct TimelineDashedRail: View {
   var body: some View {
     Path { path in
-      path.move(to: CGPoint(x: 1, y: 0))
-      path.addLine(to: CGPoint(x: 1, y: 30))
+      // x matches TimelineRailNode's centered 2pt rail (22pt column center).
+      path.move(to: CGPoint(x: 11, y: 0))
+      path.addLine(to: CGPoint(x: 11, y: 30))
     }
     .stroke(
       Theme.hairline,
