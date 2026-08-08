@@ -29,6 +29,7 @@ final class FreeGapDividerTests: XCTestCase {
     }
     XCTAssertEqual(gap.afterActionKey, first.actionKey)
     XCTAssertEqual(gap.until, secondStart)
+    XCTAssertEqual(gap.durationMinutes, 30)
     XCTAssertEqual(items[2], .event(rows[1]))
   }
 

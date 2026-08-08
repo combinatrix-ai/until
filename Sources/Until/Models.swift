@@ -129,7 +129,14 @@ struct DaySection: Identifiable, Hashable {
 struct FreeGap: Identifiable, Hashable {
   var afterActionKey: String
   var until: Date
+  var durationMinutes: Int
   var id: String { "gap::\(afterActionKey)::\(until.timeIntervalSinceReferenceDate)" }
+
+  init(afterActionKey: String, until: Date, durationMinutes: Int = 0) {
+    self.afterActionKey = afterActionKey
+    self.until = until
+    self.durationMinutes = durationMinutes
+  }
 }
 
 /// One row rendered in the popover's event list: either a calendar event, a
@@ -139,14 +146,29 @@ enum PopoverListItem: Identifiable, Hashable {
   case event(DayEvent)
   case gap(FreeGap)
   case freeDay(Date)
+  case freeDayHero(Date)
+  case nowLine(Date)
 
   var id: String {
     switch self {
     case .event(let dayEvent): return "event::\(dayEvent.id)"
     case .gap(let gap): return gap.id
     case .freeDay(let day): return "free-day::\(day.timeIntervalSinceReferenceDate)"
+    case .freeDayHero(let day): return "free-day-hero::\(day.timeIntervalSinceReferenceDate)"
+    case .nowLine: return "now-line"
     }
   }
+}
+
+/// The presentation decisions shared by the rail and its condensed pinned
+/// strip. `heroEvent` is always the event selected for the menubar countdown;
+/// a free-day message is an in-timeline fallback only when that selection has
+/// no timed event to render.
+struct TimelinePresentation: Equatable {
+  var heroEvent: CalendarEvent?
+  var nowEmphasisEvent: CalendarEvent?
+  var freeDayNextEvent: CalendarEvent?
+  var showsFreeDayHero: Bool
 }
 
 struct MeetingNoteResult: Hashable {

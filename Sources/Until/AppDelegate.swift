@@ -196,6 +196,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
   /// behind its own content, but SwiftUI can only cover the content rect, not
   /// the popover chrome, which is why this reaches into the frame view.
   func popoverWillShow(_ notification: Notification) {
+    NotificationCenter.default.post(name: .untilPopoverWillShow, object: nil)
     guard
       let frameView = popover.contentViewController?.view.window?.contentView?.superview,
       !frameView.subviews.contains(where: { $0 is OpaquePopoverBackdropView })

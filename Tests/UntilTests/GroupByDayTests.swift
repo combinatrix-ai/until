@@ -121,4 +121,18 @@ final class GroupByDayTests: XCTestCase {
     XCTAssertEqual(sections[0].rows.map { $0.event.id }, ["allday", "timed"])
     XCTAssertEqual(sections[1].rows.map { $0.event.id }, ["later"])
   }
+
+  func testTimedEventCrossingMidnightIsPlacedInTodaySection() {
+    let now = makeDate(year: 2026, month: 7, day: 6, hour: 1)
+    let event = makeEvent(
+      id: "overnight",
+      startISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 23)),
+      endISO: isoString(from: makeDate(year: 2026, month: 7, day: 6, hour: 2))
+    )
+
+    let sections = AppModel.groupByDay(timed: [event], allDay: [], now: now, lookaheadHours: 24)
+
+    XCTAssertEqual(sections.map(\.day), [calendar.startOfDay(for: now)])
+    XCTAssertEqual(sections.first?.rows.map { $0.event.id }, ["overnight"])
+  }
 }

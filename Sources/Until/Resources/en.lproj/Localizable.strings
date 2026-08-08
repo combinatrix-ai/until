@@ -41,15 +41,21 @@
 "Up next" = "Up next";
 "Now · started %@ ago" = "Now · started %@ ago";
 "in %@" = "in %@";
+"NOW" = "NOW";
+"NEXT" = "NEXT";
+"NEXT · in %@" = "NEXT · in %@";
+"ends %@" = "ends %@";
 "Join" = "Join";
 "Open notes" = "Open notes";
 "free until %@" = "free until %@";
+"free until %@ · %@" = "free until %@ · %@";
+"%dm" = "%dm";
 "free all day" = "free all day";
 "No more events today" = "No more events today";
 "until %@" = "until %@";
 "Next: %@" = "Next: %@";
 
-/* MARK: - NOW strip (Views) */
+/* MARK: - Timeline (Views) */
 "Now" = "Now";
 
 /* MARK: - Onboarding (Views) */

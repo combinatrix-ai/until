@@ -41,15 +41,21 @@
 "Up next" = "次の予定";
 "Now · started %@ ago" = "進行中 · %@前に開始";
 "in %@" = "%@後";
+"NOW" = "進行中";
+"NEXT" = "次";
+"NEXT · in %@" = "次 · %@後";
+"ends %@" = "%@に終了";
 "Join" = "参加";
 "Open notes" = "議事録を開く";
 "free until %@" = "%@まで空き";
+"free until %@ · %@" = "%@まで空き · %@";
+"%dm" = "%d分";
 "free all day" = "終日空き";
 "No more events today" = "今日はこのあと予定なし";
 "until %@" = "%@まで";
 "Next: %@" = "次の予定: %@";
 
-/* MARK: - NOW strip (Views) */
+/* MARK: - Timeline (Views) */
 "Now" = "進行中";
 
 /* MARK: - Onboarding (Views) */

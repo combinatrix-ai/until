@@ -8,10 +8,10 @@ struct AppRuntimeOptions: Hashable {
     /// Default: every event re-anchored into the future, half-hour aligned —
     /// nothing is ever in progress.
     case upcoming
-    /// `--demo-now` / `UNTIL_DEMO_NOW`: pins the green in-progress "Now" hero.
+    /// `--demo-now` / `UNTIL_DEMO_NOW`: pins the green in-progress hero.
     case inProgress
-    /// `--demo-overlap` / `UNTIL_DEMO_OVERLAP`: pins the NOW strip above the
-    /// "Up next" hero.
+    /// `--demo-overlap` / `UNTIL_DEMO_OVERLAP`: pins a green NOW rail row
+    /// beside the blue "Up next" hero.
     case overlap
     /// `--demo-free` / `UNTIL_DEMO_FREE`: pins the free-day hero with an
     /// all-day event today and a timed event tomorrow.
@@ -168,7 +168,8 @@ enum DemoCalendarData {
     //   switch away from the in-progress event it's meant to demo.
     // - `.overlap`: pinned to exactly 4 min out, with NO half-hour rounding,
     //   so it lands INSIDE the lead window while the standup is still
-    //   running — that is what pins the NOW strip above the "Up next" hero.
+    //   running — that is what gives the rail a green NOW row beside the
+    //   blue "Up next" hero.
     //   Anchoring relative to `now` (rather than wall-clock minutes) means
     //   every demo re-anchor reproduces the same state, unlike the default
     //   mode's :23/:53 half-hour rule.
@@ -455,12 +456,12 @@ enum DemoCalendarData {
   /// Only included for `.inProgress`/`.overlap` (never `.upcoming`, which
   /// anchors everything into the future so nothing is ever in progress): a
   /// single event straddling "now", `startOffset`/`endOffset` minutes away,
-  /// so the popover's in-progress "Now" hero or NOW strip can be demoed.
+  /// so the popover's in-progress hero or green NOW rail row can be demoed.
   /// - `.inProgress` passes -5/25: comfortably inside its run so the hero
   ///   reads as freshly started.
-  /// - `.overlap` passes -22/8 (~73% elapsed, "8m left") so the strip reads
-  ///   as a meeting about to wrap, distinct from the fresh "Design review"
-  ///   the hero switches to.
+  /// - `.overlap` passes -22/8 (~73% elapsed, "8m left") so the rail row
+  ///   reads as a meeting about to wrap, distinct from the fresh "Design
+  ///   review" the hero switches to.
   private static func inProgressSpecs(
     _ ctx: DemoContext,
     startOffset: Int,

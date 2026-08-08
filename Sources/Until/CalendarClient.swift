@@ -35,7 +35,10 @@ final class CalendarClient {
     lookaheadHours: Int,
     now: Date
   ) async throws -> [CalendarEvent] {
-    let timeMin = ISO8601DateFormatter.fallback.string(from: now)
+    // Fetch from local midnight so the rail can show today's completed rows
+    // above its now-line. The menubar picker and notification sync still
+    // ignore events that have already ended.
+    let timeMin = ISO8601DateFormatter.fallback.string(from: Calendar.current.startOfDay(for: now))
     let timeMax = ISO8601DateFormatter.fallback.string(
       from: now.addingTimeInterval(TimeInterval(lookaheadHours) * 3600)
     )

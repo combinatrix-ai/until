@@ -1,16 +1,27 @@
 import SwiftUI
 
-struct HeroSlotOccupancy: Equatable {
-  var heroEvent: CalendarEvent?
-  var nowStripEvent: CalendarEvent?
-  var freeDayNextEvent: CalendarEvent?
-  var showsFreeDayHero: Bool
+extension Notification.Name {
+  static let untilPopoverWillShow = Notification.Name("untilPopoverWillShow")
+}
+
+private struct HeroFramePreferenceKey: PreferenceKey {
+  static var defaultValue: CGRect?
+
+  static func reduce(value: inout CGRect?, nextValue: () -> CGRect?) {
+    value = nextValue()
+  }
+}
+
+private enum TimelineScrollSpace {
+  static let name = "until.timeline.scroll"
 }
 
 struct PanelView: View {
   @ObservedObject var model: AppModel
   var openSettings: () -> Void
   @State private var showQuitConfirm = false
+  @State private var scrollResetToken = 0
+  @State private var heroIsVisible = true
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
@@ -22,11 +33,15 @@ struct PanelView: View {
         footer(now: now)
       }
       .frame(width: 390, height: 520)
-      // Solid surface matching the List's own background, so the hero, NOW
-      // strip, and footer don't show NSPopover's frosted material while the
-      // list body is opaque (the popover chrome — corners and arrow — is
-      // painted by `StatusBarController.popoverWillShow`).
+      // Solid surface matching the timeline's background, so the hero, rail,
+      // and footer don't show NSPopover's frosted material while the content
+      // body is opaque (the popover chrome — corners and arrow — is painted
+      // by `StatusBarController.popoverWillShow`).
       .background(Color(nsColor: .textBackgroundColor))
+    }
+    .onReceive(NotificationCenter.default.publisher(for: .untilPopoverWillShow)) { _ in
+      scrollResetToken += 1
+      heroIsVisible = true
     }
   }
 
@@ -47,16 +62,20 @@ struct PanelView: View {
       )
       .frame(maxHeight: .infinity)
     } else {
-      let occupancy = heroSlotOccupancy(at: now)
+      let presentation = AppModel.timelinePresentation(
+        menubarEvent: model.menubarEvent,
+        config: model.config,
+        timed: model.state.events,
+        now: now,
+        coverageEnd: model.state.calendarCoverageEnd
+      )
 
       VStack(spacing: 0) {
-        // The NOW strip and hero pin the in-progress event, the menubar's
-        // countdown event, or the free-day state above the list so their
-        // content never requires scrolling. All-day menubar events have no
-        // meaningful countdown, so they leave the timed hero slot available
-        // for the free-day state. The same occupancy drives this slot and
-        // the list below it, so a displaced would-be hero remains listed.
-        heroSlot(occupancy: occupancy, now: now)
+        // The timeline keeps the menubar selection inline and gives the
+        // free-day fallback a prominent card in today's section. The error
+        // banner remains outside the scrollable rail so cached content stays
+        // usable during a transient sync failure.
+        timeline(presentation: presentation, now: now)
 
         // Cached events remain visible; the error rides above them as a compact
         // banner so a transient outage doesn't hide the whole panel.
@@ -65,305 +84,191 @@ struct PanelView: View {
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.top, Theme.Spacing.sm)
         }
-        eventList(occupancy: occupancy, now: now)
       }
     }
   }
 
-  private func eventList(occupancy: HeroSlotOccupancy, now: Date) -> some View {
-    List {
-      ForEach(
-        Self.visibleSections(
-          model.daySections(now: now),
-          occupancy: occupancy,
-          now: now,
-          coverageEnd: model.state.calendarCoverageEnd
-        ),
-        id: \.section.id
-      ) { section, items in
-        Section(dayHeader(section.day, now: now)) {
-          ForEach(items) { item in
-            switch item {
-            case .event(let dayEvent):
-              EventRow(
-                event: dayEvent.event,
-                day: dayEvent.day,
-                model: model,
-                relativeTimeSuffix: dayEvent.event.actionKey == upcomingRelativeTimeRowKey(
-                  occupancy: occupancy,
-                  now: now
-                )
-                  ? loc("in %@", relativeWhen(minutesFromNow(dayEvent.event.startDate, now: now)))
-                  : nil
-              )
-            case .gap(let gap):
-              FreeGapRow(until: gap.until)
-            case .freeDay:
-              FreeDayRow()
-            }
-          }
-        }
-      }
-    }
-    .listStyle(.inset)
-  }
-
-  /// Purely computes the two pinned slots and the free-day precedence decision.
-  /// Snapshot coverage through the end of the local day is required before
-  /// making the free-day claim. The would-be menubar hero may be
-  /// intentionally displaced in the popover: a non-imminent event on a later
-  /// calendar day yields to the free-day hero, while the menubar keeps counting
-  /// down to that event.
-  @MainActor
-  static func heroSlotOccupancy(
-    menubarEvent: CalendarEvent?,
-    config: AppConfig,
-    timed: [CalendarEvent],
-    now: Date,
-    coverageEnd: Date?
-  ) -> HeroSlotOccupancy {
-    let nowStrip = AppModel.pickNowStripEvent(
-      menubarEvent: menubarEvent,
-      config: config,
-      timed: timed,
-      now: now
-    )
-    let freeDayDecision = AppModel.freeDayHeroNextEvent(timed: timed, now: now)
-    // A polled `state.next` can outlive its event by a few seconds. It must not
-    // keep the stale countdown pinned while the clock has already reached the
-    // free-day state.
-    let wouldBeHero: CalendarEvent? = menubarEvent.flatMap { event -> CalendarEvent? in
-      guard !event.allDay, event.endDate > now else { return nil }
-      return event
-    }
-    let freeDayNextEvent: CalendarEvent?
-    if case .free(let nextEvent) = freeDayDecision {
-      freeDayNextEvent = nextEvent
-    } else {
-      freeDayNextEvent = nil
-    }
-
-    let calendar = Calendar.current
-    let endOfToday = calendar.date(
-      byAdding: .day,
-      value: 1,
-      to: calendar.startOfDay(for: now)
-    ) ?? now
-    let imminentLead = TimeInterval(max(0, config.notifyLeadMinutes) * 60)
-    let nextEventIsImminent = freeDayNextEvent.map {
-      $0.startDate.timeIntervalSince(now) <= imminentLead
-    } ?? false
-    let coverageCoversToday = coverageEnd.map { $0 >= endOfToday } ?? false
-
-    let freeDayWins: Bool
-    if nowStrip == nil,
-       coverageCoversToday,
-       case .free = freeDayDecision,
-       !nextEventIsImminent {
-      freeDayWins = wouldBeHero.map {
-        !calendar.isDate($0.startDate, inSameDayAs: now)
-      } ?? true
-    } else {
-      freeDayWins = false
-    }
-
-    return HeroSlotOccupancy(
-      heroEvent: freeDayWins ? nil : wouldBeHero,
-      nowStripEvent: nowStrip,
-      freeDayNextEvent: freeDayWins ? freeDayNextEvent : nil,
-      showsFreeDayHero: freeDayWins
-    )
-  }
-
-  private func heroSlotOccupancy(at now: Date) -> HeroSlotOccupancy {
-    Self.heroSlotOccupancy(
-      menubarEvent: model.menubarEvent,
-      config: model.config,
-      timed: model.state.events,
+  private func timeline(presentation: TimelinePresentation, now: Date) -> some View {
+    let sections = AppModel.timelineSections(
+      model.daySections(now: now),
+      presentation: presentation,
       now: now,
       coverageEnd: model.state.calendarCoverageEnd
     )
+    let target = initialTimelineTarget(sections: sections, presentation: presentation)
+
+    return GeometryReader { viewport in
+      ZStack(alignment: .top) {
+        timelineScrollView(
+          sections: sections,
+          target: target,
+          presentation: presentation,
+          now: now,
+          viewportHeight: viewport.size.height
+        )
+
+        LinearGradient(
+          colors: [Color(nsColor: .textBackgroundColor).opacity(0.94), .clear],
+          startPoint: .top,
+          endPoint: .bottom
+        )
+        .frame(height: 40)
+        .allowsHitTesting(false)
+
+        if let hero = presentation.heroEvent, !heroIsVisible {
+          CondensedHeroStrip(event: hero, model: model, now: now)
+            .transition(.opacity)
+            .zIndex(2)
+        }
+      }
+      .animation(.easeInOut(duration: Theme.hoverFadeDuration), value: heroIsVisible)
+    }
+    .frame(maxHeight: .infinity)
   }
 
-  /// Identifies the actual occupants of the hero and NOW strip, so the slot
-  /// crossfade is keyed on what is rendered rather than on the menubar's
-  /// divergent would-be hero.
-  private func heroStripSlots(for occupancy: HeroSlotOccupancy) -> [String?] {
-    let heroSlot = occupancy.showsFreeDayHero
-      ? "free-day"
-      : occupancy.heroEvent?.actionKey
-    return [heroSlot, occupancy.nowStripEvent?.actionKey]
+  private func timelineScrollView(
+    sections: [(section: DaySection, items: [PopoverListItem])],
+    target: String?,
+    presentation: TimelinePresentation,
+    now: Date,
+    viewportHeight: CGFloat
+  ) -> some View {
+    ScrollViewReader { proxy in
+      ScrollView(.vertical) {
+        VStack(alignment: .leading, spacing: 0) {
+          ForEach(sections, id: \.section.id) { entry in
+            TimelineDayHeader(day: entry.section.day, now: now)
+            ForEach(entry.items) { item in
+              timelineItem(item, presentation: presentation, now: now)
+            }
+          }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, Theme.Spacing.xs)
+        .padding(.bottom, Theme.Spacing.md)
+      }
+      .coordinateSpace(name: TimelineScrollSpace.name)
+      .onAppear {
+        scrollToInitialTarget(target, using: proxy)
+      }
+      .onChange(of: scrollResetToken) { _ in
+        scrollToInitialTarget(target, using: proxy)
+      }
+      .onPreferenceChange(HeroFramePreferenceKey.self) { frame in
+        guard presentation.heroEvent != nil else {
+          heroIsVisible = true
+          return
+        }
+        guard let frame else { return }
+        heroIsVisible = frame.maxY > 0 && frame.minY < viewportHeight
+      }
+    }
   }
 
   @ViewBuilder
-  private func heroSlot(occupancy: HeroSlotOccupancy, now: Date) -> some View {
-
-    VStack(spacing: 0) {
-      if let strip = occupancy.nowStripEvent {
-        NowStripSection(event: strip, model: model, now: now)
-          .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
-        Divider()
-      }
-      if let hero = occupancy.heroEvent {
-        HeroSection(event: hero, model: model, now: now)
-          .id(hero.actionKey)
-          .transition(.opacity)
-        Divider()
-      } else if occupancy.showsFreeDayHero {
-        FreeDayHeroSection(nextEvent: occupancy.freeDayNextEvent, now: now)
-          .id("free-day")
-          .transition(.opacity)
-        Divider()
-      }
-    }
-    .animation(.easeInOut(duration: 0.3), value: heroStripSlots(for: occupancy))
-  }
-
-  /// Neither the hero event nor the NOW strip event may also appear in the
-  /// list below them; any gap large enough to earn a "free until …" divider
-  /// is computed on whatever remains after that filter. A section left with
-  /// no rows at all is dropped entirely — its only events are already pinned
-  /// above the list, and an empty day header under them would read as a free
-  /// day. Future days with no events are synthesized only when their complete
-  /// local day is inside the fetched snapshot window. This marker makes the same
-  /// implicit fetched-window claim as the existing "free until …" rows, so it
-  /// intentionally has no extra coverage or error gate.
-  static func visibleSections(
-    _ sections: [DaySection],
-    occupancy: HeroSlotOccupancy,
-    now: Date,
-    coverageEnd: Date?
-  ) -> [(section: DaySection, items: [PopoverListItem])] {
-    let calendar = Calendar.current
-    let today = calendar.startOfDay(for: now)
-
-    let sectionsByDay = mergedSectionsByDay(sections, calendar: calendar)
-
-    func visibleItems(for section: DaySection) -> [PopoverListItem]? {
-      let rows = rowsExcludingRenderedSlots(section.rows, occupancy: occupancy)
-      guard !rows.isEmpty else { return nil }
-      return AppModel.insertingFreeGaps(rows, now: now)
-    }
-
-    // Real sections are appended directly, including sections outside the
-    // current coverage horizon. A far-future event therefore cannot make the
-    // synthesis loop walk all the way to its day.
-    var visible: [(section: DaySection, items: [PopoverListItem])] = []
-    for day in sectionsByDay.keys.sorted() {
-      guard let section = sectionsByDay[day], let items = visibleItems(for: section) else {
-        continue
-      }
-      visible.append((section, items))
-    }
-
-    // A day is fully covered only when the next local midnight is at or before
-    // the fetched snapshot's actual `timeMax`. Derive the last eligible day
-    // directly so a far-future real section cannot extend this bounded walk.
-    if let coverageEnd,
-       let firstFutureDay = calendar.date(byAdding: .day, value: 1, to: today),
-       let lastFullyCoveredDay = calendar.date(
-         byAdding: .day,
-         value: -1,
-         to: calendar.startOfDay(for: coverageEnd)
-       ) {
-      // Occupancy is checked before hero/NOW-strip deduplication: pinning an
-      // overnight event must not make its end day look empty. Timed intervals
-      // are [start, end), so an end exactly at local midnight belongs to the
-      // prior day. Testing overlap per candidate day (instead of enumerating
-      // each event's full duration) keeps the work bounded by the coverage
-      // horizon even for pathologically long events.
-      func isOccupiedByTimedEvent(_ day: Date) -> Bool {
-        guard let nextMidnight = calendar.date(byAdding: .day, value: 1, to: day) else {
-          return false
-        }
-        return sectionsByDay.values.contains { section in
-          section.rows.contains { row in
-            !row.event.allDay
-              && row.event.startDate < nextMidnight
-              && row.event.endDate > day
-          }
-        }
-      }
-
-      var day = calendar.startOfDay(for: firstFutureDay)
-      while day <= lastFullyCoveredDay {
-        if sectionsByDay[day] == nil, !isOccupiedByTimedEvent(day) {
-          visible.append((
-            DaySection(day: day, rows: []),
-            [.freeDay(day)]
-          ))
-        }
-        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day) else {
-          break
-        }
-        day = calendar.startOfDay(for: nextDay)
-      }
-    }
-
-    return visible.sorted { $0.section.day < $1.section.day }
-  }
-
-  /// `groupByDay` currently guarantees one section per day, but keep this
-  /// helper defensive: if callers ever provide colliding sections, merge
-  /// their rows instead of silently losing one section's events.
-  private static func mergedSectionsByDay(
-    _ sections: [DaySection],
-    calendar: Calendar
-  ) -> [Date: DaySection] {
-    var sectionsByDay: [Date: DaySection] = [:]
-    for section in sections {
-      let day = calendar.startOfDay(for: section.day)
-      let rows = section.rows.map { DayEvent(day: day, event: $0.event) }
-      if var existing = sectionsByDay[day] {
-        existing.rows.append(contentsOf: rows)
-        existing.rows.sort { lhs, rhs in
-          if lhs.event.allDay != rhs.event.allDay {
-            return lhs.event.allDay
-          }
-          if lhs.event.startDate != rhs.event.startDate {
-            return lhs.event.startDate < rhs.event.startDate
-          }
-          return lhs.event.actionKey < rhs.event.actionKey
-        }
-        sectionsByDay[day] = existing
-      } else {
-        sectionsByDay[day] = DaySection(day: day, rows: rows)
-      }
-    }
-    return sectionsByDay
-  }
-
-  static func rowsExcludingRenderedSlots(
-    _ rows: [DayEvent],
-    occupancy: HeroSlotOccupancy
-  ) -> [DayEvent] {
-    let pinnedKeys = Set([
-      occupancy.heroEvent?.actionKey,
-      occupancy.nowStripEvent?.actionKey
-    ].compactMap { $0 })
-    return rows.filter { !pinnedKeys.contains($0.event.actionKey) }
-  }
-
-  /// When the hero event is in progress, the first still-upcoming timed row
-  /// in the list (across all sections, in the order they're shown) gets a
-  /// "· in 25m" suffix appended to its metadata line.
-  private func upcomingRelativeTimeRowKey(
-    occupancy: HeroSlotOccupancy,
+  private func timelineItem(
+    _ item: PopoverListItem,
+    presentation: TimelinePresentation,
     now: Date
-  ) -> String? {
-    guard let hero = occupancy.heroEvent else { return nil }
-    guard hero.startDate <= now, hero.endDate > now else { return nil }
-    for section in model.daySections(now: now) {
-      for row in section.rows where row.event.actionKey != hero.actionKey {
-        guard !row.event.allDay, row.event.startDate > now else { continue }
-        return row.event.actionKey
+  ) -> some View {
+    switch item {
+    case .event(let dayEvent):
+      let event = dayEvent.event
+      let isHero = presentation.heroEvent?.actionKey == event.actionKey
+      let isNow = presentation.nowEmphasisEvent?.actionKey == event.actionKey
+      let nextEvent = AppModel.nextTimelineEvent(
+        heroEvent: presentation.heroEvent,
+        timed: model.state.events,
+        now: now
+      )
+      let isNext = nextEvent?.actionKey == event.actionKey
+      if isHero {
+        HeroTimelineRow(event: event, model: model, now: now)
+          .background(heroFrameTracker)
+          .id(item.id)
+      } else {
+        EventRow(
+          event: event,
+          day: dayEvent.day,
+          model: model,
+          now: now,
+          isNowEmphasized: isNow,
+          isNext: isNext
+        )
+        .id(item.id)
       }
+    case .gap(let gap):
+      FreeGapRow(gap: gap)
+        .id(item.id)
+    case .freeDay:
+      FreeDayRow()
+        .id(item.id)
+    case .freeDayHero:
+      FreeDayTimelineRow(nextEvent: presentation.freeDayNextEvent, now: now)
+        .id(item.id)
+    case .nowLine(let date):
+      NowLineRow(now: date)
+        .id(item.id)
     }
-    return nil
   }
 
-  private func minutesFromNow(_ date: Date, now: Date) -> Int {
-    max(0, Int((date.timeIntervalSince(now) / 60).rounded()))
+  private var heroFrameTracker: some View {
+    GeometryReader { proxy in
+      Color.clear.preference(
+        key: HeroFramePreferenceKey.self,
+        value: proxy.frame(in: .named(TimelineScrollSpace.name))
+      )
+    }
+  }
+
+  private func initialTimelineTarget(
+    sections: [(section: DaySection, items: [PopoverListItem])],
+    presentation: TimelinePresentation
+  ) -> String? {
+    if let hero = presentation.heroEvent {
+      for entry in sections {
+        if let item = entry.items.first(where: { item in
+          guard case .event(let dayEvent) = item else { return false }
+          return dayEvent.event.actionKey == hero.actionKey
+        }) {
+          return item.id
+        }
+      }
+    }
+    if presentation.showsFreeDayHero,
+       let freeDayHero = sections.flatMap(\.items).first(where: {
+         if case .freeDayHero = $0 { return true }
+         return false
+       }) {
+      return freeDayHero.id
+    }
+    if let nowLine = sections.flatMap(\.items).first(where: {
+      if case .nowLine = $0 { return true }
+      return false
+    }) {
+      return nowLine.id
+    }
+    if let nowEvent = presentation.nowEmphasisEvent,
+       let item = sections.flatMap(\.items).first(where: { item in
+         guard case .event(let dayEvent) = item else { return false }
+         return dayEvent.event.actionKey == nowEvent.actionKey
+       }) {
+      return item.id
+    }
+    return sections.flatMap(\.items).first?.id
+  }
+
+  private func scrollToInitialTarget(_ target: String?, using proxy: ScrollViewProxy) {
+    guard let target else { return }
+    DispatchQueue.main.async {
+      if reduceMotion {
+        proxy.scrollTo(target, anchor: .top)
+      } else {
+        withAnimation(.easeOut(duration: 0.15)) {
+          proxy.scrollTo(target, anchor: .top)
+        }
+      }
+    }
   }
 
   private func footer(now: Date) -> some View {
@@ -550,134 +455,263 @@ private struct FeatureRow: View {
   }
 }
 
-/// The "Up next" hero pinned above the popover's event list: the same event
-/// the menubar countdown shows (`AppModel.menubarEvent`). Flat layout — no
-/// card background or rounded rect — so it reads as part of the popover's
-/// top edge rather than a separate surface; `PanelView` draws the hairline
-/// `Divider` below it. The containing panel timeline supplies the shared `now`
-/// so its relative time and elapsed bar stay in sync with the rest of the panel.
-private struct HeroSection: View {
-  var event: CalendarEvent
-  @ObservedObject var model: AppModel
+private struct TimelineDayHeader: View {
+  var day: Date
   var now: Date
 
   var body: some View {
-    HeroContent(event: event, model: model, now: now)
+    Text(dayHeader(day, now: now))
+      .font(.caption.weight(.bold))
+      .foregroundStyle(.secondary)
+      .padding(.horizontal, Theme.Spacing.lg)
+      .padding(.top, Theme.Spacing.md)
+      .padding(.bottom, Theme.Spacing.xs)
   }
 }
 
-/// The non-interactive hero shown when there are no remaining timed events
-/// today. The containing hero slot supplies a 30-second timeline so its
-/// time-dependent decision is reevaluated while the popover remains open.
-private struct FreeDayHeroSection: View {
-  var nextEvent: CalendarEvent?
+private struct TimelineTimeLabel: View {
+  var label: String
+  var color: Color = .secondary
+  var weight: Font.Weight = .regular
+
+  var body: some View {
+    Text(label)
+      .font(.system(.caption2, design: .monospaced).weight(weight))
+      .foregroundStyle(color)
+      .lineLimit(1)
+      .fixedSize(horizontal: true, vertical: false)
+      .frame(width: clockColumnWidth(), alignment: .trailing)
+      .padding(.trailing, Theme.Spacing.sm)
+  }
+}
+
+private struct TimelineRailNode: View {
+  var color: Color
+  var emphasized = false
+
+  var body: some View {
+    ZStack {
+      Rectangle()
+        .fill(Theme.hairline)
+        .frame(width: 2)
+        .frame(maxHeight: .infinity)
+      Circle()
+        .fill(color)
+        .frame(width: emphasized ? 13 : 9, height: emphasized ? 13 : 9)
+        .overlay {
+          Circle()
+            .stroke(Color(nsColor: .textBackgroundColor), lineWidth: 3)
+        }
+    }
+    .frame(width: 22)
+  }
+}
+
+private struct TimelineDashedRail: View {
+  var body: some View {
+    Path { path in
+      path.move(to: CGPoint(x: 1, y: 0))
+      path.addLine(to: CGPoint(x: 1, y: 30))
+    }
+    .stroke(
+      Theme.hairline,
+      style: StrokeStyle(lineWidth: 2, dash: [4, 3], dashPhase: 0)
+    )
+    .frame(width: 22, height: 30)
+  }
+}
+
+private struct NowLineRow: View {
   var now: Date
 
   var body: some View {
-    FreeDayHeroContent(nextEvent: nextEvent, now: now)
+    HStack(spacing: 0) {
+      TimelineTimeLabel(label: clock(now), color: .green, weight: .bold)
+      ZStack(alignment: .leading) {
+        Rectangle()
+          .fill(Color.green)
+          .frame(height: 2)
+          .frame(maxWidth: .infinity)
+          .clipShape(Capsule())
+        Circle()
+          .fill(Color.green)
+          .frame(width: 8, height: 8)
+          .offset(x: 7)
+      }
+      .frame(maxWidth: .infinity)
+      .frame(height: 12)
+    }
+    .padding(.horizontal, Theme.Spacing.lg)
+    .padding(.vertical, Theme.Spacing.xs)
+    .id("now-line")
   }
 }
 
-private struct FreeDayHeroContent: View {
+private struct FreeGapRow: View {
+  var gap: FreeGap
+
+  var body: some View {
+    HStack(spacing: 0) {
+      TimelineTimeLabel(label: "")
+      TimelineDashedRail()
+      Text(
+        loc(
+          "free until %@ · %@",
+          clock(gap.until),
+          loc("%dm", gap.durationMinutes)
+        )
+      )
+      .font(.caption2)
+      .foregroundStyle(.secondary)
+      .lineLimit(1)
+      .fixedSize(horizontal: true, vertical: false)
+      .padding(.leading, Theme.Spacing.sm)
+    }
+    .padding(.horizontal, Theme.Spacing.lg)
+    .padding(.vertical, Theme.Spacing.xs)
+  }
+}
+
+private struct FreeDayRow: View {
+  var body: some View {
+    HStack(spacing: 0) {
+      TimelineTimeLabel(label: "")
+      TimelineDashedRail()
+      HStack(spacing: Theme.Spacing.xs) {
+        Image(systemName: "sun.max.fill")
+          .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
+        Text(loc("free all day"))
+      }
+      .font(.caption2)
+      .foregroundStyle(.secondary)
+      .fixedSize(horizontal: true, vertical: false)
+      .padding(.leading, Theme.Spacing.sm)
+    }
+    .padding(.horizontal, Theme.Spacing.lg)
+    .padding(.vertical, Theme.Spacing.xs)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(loc("free all day"))
+  }
+}
+
+private struct FreeDayTimelineRow: View {
   var nextEvent: CalendarEvent?
   var now: Date
 
   private var nextWhen: String? {
     guard let nextEvent else { return nil }
-    return "\(inlineDay(nextEvent.startDate)) \(clock(nextEvent.startDate))"
-  }
-
-  private var nextSummary: String? {
-    guard let nextEvent, let nextWhen else { return nil }
-    return "\(nextWhen) \(nextEvent.title)"
+    let header = dayHeader(nextEvent.startDate, now: now)
+    let inlineHeader = header == loc("Today") || header == loc("Tomorrow")
+      ? header.lowercased()
+      : header
+    return "\(inlineHeader) \(clock(nextEvent.startDate))"
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-      HStack(alignment: .firstTextBaseline) {
-        Text(loc("No more events today"))
-          .font(.caption.weight(.bold))
-          .tracking(0.8)
-          .textCase(.uppercase)
-          .foregroundStyle(Color.green)
-        Spacer(minLength: Theme.Spacing.sm)
-        if let nextWhen {
-          Text(loc("until %@", nextWhen))
-            .font(.system(size: 12, weight: .semibold))
-            .monospacedDigit()
-            .foregroundStyle(Color.green)
+    HStack(alignment: .top, spacing: 0) {
+      TimelineTimeLabel(label: "")
+      TimelineRailNode(color: .green, emphasized: true)
+      VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+        HStack(alignment: .firstTextBaseline) {
+          Text(loc("No more events today"))
+            .font(.caption.weight(.bold))
+            .tracking(0.8)
+            .textCase(.uppercase)
+            .foregroundStyle(.green)
+          Spacer(minLength: Theme.Spacing.sm)
+          if let nextWhen {
+            Text(loc("until %@", nextWhen))
+              .font(.system(size: 12, weight: .semibold))
+              .monospacedDigit()
+              .foregroundStyle(.green)
+          }
+        }
+        HStack(spacing: Theme.Spacing.sm) {
+          Image(systemName: "sun.max.fill")
+            .foregroundStyle(.green)
+            .accessibilityHidden(true)
+          Text(loc("Free"))
+        }
+        .font(.system(size: 16, weight: .semibold))
+        if let nextEvent, let nextWhen {
+          Text(loc("Next: %@", "\(nextWhen) \(nextEvent.title)"))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
         }
       }
-
-      HStack(spacing: Theme.Spacing.sm) {
-        Image(systemName: "sun.max.fill")
-          .foregroundStyle(Color.green)
-          .accessibilityHidden(true)
-        Text(loc("Free"))
-      }
-      .font(.system(size: 16, weight: .semibold))
-
-      if let nextSummary {
-        Text(loc("Next: %@", nextSummary))
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
+      .padding(.leading, Theme.Spacing.sm)
+      .padding(.horizontal, Theme.Spacing.md)
+      .padding(.vertical, Theme.Spacing.md)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(
+        LinearGradient(
+          colors: [Color.green.opacity(0.09), Color.green.opacity(0.025)],
+          startPoint: .top,
+          endPoint: .bottom
+        ),
+        in: RoundedRectangle(cornerRadius: Theme.Radius.md)
+      )
+      .overlay {
+        RoundedRectangle(cornerRadius: Theme.Radius.md)
+          .stroke(Color.green.opacity(0.22))
       }
     }
     .padding(.horizontal, Theme.Spacing.lg)
-    .padding(.top, Theme.Spacing.md + 2)
-    .padding(.bottom, Theme.Spacing.md + 3)
+    .padding(.vertical, Theme.Spacing.xs)
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel(accessibilityLabel)
-  }
-
-  private var accessibilityLabel: String {
-    var parts = [loc("Free"), loc("No more events today")]
-    if let nextSummary {
-      parts.append(loc("Next: %@", nextSummary))
-    }
-    let isJapanese = Locale.current.identifier.hasPrefix("ja")
-    return parts.joined(separator: isJapanese ? "。" : ". ") + (isJapanese ? "。" : ".")
-  }
-
-  /// Mid-sentence day wording: "Today"/"Tomorrow" read as ordinary words and
-  /// lowercase naturally, but formatter output ("Friday, Aug 14") must keep
-  /// its casing.
-  private func inlineDay(_ date: Date) -> String {
-    let header = dayHeader(date, now: now)
-    return header == loc("Today") || header == loc("Tomorrow")
-      ? header.lowercased()
-      : header
+    .accessibilityLabel(loc("Free"))
   }
 }
 
-private struct HeroContent: View {
+private struct HeroProgressBar: View {
+  var fraction: Double
+  var height: CGFloat = 3
+  var cornerRadius: CGFloat = 2
+  var trackOpacity: Double = 0.18
+
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack(alignment: .leading) {
+        RoundedRectangle(cornerRadius: cornerRadius)
+          .fill(Color.green.opacity(trackOpacity))
+        RoundedRectangle(cornerRadius: cornerRadius)
+          .fill(Color.green)
+          .frame(width: proxy.size.width * fraction)
+      }
+    }
+    .frame(height: height)
+  }
+}
+
+private struct HeroTimelineRow: View {
   var event: CalendarEvent
   @ObservedObject var model: AppModel
   var now: Date
 
-  /// Drives the hover-reveal of the "Create notes" possibility — same ghost
-  /// pattern as `EventRow`'s `isHovered`, scoped to the hero's own tappable
-  /// area so a neighboring section's hover can't trigger it.
   @State private var isHovered = false
 
   private var inProgress: Bool {
-    event.startDate <= now && event.endDate > now
+    AppModel.menubarHeroState(event: event, now: now) == .now
   }
 
   private var tintColor: Color {
     inProgress ? .green : .accentColor
   }
 
-  /// Same day key `EventRow` uses for `model.toggleExpanded`/`isExpanded`, so
-  /// the hero shares expansion state with the row this event would otherwise
-  /// occupy.
   private var day: Date {
     Calendar.current.startOfDay(for: event.startDate)
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+    HStack(alignment: .top, spacing: 0) {
+      TimelineTimeLabel(
+        label: event.allDay ? loc("all-day") : clock(event.startDate),
+        color: tintColor,
+        weight: .bold
+      )
+      TimelineRailNode(color: tintColor, emphasized: true)
       VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
         HStack(alignment: .firstTextBaseline) {
           Text(kickerText)
@@ -697,7 +731,7 @@ private struct HeroContent: View {
         }
 
         Text(event.title)
-          .font(.system(size: 16, weight: .semibold))
+          .font(.system(size: 15, weight: .bold))
           .lineLimit(2)
 
         if !metadataLine.isEmpty {
@@ -707,7 +741,7 @@ private struct HeroContent: View {
             .lineLimit(1)
         }
 
-        HStack(spacing: Theme.Spacing.sm) {
+        HStack(spacing: Theme.Spacing.xs) {
           if !event.conferenceUrl.isEmpty {
             Button {
               model.join(event)
@@ -717,9 +751,63 @@ private struct HeroContent: View {
             .buttonStyle(.borderedProminent)
             .tint(tintColor)
           }
-          NoteActionButton(event: event, model: model, showsLabel: true, containerHovered: isHovered)
+          NoteActionButton(
+            event: event,
+            model: model,
+            showsLabel: true,
+            containerHovered: isHovered
+          )
+          QuietButton(systemImage: "arrow.up.right", label: loc("Open in Calendar")) {
+            model.open(event)
+          }
         }
-        .padding(.top, 2)
+        .padding(.top, Theme.Spacing.xs)
+
+        if model.isExpanded(event, on: day) {
+          EventDetailView(event: event, model: model)
+            .transition(
+              .asymmetric(
+                insertion: .opacity.animation(.easeInOut(duration: 0.12).delay(0.15)),
+                removal: .opacity.animation(.easeInOut(duration: 0.08))
+              )
+            )
+        }
+
+        if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
+          ExternalShareOverlay(prompt: prompt, model: model)
+        }
+
+        if let issue = model.noteError(for: event) {
+          NoteErrorOverlay(issue: issue) {
+            switch issue.kind {
+            case .retry:
+              model.createOrOpenNote(for: event)
+            case .reauthorize(let email):
+              model.startReauthorize(email: email)
+            }
+          }
+        }
+
+        if let error = model.conferenceError(for: event) {
+          NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
+            model.addConference(for: event)
+          }
+        }
+      }
+      .padding(.horizontal, Theme.Spacing.md)
+      .padding(.vertical, Theme.Spacing.md)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(
+        LinearGradient(
+          colors: [tintColor.opacity(inProgress ? 0.12 : 0.08), tintColor.opacity(0.025)],
+          startPoint: .top,
+          endPoint: .bottom
+        ),
+        in: RoundedRectangle(cornerRadius: Theme.Radius.md)
+      )
+      .overlay {
+        RoundedRectangle(cornerRadius: Theme.Radius.md)
+          .stroke(tintColor.opacity(0.28))
       }
       .contentShape(Rectangle())
       .onTapGesture {
@@ -728,48 +816,13 @@ private struct HeroContent: View {
         }
       }
       .onHover { isHovered = $0 }
-
-      if model.isExpanded(event, on: day) {
-        // Unlike list rows, the hero isn't clipped by a List row, so a sliding
-        // detail would overlap the buttons above it mid-animation. Instead the
-        // section grows first and the text fades in only once the space is
-        // there; on collapse the text vanishes before the section shrinks.
-        EventDetailView(event: event, model: model)
-          .transition(
-            .asymmetric(
-              insertion: .opacity.animation(.easeInOut(duration: 0.12).delay(0.15)),
-              removal: .opacity.animation(.easeInOut(duration: 0.08))
-            )
-          )
+      .contextMenu {
+        eventContextMenuItems(event: event, model: model)
       }
-
-      if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
-        ExternalShareOverlay(prompt: prompt, model: model)
-      }
-
-      if let issue = model.noteError(for: event) {
-        NoteErrorOverlay(issue: issue) {
-          switch issue.kind {
-          case .retry:
-            model.createOrOpenNote(for: event)
-          case .reauthorize(let email):
-            model.startReauthorize(email: email)
-          }
-        }
-      }
-
-      if let error = model.conferenceError(for: event) {
-        NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
-          model.addConference(for: event)
-        }
-      }
+      .padding(.leading, Theme.Spacing.sm)
     }
     .padding(.horizontal, Theme.Spacing.lg)
-    .padding(.top, Theme.Spacing.md + 2)
-    .padding(.bottom, Theme.Spacing.md + 3)
-    .contextMenu {
-      eventContextMenuItems(event: event, model: model)
-    }
+    .padding(.vertical, Theme.Spacing.xs)
   }
 
   private var kickerText: String {
@@ -795,9 +848,6 @@ private struct HeroContent: View {
     if !event.location.isEmpty {
       parts.append(event.location)
     }
-    // Calendars often put the provider's own name in the location field, so
-    // suppress the provider label when it would just repeat the location
-    // ("Google Meet · Google Meet").
     if let provider = EventLinks.meetingProvider(for: event),
        event.location.caseInsensitiveCompare(provider.label) != .orderedSame {
       parts.append(provider.label)
@@ -818,195 +868,71 @@ private struct HeroContent: View {
   }
 }
 
-/// Thin elapsed/duration fill bar. `fraction` is elapsed/duration, clamped to
-/// 0...1. Used inline under the hero's kicker row while its event is in
-/// progress (rounded, 3pt) and full-bleed along the NOW strip's bottom edge
-/// (square, 2pt) — same math, different geometry per call site.
-private struct HeroProgressBar: View {
-  var fraction: Double
-  var height: CGFloat = 3
-  var cornerRadius: CGFloat = 2
-  var trackOpacity: Double = 0.18
-
-  var body: some View {
-    GeometryReader { proxy in
-      ZStack(alignment: .leading) {
-        RoundedRectangle(cornerRadius: cornerRadius)
-          .fill(Color.green.opacity(trackOpacity))
-        RoundedRectangle(cornerRadius: cornerRadius)
-          .fill(Color.green)
-          .frame(width: proxy.size.width * fraction)
-      }
-    }
-    .frame(height: height)
-  }
-}
-
-/// The compact one-line strip pinned above the hero for an event that's in
-/// progress but isn't the hero (see `AppModel.nowStripEvent`) — e.g. once
-/// `menubarPrefersImminentNext` has switched the hero/menubar countdown to
-/// the next event while this one is still running. The containing panel
-/// timeline supplies the shared `now` for its remaining time and progress.
-private struct NowStripSection: View {
+private struct CondensedHeroStrip: View {
   var event: CalendarEvent
   @ObservedObject var model: AppModel
   var now: Date
 
-  var body: some View {
-    NowStripContent(event: event, model: model, now: now)
-  }
-}
-
-private struct NowStripContent: View {
-  var event: CalendarEvent
-  @ObservedObject var model: AppModel
-  var now: Date
-
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  /// Drives the hover-reveal of the join/notes icons — same ghost pattern as
-  /// `EventRow`, tracked here so the reveal only responds to this strip's own
-  /// hover, not a neighboring row's.
-  @State private var isHovered = false
-  @State private var dotDimmed = false
-
-  /// Same day key `EventRow`/`HeroContent` use for `model.toggleExpanded`/
-  /// `isExpanded`, so the strip shares expansion state with the row this
-  /// event would otherwise occupy.
-  private var day: Date {
-    Calendar.current.startOfDay(for: event.startDate)
+  private var heroState: AppModel.MenubarHeroState {
+    AppModel.menubarHeroState(event: event, now: now) ?? .next
   }
 
-  /// Whether anything renders below the strip band (expanded detail or an
-  /// overlay). The band carries its own bottom padding, but content below it
-  /// hangs past the progress-bar edge and would otherwise sit flush against
-  /// the hairline divider under the section.
-  private var showsTrailingContent: Bool {
-    model.isExpanded(event, on: day)
-      || model.externalSharePrompt?.id == event.actionKey
-      || model.noteError(for: event) != nil
-      || model.conferenceError(for: event) != nil
+  private var tintColor: Color {
+    heroState == .now ? .green : .accentColor
+  }
+
+  private var countText: String {
+    heroState == .now
+      ? loc("%@ left", relativeWhen(minutesUntil(event.endDate)))
+      : loc("in %@", relativeWhen(minutesUntil(event.startDate)))
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-      // Mixed type sizes on one line look misaligned when centered by frame,
-      // so the row shares a text baseline — same rule as the hero's kicker
-      // row. The dot has no baseline of its own; pairing it with the kicker
-      // keeps it optically centered on the small text instead of sitting on
-      // the baseline like a period.
-      HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.sm) {
-        HStack(spacing: Theme.Spacing.sm) {
-          dot
-          Text(loc("Now"))
-            .font(.system(size: 9.5, weight: .bold))
-            .tracking(0.8)
-            .textCase(.uppercase)
-            .foregroundStyle(Color.green)
+    HStack(spacing: Theme.Spacing.sm) {
+      Text(heroState == .now ? loc("NOW") : loc("NEXT"))
+        .font(.caption2.weight(.bold))
+        .tracking(0.6)
+        .foregroundStyle(tintColor)
+        .padding(.horizontal, Theme.Spacing.sm)
+        .padding(.vertical, 2)
+        .overlay {
+          Capsule().stroke(tintColor, lineWidth: 1.5)
         }
-
-        Text(event.title)
-          .font(.system(size: 12.5, weight: .medium))
-          .lineLimit(1)
-          .frame(maxWidth: .infinity, alignment: .leading)
-
-        HStack(spacing: Theme.Spacing.xs) {
-          if !event.conferenceUrl.isEmpty {
-            JoinVideoCallButton(event: event, model: model)
-              .revealOnHover(isHovered)
-          }
-          NoteActionButton(event: event, model: model, containerHovered: nil)
-            .revealOnHover(isHovered)
+      Text(event.title)
+        .font(.system(size: 12, weight: .bold))
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      Text(countText)
+        .font(.system(size: 11, weight: .bold))
+        .monospacedDigit()
+        .foregroundStyle(tintColor)
+        .fixedSize(horizontal: true, vertical: false)
+      if !event.conferenceUrl.isEmpty {
+        Button {
+          model.join(event)
+        } label: {
+          Label(loc("Join"), systemImage: "video.fill")
         }
-
-        Text(loc("%@ left", relativeWhen(minutesUntil(event.endDate))))
-          .font(.system(size: 11.5, weight: .semibold))
-          .monospacedDigit()
-          .foregroundStyle(Color.green)
-      }
-      .padding(.horizontal, Theme.Spacing.lg)
-      .padding(.top, 7)
-      .padding(.bottom, 9)
-      .background(
-        LinearGradient(
-          colors: [Color.green.opacity(0.10), Color.green.opacity(0.03)],
-          startPoint: .top,
-          endPoint: .bottom
-        )
-      )
-      .overlay(alignment: .bottom) {
-        HeroProgressBar(fraction: progressFraction, height: 2, cornerRadius: 0, trackOpacity: 0.16)
-      }
-      .contentShape(Rectangle())
-      .onTapGesture {
-        withAnimation(.easeInOut(duration: 0.2)) {
-          model.toggleExpanded(event, on: day)
-        }
-      }
-      .onHover { isHovered = $0 }
-
-      if model.isExpanded(event, on: day) {
-        // Same asymmetric grow-then-fade as the hero (see `HeroContent`): the
-        // strip isn't clipped by a List row, so the section grows first and
-        // the text fades in only once the space is there.
-        EventDetailView(event: event, model: model)
-          .padding(.horizontal, Theme.Spacing.lg)
-          .transition(
-            .asymmetric(
-              insertion: .opacity.animation(.easeInOut(duration: 0.12).delay(0.15)),
-              removal: .opacity.animation(.easeInOut(duration: 0.08))
-            )
-          )
-      }
-
-      if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
-        ExternalShareOverlay(prompt: prompt, model: model)
-          .padding(.horizontal, Theme.Spacing.lg)
-      }
-
-      if let issue = model.noteError(for: event) {
-        NoteErrorOverlay(issue: issue) {
-          switch issue.kind {
-          case .retry:
-            model.createOrOpenNote(for: event)
-          case .reauthorize(let email):
-            model.startReauthorize(email: email)
-          }
-        }
-        .padding(.horizontal, Theme.Spacing.lg)
-      }
-
-      if let error = model.conferenceError(for: event) {
-        NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
-          model.addConference(for: event)
-        }
-        .padding(.horizontal, Theme.Spacing.lg)
+        .buttonStyle(.borderedProminent)
+        .controlSize(.small)
+        .tint(tintColor)
       }
     }
-    .padding(.bottom, showsTrailingContent ? Theme.Spacing.md : 0)
-    .contextMenu {
-      eventContextMenuItems(event: event, model: model)
+    .padding(.horizontal, Theme.Spacing.md)
+    .padding(.vertical, Theme.Spacing.sm)
+    .background(
+      tintColor.opacity(heroState == .now ? 0.10 : 0.07)
+    )
+    // Opaque base behind the tint: the strip overlays the scrolled rail, so
+    // the tint alone would let the rows underneath bleed through.
+    .background(Color(nsColor: .textBackgroundColor))
+    .overlay(alignment: .bottom) {
+      Rectangle()
+        .fill(tintColor.opacity(0.22))
+        .frame(height: 1)
     }
-  }
-
-  /// Pulses 1 → 0.45 → 1 over a 2.4s cycle; static at full opacity when
-  /// reduce motion is on.
-  private var dot: some View {
-    Circle()
-      .fill(Color.green)
-      .frame(width: 6, height: 6)
-      .opacity(reduceMotion ? 1 : (dotDimmed ? 0.45 : 1))
-      .onAppear {
-        guard !reduceMotion else { return }
-        withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-          dotDimmed = true
-        }
-      }
-  }
-
-  private var progressFraction: Double {
-    let total = event.endDate.timeIntervalSince(event.startDate)
-    guard total > 0 else { return 0 }
-    return max(0, min(1, now.timeIntervalSince(event.startDate) / total))
+    .transition(.opacity)
   }
 
   private func minutesUntil(_ date: Date) -> Int {
@@ -1014,51 +940,8 @@ private struct NowStripContent: View {
   }
 }
 
-/// Slim "free until …" divider shown in the popover list between two timed
-/// rows separated by a gap of at least `AppModel.freeGapThresholdMinutes`
-/// (see `AppModel.insertingFreeGaps`).
-private struct FreeGapRow: View {
-  var until: Date
-
-  var body: some View {
-    HStack(spacing: Theme.Spacing.sm) {
-      Rectangle().fill(Theme.hairline).frame(height: 1)
-      Text(loc("free until %@", clock(until)))
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-        .fixedSize()
-      Rectangle().fill(Theme.hairline).frame(height: 1)
-    }
-    .padding(.vertical, Theme.Spacing.xs)
-    .listRowSeparator(.hidden)
-  }
-}
-
-/// Slim marker for a future day with no events in the fetched window.
-private struct FreeDayRow: View {
-  var body: some View {
-    HStack(spacing: Theme.Spacing.sm) {
-      Rectangle().fill(Theme.hairline).frame(height: 1)
-      HStack(spacing: Theme.Spacing.xs) {
-        Image(systemName: "sun.max.fill")
-          .foregroundStyle(.secondary)
-          .accessibilityHidden(true)
-        Text(loc("free all day"))
-          .font(.caption2)
-          .foregroundStyle(.secondary)
-      }
-      .fixedSize()
-      Rectangle().fill(Theme.hairline).frame(height: 1)
-    }
-    .padding(.vertical, Theme.Spacing.xs)
-    .listRowSeparator(.hidden)
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(loc("free all day"))
-  }
-}
-
-/// Right-click menu content shared by `EventRow` and the "Up next" hero
-/// (`HeroContent`) so both present the identical set of actions for an
+/// Right-click menu content shared by `EventRow` and the inline hero
+/// (`HeroTimelineRow`) so both present the identical set of actions for an
 /// event — join/copy link, open in Calendar, open notes, and skip/unskip in
 /// the menubar.
 @MainActor
@@ -1107,95 +990,113 @@ private func eventContextMenuItems(event: CalendarEvent, model: AppModel) -> som
 }
 
 struct EventRow: View {
-  private static let colorBarWidth: CGFloat = 3
+  private static let railColumnWidth: CGFloat = 22
   private static let timeColumnWidth: CGFloat = clockColumnWidth()
-  private static let detailIndent = colorBarWidth + Theme.Spacing.sm + timeColumnWidth + Theme.Spacing.sm
+  private static let detailIndent =
+    timeColumnWidth + Theme.Spacing.sm + railColumnWidth + Theme.Spacing.sm + Theme.Spacing.md
 
   var event: CalendarEvent
   var day: Date
   @ObservedObject var model: AppModel
-  /// "· in 25m" appended to the metadata line — set by `PanelView` on the
-  /// first upcoming timed row while the hero event is in progress.
-  var relativeTimeSuffix: String?
-  /// Drives the hover-reveal of "add"-type row actions (see `isHovered`
-  /// below); tracked here rather than derived so the reveal only responds to
-  /// this row's own hover, not a neighbor's.
+  var now: Date
+  var isNowEmphasized: Bool
+  var isNext: Bool
+
   @State private var isHovered = false
 
-  init(event: CalendarEvent, day: Date, model: AppModel, relativeTimeSuffix: String? = nil) {
+  init(
+    event: CalendarEvent,
+    day: Date,
+    model: AppModel,
+    now: Date = Date(),
+    isNowEmphasized: Bool = false,
+    isNext: Bool = false
+  ) {
     self.event = event
     self.day = day
     self.model = model
-    self.relativeTimeSuffix = relativeTimeSuffix
+    self.now = now
+    self.isNowEmphasized = isNowEmphasized
+    self.isNext = isNext
   }
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-      HStack(spacing: Theme.Spacing.sm) {
-        RoundedRectangle(cornerRadius: 1.5)
-          .fill(eventColor)
-          .frame(width: Self.colorBarWidth)
-          .accessibilityHidden(true)
+      HStack(alignment: .top, spacing: 0) {
+        TimelineTimeLabel(
+          label: event.allDay ? loc("all-day") : clock(event.startDate),
+          color: isNowEmphasized ? .green : .secondary,
+          weight: isNowEmphasized ? .bold : .regular
+        )
+        TimelineRailNode(
+          color: isNowEmphasized ? .green : eventColor,
+          emphasized: isNowEmphasized
+        )
+        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+          VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: Theme.Spacing.xs) {
+              Text(event.title)
+                .font((isNowEmphasized || isNext) ? .body.weight(.bold) : .body)
+                .lineLimit(2)
+                .strikethrough(isPast, color: .secondary)
+              if isNowEmphasized {
+                StateChip(label: loc("NOW"), color: .green)
+              }
+              if isNext {
+                StateChip(
+                  label: loc("NEXT · in %@", relativeWhen(minutesUntil(event.startDate))),
+                  color: .accentColor
+                )
+              }
+              if isSkipped {
+                SkippedBadge()
+              }
+            }
 
-        Text(event.allDay ? loc("all-day") : clock(event.startDate))
-          .font(.system(.caption, design: .monospaced))
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
-          .fixedSize(horizontal: true, vertical: false)
-          .frame(width: Self.timeColumnWidth, alignment: .leading)
-
-        VStack(alignment: .leading, spacing: 3) {
-          HStack(spacing: Theme.Spacing.xs) {
-            Text(event.title)
-              .font(.body)
-              .lineLimit(2)
-            if isSkipped {
-              SkippedBadge()
+            if !metadataLine.isEmpty {
+              Text(metadataLine)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
             }
           }
-          if !metadata.isEmpty || relativeTimeSuffix != nil {
-            // The relative time is its own fixed-size Text so a long
-            // location/attendee list truncates instead of eating "in 25m".
-            HStack(spacing: 0) {
-              if !metadata.isEmpty {
-                Text(metadata)
-                  .lineLimit(1)
+          .frame(maxWidth: .infinity, alignment: .leading)
+
+          Spacer(minLength: Theme.Spacing.sm)
+
+          HStack(spacing: Theme.Spacing.xs) {
+            if isSkipped {
+              IconButton(systemImage: "arrow.uturn.backward") {
+                model.unskipInMenubar(event)
               }
-              if let suffix = relativeTimeSuffix {
-                Text(metadata.isEmpty ? suffix : " · " + suffix)
-                  .lineLimit(1)
-                  .fixedSize(horizontal: true, vertical: false)
-                  .layoutPriority(1)
-              }
+              .help(loc("Show in menubar"))
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+
+            if !event.conferenceUrl.isEmpty {
+              JoinVideoCallButton(event: event, model: model)
+            } else if !event.allDay {
+              ConferenceActionButton(event: event, model: model)
+                .revealOnHover(isHovered)
+            }
+
+            NoteActionButton(event: event, model: model, containerHovered: isHovered)
           }
         }
-
-        Spacer(minLength: Theme.Spacing.sm)
-
-        HStack(spacing: Theme.Spacing.xs) {
-          if isSkipped {
-            IconButton(systemImage: "arrow.uturn.backward") {
-              model.unskipInMenubar(event)
-            }
-            .help(loc("Show in menubar"))
-          }
-
-          // State (a link/note that already exists) renders as a persistent
-          // IconButton; possibility (no link/note yet — an "add"-type action)
-          // only fades in on row hover via `revealOnHover`, so accent color
-          // is never a resting state, only a hover one. All-day rows never
-          // get a "add video call" action, hover or not.
-          if !event.conferenceUrl.isEmpty {
-            JoinVideoCallButton(event: event, model: model)
-          } else if !event.allDay {
-            ConferenceActionButton(event: event, model: model)
-              .revealOnHover(isHovered)
-          }
-
-          NoteActionButton(event: event, model: model, containerHovered: isHovered)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .padding(.horizontal, Theme.Spacing.lg)
+      .padding(.vertical, Theme.Spacing.xs)
+      .background {
+        if isNowEmphasized {
+          RoundedRectangle(cornerRadius: Theme.Radius.sm)
+            .fill(
+              LinearGradient(
+                colors: [Color.green.opacity(0.09), Color.green.opacity(0.025)],
+                startPoint: .top,
+                endPoint: .bottom
+              )
+            )
+            .padding(.horizontal, Theme.Spacing.sm)
         }
       }
       .contentShape(Rectangle())
@@ -1205,10 +1106,7 @@ struct EventRow: View {
         }
       }
       .onHover { isHovered = $0 }
-      // Dim just the header row (time/title/actions) to signal "hidden from
-      // the menubar" without also fading expanded detail or error overlays,
-      // which stay fully legible.
-      .opacity(isSkipped ? 0.55 : 1)
+      .opacity(rowOpacity)
 
       if model.isExpanded(event, on: day) {
         EventDetailView(event: event, model: model)
@@ -1240,30 +1138,65 @@ struct EventRow: View {
         .padding(.leading, Self.detailIndent)
       }
     }
-    .padding(.vertical, Theme.Spacing.xs)
     .contextMenu {
       eventContextMenuItems(event: event, model: model)
     }
   }
 
-  /// Whether this event is currently hidden from the menubar countdown (see
-  /// `AppModel.skipInMenubar`). Only affects this row's presentation — the
-  /// popover list itself always shows the event.
+  private var isPast: Bool {
+    !event.allDay && event.endDate <= now
+  }
+
   private var isSkipped: Bool {
     model.isSkippedInMenubar(event)
+  }
+
+  private var rowOpacity: Double {
+    if isPast { return 0.5 }
+    return isSkipped ? 0.55 : 1
   }
 
   private var eventColor: Color {
     Color(hex: googleEventColor(event.colorId) ?? event.calendar.backgroundColor) ?? .accentColor
   }
 
-  private var metadata: String {
+  private var metadataLine: String {
+    var parts: [String] = []
+    if !event.location.isEmpty {
+      parts.append(event.location)
+    } else if let provider = EventLinks.meetingProvider(for: event) {
+      parts.append(provider.label)
+    }
     let attendees = attendeeDisplayNames(for: event)
-    let parts: [String?] = [
-      event.location.isEmpty ? nil : event.location,
-      attendees.isEmpty ? nil : attendees.joined(separator: ", ")
-    ]
-    return parts.compactMap { $0 }.joined(separator: " · ")
+    if !attendees.isEmpty {
+      parts.append(attendees.joined(separator: ", "))
+    }
+    if isNowEmphasized {
+      parts.append(loc("ends %@", clock(event.endDate)))
+    }
+    return parts.joined(separator: " · ")
+  }
+
+  private func minutesUntil(_ date: Date) -> Int {
+    max(0, Int((date.timeIntervalSince(now) / 60).rounded()))
+  }
+}
+
+private struct StateChip: View {
+  var label: String
+  var color: Color
+
+  var body: some View {
+    Text(label)
+      .font(.system(size: 9.5, weight: .bold))
+      .tracking(0.05)
+      .foregroundStyle(color)
+      .padding(.horizontal, Theme.Spacing.xs)
+      .padding(.vertical, 1)
+      .overlay {
+        Capsule().stroke(color, lineWidth: 1)
+      }
+      .fixedSize(horizontal: true, vertical: false)
   }
 }
 
@@ -1309,8 +1242,8 @@ private struct NoteActionButton: View {
   /// here rather than at call sites so every surface agrees on it: an
   /// existing or in-flight note is state (always visible), a missing note is
   /// a possibility (visible only while the container is hovered). `nil` opts
-  /// out for containers that manage visibility themselves — the NOW strip
-  /// reveals all of its actions on hover, note or not.
+  /// out for containers that manage visibility themselves — the compact
+  /// condensed hero strip reveals all of its actions on hover, note or not.
   var containerHovered: Bool?
   @State private var showConfirm = false
 

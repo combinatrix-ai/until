@@ -777,14 +777,21 @@ final class AppModel: ObservableObject {
   private func reapplyFilter() {
     let now = Date()
     let refreshed = refreshedRawEvents(now: now)
+    let today = Calendar.current.startOfDay(for: now)
     let passed = RuleEngine.apply(config.filterRules, to: refreshed)
-      .filter { $0.endDate > now }
+      // Keep today's completed rows for the rail. The menubar picker ignores
+      // ended events, while the popover needs them above the now-line so the
+      // current moment has context when it opens.
+      .filter { $0.endDate > today }
     let timed = passed.filter { !$0.allDay }.sorted(by: compareEvents)
     let allDay = passed.filter(\.allDay).sorted { $0.startDate < $1.startDate }
     state.events = timed
     state.allDayEvents = allDay
     state.next = AppModel.pickMenubarEvent(config: config, timed: timed, allDay: allDay, now: now)
-    let notificationEvents = config.notifyVideoOnly ? timed.filter { !$0.conferenceUrl.isEmpty } : timed
+    let activeEvents = timed.filter { $0.endDate > now }
+    let notificationEvents = config.notifyVideoOnly
+      ? activeEvents.filter { !$0.conferenceUrl.isEmpty }
+      : activeEvents
     guard !runtimeOptions.demoMode else { return }
     Task {
       await notifier.sync(
@@ -796,19 +803,15 @@ final class AppModel: ObservableObject {
   }
 
   /// The event shown in the menubar countdown — literally `state.next`
-  /// (see `reapplyFilter`/`pickMenubarEvent`). The popover uses this as its
-  /// would-be hero input, but may intentionally render a free-day hero instead
-  /// when this is a non-imminent event on a later calendar day. `AppDelegate`'s
-  /// status item reads `state.next` directly, so the menubar remains divergent
-  /// by design in that case.
+  /// (see `reapplyFilter`/`pickMenubarEvent`). The popover uses this same
+  /// selection as its inline hero input.
   var menubarEvent: CalendarEvent? {
     state.next
   }
 
-  /// The event shown in the popover's NOW strip (see `pickNowStripEvent`):
-  /// the in-progress event that isn't already rendered as the hero. `nil`
-  /// means no strip should be shown.
-  var nowStripEvent: CalendarEvent? {
+  /// The in-progress event that receives the rail's green NOW treatment when
+  /// it is not already the menubar hero. There is no separate pinned strip.
+  var nowEmphasisEvent: CalendarEvent? {
     AppModel.pickNowStripEvent(menubarEvent: menubarEvent, config: config, timed: state.events, now: Date())
   }
 
@@ -850,7 +853,12 @@ final class AppModel: ObservableObject {
 
     var timedByDay: [Date: [CalendarEvent]] = [:]
     for event in timed {
-      timedByDay[calendar.startOfDay(for: event.startDate), default: []].append(event)
+      let eventDay = calendar.startOfDay(for: event.startDate)
+      // Calendar APIs return an event that overlaps today even when it began
+      // before today's time window. Place that active interval in today's
+      // section so the now-line and hero share one chronological rail.
+      let day = eventDay < windowStart && event.endDate > windowStart ? windowStart : eventDay
+      timedByDay[day, default: []].append(event)
     }
 
     let days = Set(allDayByDay.keys).union(timedByDay.keys).sorted()
@@ -878,7 +886,15 @@ final class AppModel: ObservableObject {
       if !row.event.allDay, let previous = previousTimed {
         let gapMinutes = row.event.startDate.timeIntervalSince(previous.event.endDate) / 60
         if gapMinutes >= Double(freeGapThresholdMinutes), row.event.startDate > now {
-          result.append(.gap(FreeGap(afterActionKey: previous.event.actionKey, until: row.event.startDate)))
+          result.append(
+            .gap(
+              FreeGap(
+                afterActionKey: previous.event.actionKey,
+                until: row.event.startDate,
+                durationMinutes: max(0, Int(gapMinutes.rounded()))
+              )
+            )
+          )
         }
       }
       result.append(.event(row))
@@ -975,16 +991,16 @@ final class AppModel: ObservableObject {
     }
   }
 
-  /// Pure picker for the popover's NOW strip: the in-progress event folded
-  /// into a compact strip pinned above the hero when the hero (`menubarEvent`)
-  /// isn't itself currently running. Mirrors `pickMenubarEvent`'s testable
-  /// shape (explicit `config`/`now`, no `self` access) for the same reason.
+  /// Pure picker for the popover rail's green NOW emphasis: the in-progress
+  /// event that is not itself the inline hero (`menubarEvent`). Mirrors
+  /// `pickMenubarEvent`'s testable shape (explicit `config`/`now`, no `self`
+  /// access) for the same reason.
   ///
   /// Returns nil whenever `menubarEvent` is a timed, in-progress event — the
   /// hero already renders that "Now" state, and showing the same event in
-  /// both the hero and the strip would be redundant. An all-day menubar event
-  /// is never "in progress" for this purpose (the hero has no countdown for
-  /// it), so it never suppresses the strip.
+  /// both the hero and the rail emphasis would be redundant. An all-day
+  /// menubar event is never "in progress" for this purpose (the hero has no
+  /// countdown for it), so it never suppresses the emphasis.
   ///
   /// Otherwise, among `timed`, candidates are events currently in progress,
   /// not menubar-skipped (a skip means "stop surfacing this near the
@@ -993,7 +1009,7 @@ final class AppModel: ObservableObject {
   /// next free" — the opposite tie-break from `pickMenubarEvent` (latest
   /// started): the two answer different questions, so a double booking can
   /// legitimately show one event in the hero and a different one in the
-  /// strip. Ties (equal endDate) fall back to `timed`'s existing order.
+  /// rail. Ties (equal endDate) fall back to `timed`'s existing order.
   /// All-day events never qualify since callers only pass timed events in.
   static func pickNowStripEvent(
     menubarEvent: CalendarEvent?,
@@ -1018,6 +1034,223 @@ final class AppModel: ObservableObject {
       }
     }
     return soonestEnding
+  }
+
+  /// Derives the hero's visual state from the same menubar event that drives
+  /// the status item. All-day events intentionally have no card state because
+  /// they have no countdown to display.
+  enum MenubarHeroState: Equatable {
+    case now
+    case next
+  }
+
+  static func menubarHeroState(event: CalendarEvent?, now: Date) -> MenubarHeroState? {
+    guard let event, !event.allDay, event.endDate > now else { return nil }
+    return event.startDate <= now ? .now : .next
+  }
+
+  /// Returns the number of timed rows before the now-line in one day section.
+  /// `nil` means the current moment is inside a rendered in-progress event, so
+  /// that event's green rail treatment already marks the current position.
+  static func nowLineInsertionIndex(timed: [CalendarEvent], now: Date) -> Int? {
+    let ordered = timed.filter { !$0.allDay }.sorted { lhs, rhs in
+      if lhs.startDate != rhs.startDate { return lhs.startDate < rhs.startDate }
+      return lhs.actionKey < rhs.actionKey
+    }
+    guard !ordered.contains(where: { $0.startDate <= now && $0.endDate > now }) else {
+      return nil
+    }
+    return ordered.prefix { $0.endDate <= now }.count
+  }
+
+  /// The next timed event used for the small NEXT chip. It is only meaningful
+  /// while the menubar hero itself is in progress; an UP NEXT hero is already
+  /// the one event carrying that emphasis.
+  static func nextTimelineEvent(
+    heroEvent: CalendarEvent?,
+    timed: [CalendarEvent],
+    now: Date
+  ) -> CalendarEvent? {
+    guard let heroEvent,
+          menubarHeroState(event: heroEvent, now: now) == .now else { return nil }
+    return timed
+      .filter { !$0.allDay && $0.startDate > now && $0.actionKey != heroEvent.actionKey }
+      .min {
+        if $0.startDate != $1.startDate { return $0.startDate < $1.startDate }
+        return $0.actionKey < $1.actionKey
+      }
+  }
+
+  /// Combines the menubar selection with the popover-only emphasis decisions.
+  /// The hero never gets replaced by a later-day free-day message: that would
+  /// make the popover disagree with the countdown the user just clicked.
+  static func timelinePresentation(
+    menubarEvent: CalendarEvent?,
+    config: AppConfig,
+    timed: [CalendarEvent],
+    now: Date,
+    coverageEnd: Date?
+  ) -> TimelinePresentation {
+    let heroEvent = menubarEvent.flatMap { event in
+      menubarHeroState(event: event, now: now) == nil ? nil : event
+    }
+    let nowEmphasisEvent = pickNowStripEvent(
+      menubarEvent: menubarEvent,
+      config: config,
+      timed: timed,
+      now: now
+    )
+    let freeDayDecision = freeDayHeroNextEvent(timed: timed, now: now)
+    let calendar = Calendar.current
+    let endOfToday = calendar.date(
+      byAdding: .day,
+      value: 1,
+      to: calendar.startOfDay(for: now)
+    ) ?? now
+    let coverageCoversToday = coverageEnd.map { $0 >= endOfToday } ?? false
+    let freeDayNextEvent: CalendarEvent?
+    if case .free(let nextEvent) = freeDayDecision {
+      freeDayNextEvent = nextEvent
+    } else {
+      freeDayNextEvent = nil
+    }
+    let isFreeDay: Bool
+    if case .free = freeDayDecision {
+      isFreeDay = true
+    } else {
+      isFreeDay = false
+    }
+    let showsFreeDayHero = heroEvent == nil && coverageCoversToday && isFreeDay
+
+    return TimelinePresentation(
+      heroEvent: heroEvent,
+      nowEmphasisEvent: nowEmphasisEvent,
+      freeDayNextEvent: showsFreeDayHero ? freeDayNextEvent : nil,
+      showsFreeDayHero: showsFreeDayHero
+    )
+  }
+
+  /// Produces the one continuous sequence rendered by the popover. The hero
+  /// event remains a normal `.event` item and is styled as a card by the view;
+  /// no event is removed for occupying that card or NOW emphasis.
+  static func timelineSections(
+    _ sections: [DaySection],
+    presentation: TimelinePresentation,
+    now: Date,
+    coverageEnd: Date?
+  ) -> [(section: DaySection, items: [PopoverListItem])] {
+    let calendar = Calendar.current
+    let today = calendar.startOfDay(for: now)
+    var sectionsByDay = mergedDaySections(sections)
+    if sectionsByDay[today] == nil {
+      sectionsByDay[today] = DaySection(day: today, rows: [])
+    }
+
+    var visible: [(section: DaySection, items: [PopoverListItem])] = []
+    for day in sectionsByDay.keys.sorted() {
+      guard let section = sectionsByDay[day] else { continue }
+      let items = timelineItems(
+        rows: section.rows,
+        day: section.day,
+        now: now,
+        showsFreeDayHero: presentation.showsFreeDayHero && calendar.isDate(section.day, inSameDayAs: today)
+      )
+      guard !items.isEmpty else { continue }
+      visible.append((section, items))
+    }
+
+    // `.distantFuture` is useful in pure presentation tests to mean "the
+    // snapshot is known complete", but it is not a finite render horizon.
+    // Treat it as complete coverage without attempting to synthesize several
+    // thousand years of empty day sections.
+    if let coverageEnd, coverageEnd != .distantFuture,
+       let firstFutureDay = calendar.date(byAdding: .day, value: 1, to: today),
+       let lastFullyCoveredDay = calendar.date(
+         byAdding: .day,
+         value: -1,
+         to: calendar.startOfDay(for: coverageEnd)
+       ) {
+      func isOccupiedByTimedEvent(_ day: Date) -> Bool {
+        guard let nextMidnight = calendar.date(byAdding: .day, value: 1, to: day) else {
+          return false
+        }
+        return sectionsByDay.values.contains { section in
+          section.rows.contains { row in
+            !row.event.allDay
+              && row.event.startDate < nextMidnight
+              && row.event.endDate > day
+          }
+        }
+      }
+
+      var day = calendar.startOfDay(for: firstFutureDay)
+      while day <= lastFullyCoveredDay {
+        if sectionsByDay[day] == nil, !isOccupiedByTimedEvent(day) {
+          visible.append((DaySection(day: day, rows: []), [.freeDay(day)]))
+        }
+        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+        day = calendar.startOfDay(for: nextDay)
+      }
+    }
+
+    return visible.sorted { $0.section.day < $1.section.day }
+  }
+
+  /// Interleaves free gaps and the now-line without changing the event order.
+  static func timelineItems(
+    rows: [DayEvent],
+    day: Date,
+    now: Date,
+    showsFreeDayHero: Bool
+  ) -> [PopoverListItem] {
+    let calendar = Calendar.current
+    let base = insertingFreeGaps(rows, now: now)
+    let timed = rows.filter { !$0.event.allDay }.map(\.event)
+    let nowIndex = calendar.isDate(day, inSameDayAs: now)
+      ? nowLineInsertionIndex(timed: timed, now: now)
+      : nil
+    var result: [PopoverListItem] = []
+    if showsFreeDayHero {
+      result.append(.freeDayHero(day))
+    }
+
+    var timedSeen = 0
+    var insertedNowLine = false
+    for item in base {
+      if case .event(let dayEvent) = item, !dayEvent.event.allDay,
+         !insertedNowLine, nowIndex == timedSeen {
+        result.append(.nowLine(now))
+        insertedNowLine = true
+      }
+      result.append(item)
+      if case .event(let dayEvent) = item, !dayEvent.event.allDay {
+        timedSeen += 1
+      }
+    }
+    if let nowIndex, !insertedNowLine, nowIndex == timedSeen {
+      result.append(.nowLine(now))
+    }
+    return result
+  }
+
+  private static func mergedDaySections(_ sections: [DaySection]) -> [Date: DaySection] {
+    var sectionsByDay: [Date: DaySection] = [:]
+    for section in sections {
+      let day = Calendar.current.startOfDay(for: section.day)
+      let rows = section.rows.map { DayEvent(day: day, event: $0.event) }
+      if var existing = sectionsByDay[day] {
+        existing.rows.append(contentsOf: rows)
+        existing.rows.sort { lhs, rhs in
+          if lhs.event.allDay != rhs.event.allDay { return lhs.event.allDay }
+          if lhs.event.startDate != rhs.event.startDate { return lhs.event.startDate < rhs.event.startDate }
+          return lhs.event.actionKey < rhs.event.actionKey
+        }
+        sectionsByDay[day] = existing
+      } else {
+        sectionsByDay[day] = DaySection(day: day, rows: rows)
+      }
+    }
+    return sectionsByDay
   }
 
   /// Pure decision for the popover's free-day hero. A timed event that is

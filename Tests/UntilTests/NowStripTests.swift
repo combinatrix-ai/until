@@ -1,10 +1,8 @@
 import XCTest
 @testable import Until
 
-/// Covers the NOW strip feature: `pickMenubarEvent`'s double-booking
-/// tie-break (the most recently entered ongoing event wins, not the
-/// earliest-started one) and the new `pickNowStripEvent` picker that decides
-/// what — if anything — appears in the strip pinned above the hero.
+/// Covers the menubar picker's double-booking tie-break and the picker that
+/// decides which non-hero event receives green NOW treatment in the rail.
 @MainActor
 final class NowStripTests: XCTestCase {
   // MARK: - pickMenubarEvent: double-booking tie-break
@@ -128,6 +126,86 @@ final class NowStripTests: XCTestCase {
     let strip = AppModel.pickNowStripEvent(menubarEvent: nil, config: .default, timed: [upcoming], now: now)
 
     XCTAssertNil(strip)
+  }
+
+  // MARK: - Embedded hero state and now-line placement
+
+  func testMenubarHeroStateDerivesNowFromTheMenubarEvent() {
+    let now = makeDate(year: 2026, month: 7, day: 5, hour: 9, minute: 10)
+    let event = makeEvent(
+      id: "now",
+      startISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 9)),
+      endISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 9, minute: 30))
+    )
+
+    XCTAssertEqual(AppModel.menubarHeroState(event: event, now: now), .now)
+  }
+
+  func testMenubarHeroStateDerivesNextFromTheMenubarEvent() {
+    let now = makeDate(year: 2026, month: 7, day: 5, hour: 9)
+    let event = makeEvent(
+      id: "next",
+      startISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 10)),
+      endISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 11))
+    )
+
+    XCTAssertEqual(AppModel.menubarHeroState(event: event, now: now), .next)
+  }
+
+  func testAllDayMenubarEventHasNoHeroCardState() {
+    let now = makeDate(year: 2026, month: 7, day: 5, hour: 9)
+    let allDay = makeEvent(
+      id: "all-day",
+      startISO: isoString(from: makeDate(year: 2026, month: 7, day: 5)),
+      endISO: isoString(from: makeDate(year: 2026, month: 7, day: 6)),
+      allDay: true
+    )
+
+    XCTAssertNil(AppModel.menubarHeroState(event: allDay, now: now))
+  }
+
+  func testNowLineIsPlacedBetweenPastAndUpcomingRows() {
+    let now = makeDate(year: 2026, month: 7, day: 5, hour: 12)
+    let past = makeEvent(
+      id: "past",
+      startISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 10)),
+      endISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 11))
+    )
+    let upcoming = makeEvent(
+      id: "upcoming",
+      startISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 13)),
+      endISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 14))
+    )
+
+    XCTAssertEqual(AppModel.nowLineInsertionIndex(timed: [past, upcoming], now: now), 1)
+  }
+
+  func testNowLineIsBeforeTheFirstUpcomingRow() {
+    let now = makeDate(year: 2026, month: 7, day: 5, hour: 9)
+    let upcoming = makeEvent(
+      id: "upcoming",
+      startISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 10)),
+      endISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 11))
+    )
+
+    XCTAssertEqual(AppModel.nowLineInsertionIndex(timed: [upcoming], now: now), 0)
+  }
+
+  func testNextTimelineEventIsOnlyEmphasizedWhenHeroIsInProgress() {
+    let now = makeDate(year: 2026, month: 7, day: 5, hour: 9, minute: 10)
+    let hero = makeEvent(
+      id: "hero",
+      startISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 9)),
+      endISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 9, minute: 30))
+    )
+    let next = makeEvent(
+      id: "next",
+      startISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 10)),
+      endISO: isoString(from: makeDate(year: 2026, month: 7, day: 5, hour: 11))
+    )
+
+    XCTAssertEqual(AppModel.nextTimelineEvent(heroEvent: hero, timed: [hero, next], now: now)?.id, "next")
+    XCTAssertNil(AppModel.nextTimelineEvent(heroEvent: next, timed: [hero, next], now: now))
   }
 
   func testOngoingEventReturnedWhenThereIsNoMenubarEvent() {

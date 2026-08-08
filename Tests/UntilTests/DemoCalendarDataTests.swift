@@ -4,7 +4,7 @@ import XCTest
 /// Covers demo mode's runtime-option parsing (`--demo-mode` / `--demo-now` /
 /// `--demo-overlap` / `--demo-free`) and the opt-in demo scenarios
 /// (`DemoCalendarData.events(scenario:)`) that let the popover's in-progress
-/// "Now" hero and NOW strip be demoed without disturbing the default
+/// hero and green NOW rail row be demoed without disturbing the default
 /// `--demo-mode` composition.
 @MainActor
 final class DemoCalendarDataTests: XCTestCase {
@@ -139,12 +139,11 @@ final class DemoCalendarDataTests: XCTestCase {
     XCTAssertEqual(review.startDate, now.addingTimeInterval(4 * 60))
   }
 
-  // MARK: - scenario: .overlap pins the exact state the README NOW-strip capture needs
+  // MARK: - scenario: .overlap pins the exact state the embedded-hero capture needs
 
-  func testOverlapScenarioPinsMenubarOnDesignReviewAndStripOnLaunchStandup() {
+  func testOverlapScenarioUsesMenubarHeroAndNowRailEmphasis() {
     let now = makeDate(year: 2026, month: 7, day: 5, hour: 10, minute: 29)
-    // Mirrors AppModel.reapplyFilter's split (non-allDay, endDate > now) so
-    // this exercises the same shape the popover actually renders.
+    // Mirrors the event split the popover actually renders.
     let events = DemoCalendarData.events(now: now, selectedIds: [], scenario: .overlap)
       .filter { $0.endDate > now }
     let timed = events.filter { !$0.allDay }
@@ -154,8 +153,15 @@ final class DemoCalendarDataTests: XCTestCase {
     let menubarEvent = AppModel.pickMenubarEvent(config: config, timed: timed, allDay: allDay, now: now)
     XCTAssertEqual(menubarEvent?.id, "design-review")
 
-    let stripEvent = AppModel.pickNowStripEvent(menubarEvent: menubarEvent, config: config, timed: timed, now: now)
-    XCTAssertEqual(stripEvent?.id, "launch-standup")
+    let presentation = AppModel.timelinePresentation(
+      menubarEvent: menubarEvent,
+      config: config,
+      timed: timed,
+      now: now,
+      coverageEnd: .distantFuture
+    )
+    XCTAssertEqual(presentation.heroEvent?.id, "design-review")
+    XCTAssertEqual(presentation.nowEmphasisEvent?.id, "launch-standup")
   }
 
   // MARK: - scenario: .freeDay is stable at any wall-clock time
@@ -196,7 +202,11 @@ final class DemoCalendarDataTests: XCTestCase {
     XCTAssertFalse(events.contains { !$0.allDay && $0.startDate <= now && $0.endDate > now })
   }
 
-  func testFreeDayScenarioRendersFreeHeroAtDifferentWallClockAnchors() {
+  func testFreeDayScenarioRendersFreeHeroWhenMenubarHasNoSelection() {
+    var config = DemoCalendarData.config()
+    config.menubarShowsNextAlways = false
+    config.menubarLeadMinutes = 0
+
     let anchors = [
       makeDate(year: 2026, month: 7, day: 5, hour: 0, minute: 5),
       makeDate(year: 2026, month: 7, day: 5, hour: 10),
@@ -209,21 +219,21 @@ final class DemoCalendarDataTests: XCTestCase {
       let timed = events.filter { !$0.allDay }
       let allDay = events.filter(\.allDay)
       let menubarEvent = AppModel.pickMenubarEvent(
-        config: DemoCalendarData.config(),
+        config: config,
         timed: timed,
         allDay: allDay,
         now: now
       )
-      let occupancy = PanelView.heroSlotOccupancy(
+      let presentation = AppModel.timelinePresentation(
         menubarEvent: menubarEvent,
-        config: DemoCalendarData.config(),
+        config: config,
         timed: timed,
         now: now,
         coverageEnd: .distantFuture
       )
 
-      XCTAssertTrue(occupancy.showsFreeDayHero)
-      XCTAssertEqual(occupancy.freeDayNextEvent?.id, "free-day-tomorrow")
+      XCTAssertTrue(presentation.showsFreeDayHero)
+      XCTAssertEqual(presentation.freeDayNextEvent?.id, "free-day-tomorrow")
     }
   }
 }
