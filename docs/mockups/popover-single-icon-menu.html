@@ -166,7 +166,7 @@
   <div class="pagehead">
     <div>
       <h1>Until — ⋯1アイコン集約案</h1>
-      <p class="lede">行のアクションを「⋯」1個に集約する。⋯を左クリック=行を右クリック=完全に同じメニュー(住所は1箇所)。📹📄が伝えていた情報はメタ行のテキストが既に持っているので、アイコンは操作口に徹する。展開ビューからはアクション行を撤去して純粋な情報表示に。⋯をクリックしてみてください。</p>
+      <p class="lede">行のアクションを「⋯」1個に集約する。⋯を左クリック=行を右クリック=完全に同じメニュー(住所は1箇所)。メニューは全イベント共通の固定形 — <b>①すでに追加されているもの(Join / Copy link / Open notes) ②さらに追加するもの(Add Meet / Create notes) ③共通(Copy details / Open in Calendar / Skip)</b> — で、該当のないセクションが消えるだけ。イベントの種類による特別扱いはしない。⋯をクリックしてみてください。</p>
     </div>
     <button class="theme-toggle" onclick="toggleTheme()">☀︎ / ☾ テーマ切替</button>
   </div>
@@ -191,8 +191,13 @@
             <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
             <div class="menu">
               <button><span class="glyph">📄</span>Open notes</button>
+              <div class="sep"></div>
+              <button><span class="glyph">📹</span>Add Google Meet</button>
+              <div class="sep"></div>
               <button><span class="glyph">⧉</span>Copy details</button>
               <button><span class="glyph">↗</span>Open in Calendar</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⏭</span>Skip in menubar</button>
             </div>
           </div>
         </div>
@@ -210,12 +215,16 @@
               <span style="flex:1"></span>
               <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
               <div class="menu" style="top: 30px;">
-                <button><span class="glyph">🔗</span>Copy meeting link</button>
-                <button><span class="glyph">⧉</span>Copy details</button>
-                <button><span class="glyph">↗</span>Open in Calendar</button>
-                <div class="sep"></div>
-                <button><span class="glyph">⏭</span>Skip in menubar</button>
-              </div>
+              <button><span class="glyph">📹</span>Join video call</button>
+              <button><span class="glyph">🔗</span>Copy meeting link</button>
+              <div class="sep"></div>
+              <button><span class="glyph">📄</span>Create notes</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⧉</span>Copy details</button>
+              <button><span class="glyph">↗</span>Open in Calendar</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⏭</span>Skip in menubar</button>
+            </div>
             </div>
           </div>
         </div>
@@ -231,8 +240,8 @@
             <div class="menu">
               <button><span class="glyph">📹</span>Join video call</button>
               <button><span class="glyph">🔗</span>Copy meeting link</button>
-              <div class="sep"></div>
               <button><span class="glyph">📄</span>Open notes</button>
+              <div class="sep"></div>
               <button><span class="glyph">⧉</span>Copy details</button>
               <button><span class="glyph">↗</span>Open in Calendar</button>
               <div class="sep"></div>
@@ -272,6 +281,7 @@
               <button><span class="glyph">🔗</span>Copy meeting link</button>
               <div class="sep"></div>
               <button><span class="glyph">📄</span>Create notes</button>
+              <div class="sep"></div>
               <button><span class="glyph">⧉</span>Copy details</button>
               <button><span class="glyph">↗</span>Open in Calendar</button>
               <div class="sep"></div>
@@ -301,8 +311,13 @@
             <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
             <div class="menu">
               <button><span class="glyph">📄</span>Open notes</button>
+              <div class="sep"></div>
+              <button><span class="glyph">📹</span>Add Google Meet</button>
+              <div class="sep"></div>
               <button><span class="glyph">⧉</span>Copy details</button>
               <button><span class="glyph">↗</span>Open in Calendar</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⏭</span>Skip in menubar</button>
             </div>
           </div>
         </div>
@@ -320,12 +335,16 @@
               <span style="flex:1"></span>
               <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
               <div class="menu" style="top: 30px;">
-                <button><span class="glyph">🔗</span>Copy meeting link</button>
-                <button><span class="glyph">⧉</span>Copy details</button>
-                <button><span class="glyph">↗</span>Open in Calendar</button>
-                <div class="sep"></div>
-                <button><span class="glyph">⏭</span>Skip in menubar</button>
-              </div>
+              <button><span class="glyph">📹</span>Join video call</button>
+              <button><span class="glyph">🔗</span>Copy meeting link</button>
+              <div class="sep"></div>
+              <button><span class="glyph">📄</span>Create notes</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⧉</span>Copy details</button>
+              <button><span class="glyph">↗</span>Open in Calendar</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⏭</span>Skip in menubar</button>
+            </div>
             </div>
           </div>
         </div>
@@ -342,8 +361,8 @@
             <div class="menu">
               <button><span class="glyph">📹</span>Join video call</button>
               <button><span class="glyph">🔗</span>Copy meeting link</button>
-              <div class="sep"></div>
               <button><span class="glyph">📄</span>Open notes</button>
+              <div class="sep"></div>
               <button><span class="glyph">⧉</span>Copy details</button>
               <button><span class="glyph">↗</span>Open in Calendar</button>
               <div class="sep"></div>
@@ -384,6 +403,7 @@
               <button><span class="glyph">🔗</span>Copy meeting link</button>
               <div class="sep"></div>
               <button><span class="glyph">📄</span>Create notes</button>
+              <div class="sep"></div>
               <button><span class="glyph">⧉</span>Copy details</button>
               <button><span class="glyph">↗</span>Open in Calendar</button>
               <div class="sep"></div>
@@ -396,7 +416,7 @@
     </section>
   </div>
 
-  <p class="hint">💡 共通ルール: <b>⋯の中身=右クリックメニュー=イベントの全アクション</b>(Join / Copy link / ノート / Copy details / Open in Calendar / Skip)。メニューは文脈で並びと内容が変わる(過去行は閲覧系のみ、通話なし行はAdd Meet、ノート未作成はCreate notes)。展開ビューはアクション行を持たず、説明・出欠・メタ情報だけの純粋な情報面になる。ヒーローだけはJoin+Notesを直通ボタンとして残し、3つ目以降を⋯に畳む。</p>
+  <p class="hint">💡 共通ルール: <b>⋯の中身=右クリックメニュー=固定形「追加済み → 追加できる → 共通」</b>。どのイベントも同じ形で、付いていないものは「追加できる」側に現れる(過去のイベントにも後からノートを付けられる)。展開ビューはアクション行を持たず、説明・出欠・メタ情報だけの純粋な情報面になる。ヒーローだけはJoin+Notesを直通ボタンとして残し、⋯には同じ固定形メニューが入る。</p>
 </div>
 
 <script>
