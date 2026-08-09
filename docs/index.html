@@ -6,35 +6,36 @@
     <title>Until - Google Calendar in your macOS menubar</title>
     <meta
       name="description"
-      content="Until keeps your next Google Calendar event in the macOS menubar, with quick join links, meeting notes, reminders, and precise event filters."
+      content="Until keeps your next Google Calendar event in the macOS menubar and shows your day on one continuous timeline, with quick join links, meeting notes, reminders, and precise filters."
     />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Until - Google Calendar in your macOS menubar" />
     <meta
       property="og:description"
-      content="Your next Google Calendar event, always in the menubar. One-click join, meeting notes, native reminders, precise filters. Private by design, and free."
+      content="Your next event stays in the macOS menubar while your whole day remains visible on one continuous timeline. One-click join, notes, reminders, and precise filters."
     />
     <meta property="og:image" content="https://combinatrix-ai.github.io/until/site-preview-desktop.png" />
     <meta property="og:image:width" content="1440" />
-    <meta property="og:image:height" content="1400" />
+    <meta property="og:image:height" content="900" />
     <meta property="og:url" content="https://combinatrix-ai.github.io/until/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Until - Google Calendar in your macOS menubar" />
     <meta
       name="twitter:description"
-      content="Your next Google Calendar event, always in the menubar. One-click join, meeting notes, native reminders, precise filters. Private by design."
+      content="Your next event stays in the macOS menubar while your whole day remains visible on one continuous timeline. One-click join, notes, reminders, and precise filters."
     />
     <meta name="twitter:image" content="https://combinatrix-ai.github.io/until/site-preview-desktop.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,780&family=Manrope:wght@400;520;620;720;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,780&amp;family=Manrope:wght@400;520;620;720;800&amp;display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260705-refresh-2" />
+    <link rel="stylesheet" href="styles.css?v=20260809-timeline" />
     <script>document.documentElement.classList.add("js");</script>
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <main id="top">
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-shell">
@@ -66,14 +67,40 @@
 
           <figure class="hero-shot">
             <img
-              src="anka-until-demo-popover-neutral.png"
-              width="1024"
-              height="768"
-              alt="Until open from the macOS menubar, showing the upcoming events popover."
+              src="until-timeline-hero.webp"
+              width="1440"
+              height="1080"
+              alt="Until open from the macOS menubar, showing the current time, an expanded next event, free gaps, and the rest of the day's events on one timeline."
             />
-            <figcaption>One menubar item, one glanceable schedule.</figcaption>
+            <figcaption>One menubar item, your whole day in context.</figcaption>
           </figure>
         </div>
+      </section>
+
+      <section class="timeline-story" id="main-content" aria-labelledby="timeline-title">
+        <div class="timeline-copy">
+          <p class="eyebrow">The timeline</p>
+          <h2 id="timeline-title">Your day on one timeline.</h2>
+          <p>
+            The current or next event expands inline. Finished meetings stay
+            above, free gaps stay visible, and the rest of your day continues
+            below &mdash; without losing the timeline.
+          </p>
+          <ul class="timeline-points">
+            <li><strong>NOW stays put.</strong> Keep the meeting you are in visible while the countdown looks ahead.</li>
+            <li><strong>NEXT expands in place.</strong> Join the call or open notes without leaving the schedule.</li>
+            <li><strong>Free time has shape.</strong> See the usable gaps between events, not just a stack of meetings.</li>
+          </ul>
+        </div>
+        <figure class="timeline-detail">
+          <img
+            src="until-timeline-detail.webp"
+            width="720"
+            height="870"
+            loading="lazy"
+            alt="A closer view of Until's continuous schedule timeline, with a green current-time line, expanded next-event card, and free-time gaps."
+          />
+        </figure>
       </section>
 
       <section class="workflow" id="workflow" aria-labelledby="workflow-title">
@@ -112,7 +139,7 @@
                 </div>
               </div>
             </div>
-            <h3>Glance</h3>
+            <h3>Countdown</h3>
             <p>Your next event stays in the menubar all day with a live countdown, then shows the time left once the meeting starts.</p>
           </article>
           <article>

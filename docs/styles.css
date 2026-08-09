@@ -35,6 +35,24 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 4;
+  top: 12px;
+  left: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 800;
+  transform: translateY(-180%);
+  transition: transform 180ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -408,6 +426,102 @@ time {
   justify-content: space-between;
   padding: 10px 14px;
   background: color-mix(in oklch, var(--paper-2) 45%, transparent);
+}
+
+.timeline-story {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.78fr) minmax(420px, 1.22fr);
+  gap: clamp(52px, 8vw, 118px);
+  align-items: center;
+  padding: 118px clamp(24px, 7%, 112px) 132px;
+  border-top: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, color-mix(in oklch, var(--ink) 3%, transparent) 0 1px, transparent 1px 92px),
+    radial-gradient(circle at 78% 44%, color-mix(in oklch, var(--blue) 9%, transparent), transparent 30rem),
+    var(--paper);
+}
+
+.timeline-copy {
+  width: min(100%, 540px);
+  justify-self: end;
+}
+
+.eyebrow {
+  margin-bottom: 18px;
+  color: var(--blue);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.timeline-copy h2 {
+  max-width: 10ch;
+  text-wrap: balance;
+}
+
+.timeline-copy > p:not(.eyebrow) {
+  max-width: 50ch;
+  color: var(--muted);
+  font-size: 1.05rem;
+  text-wrap: pretty;
+}
+
+.timeline-points {
+  display: grid;
+  gap: 17px;
+  margin: 34px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-points li {
+  position: relative;
+  max-width: 48ch;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.timeline-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.54em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+.timeline-points strong {
+  color: var(--ink);
+}
+
+.timeline-detail {
+  position: relative;
+  width: min(100%, 720px);
+  margin: 0;
+  justify-self: start;
+}
+
+.timeline-detail::before {
+  content: "";
+  position: absolute;
+  inset: 7% -4% -5% 12%;
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--blue) 10%, var(--white));
+  transform: rotate(1.6deg);
+}
+
+.timeline-detail img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid color-mix(in oklch, var(--ink) 14%, transparent);
+  border-radius: 8px;
+  box-shadow: 0 30px 72px color-mix(in oklch, var(--ink) 16%, transparent);
 }
 
 .workflow {
@@ -1406,7 +1520,8 @@ ul.legal-lead {
 
 @media (max-width: 980px) {
   .hero-shell,
-  .workflow {
+  .workflow,
+  .timeline-story {
     grid-template-columns: 1fr;
   }
 
@@ -1445,6 +1560,11 @@ ul.legal-lead {
 
   .privacy-points {
     grid-template-columns: 1fr;
+  }
+
+  .timeline-copy,
+  .timeline-detail {
+    justify-self: center;
   }
 
 }
@@ -1549,6 +1669,20 @@ ul.legal-lead {
   .workflow {
     display: block;
     padding: 76px 18px;
+  }
+
+  .timeline-story {
+    display: block;
+    padding: 76px 18px 88px;
+  }
+
+  .timeline-copy {
+    margin-inline: auto;
+  }
+
+  .timeline-detail {
+    width: min(88%, 520px);
+    margin: 54px auto 0;
   }
 
   .workflow-grid {
