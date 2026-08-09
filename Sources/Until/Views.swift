@@ -765,12 +765,14 @@ private struct HeroTimelineRow: View {
             .buttonStyle(.borderedProminent)
             .tint(tintColor)
           }
-          NoteActionButton(
-            event: event,
-            model: model,
-            showsLabel: true,
-            containerHovered: nil
-          )
+          // Attached-only, like the rows: an existing note earns a direct
+          // button; creating one lives in the ellipsis menu.
+          if !model.noteURL(for: event).isEmpty {
+            QuietButton(systemImage: "doc.text", label: loc("Open notes")) {
+              model.createOrOpenNote(for: event)
+            }
+            .help(loc("Open meeting notes"))
+          }
           Spacer(minLength: 0)
           EventActionMenuButton(
             event: event,
@@ -1476,63 +1478,6 @@ private struct SkippedBadge: View {
       .padding(.horizontal, Theme.Spacing.xs)
       .padding(.vertical, 1)
       .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
-  }
-}
-
-private struct NoteActionButton: View {
-  var event: CalendarEvent
-  @ObservedObject var model: AppModel
-  /// Renders as a labeled `QuietButton` instead of the list row's icon-only
-  /// `IconButton` — used by the "Up next" hero's secondary action. Same
-  /// open-or-create behavior either way; only the presentation differs.
-  var showsLabel: Bool = false
-  /// The containing surface's hover state. The possibility/state rule lives
-  /// here rather than at call sites so every surface agrees on it: an
-  /// existing or in-flight note is state (always visible), a missing note is
-  /// a possibility (visible only while the container is hovered). `nil` opts
-  /// out for containers that manage visibility themselves — the compact
-  /// condensed hero strip reveals all of its actions on hover, note or not.
-  var containerHovered: Bool?
-  @State private var showConfirm = false
-
-  var body: some View {
-    let notesUrl = model.noteURL(for: event)
-    let isCreating = model.isCreatingNote(for: event)
-    let revealed = containerHovered.map { !notesUrl.isEmpty || isCreating || $0 } ?? true
-
-    let action = {
-      if notesUrl.isEmpty {
-        showConfirm = true
-      } else {
-        model.createOrOpenNote(for: event)
-      }
-    }
-
-    Group {
-      if showsLabel {
-        QuietButton(
-          systemImage: notesUrl.isEmpty ? "doc.badge.plus" : "doc.text",
-          label: notesUrl.isEmpty ? loc("Create notes") : loc("Open notes"),
-          isBusy: isCreating,
-          action: action
-        )
-      } else {
-        IconButton(
-          systemImage: notesUrl.isEmpty ? "doc.badge.plus" : "doc.text",
-          isBusy: isCreating,
-          action: action
-        )
-      }
-    }
-    .disabled(isCreating)
-    .help(notesUrl.isEmpty ? loc("Create meeting notes") : loc("Open meeting notes"))
-    .confirmationDialog(loc("Create meeting notes?"), isPresented: $showConfirm) {
-      Button(loc("Create notes")) { model.createOrOpenNote(for: event) }
-      Button(loc("Cancel"), role: .cancel) {}
-    } message: {
-      Text(noteCreationConfirmationMessage(for: event, model: model))
-    }
-    .revealOnHover(revealed)
   }
 }
 
