@@ -658,17 +658,9 @@ private struct FreeDayTimelineRow: View {
       .padding(.vertical, Theme.Spacing.md)
       .frame(maxWidth: .infinity, alignment: .leading)
       .background(
-        LinearGradient(
-          colors: [Color.green.opacity(0.09), Color.green.opacity(0.025)],
-          startPoint: .top,
-          endPoint: .bottom
-        ),
+        Color.green.opacity(0.07),
         in: RoundedRectangle(cornerRadius: Theme.Radius.md)
       )
-      .overlay {
-        RoundedRectangle(cornerRadius: Theme.Radius.md)
-          .stroke(Color.green.opacity(0.22))
-      }
     }
     .padding(.horizontal, Theme.Spacing.lg)
     .padding(.vertical, Theme.Spacing.xs)
@@ -839,18 +831,12 @@ private struct HeroTimelineRow: View {
       .padding(.horizontal, Theme.Spacing.md)
       .padding(.vertical, Theme.Spacing.md)
       .frame(maxWidth: .infinity, alignment: .leading)
+      // One flat, borderless tint (S2): the rail has no hairlines, so the
+      // card reads as a quiet raised surface rather than an outlined box.
       .background(
-        LinearGradient(
-          colors: [tintColor.opacity(inProgress ? 0.12 : 0.08), tintColor.opacity(0.025)],
-          startPoint: .top,
-          endPoint: .bottom
-        ),
+        tintColor.opacity(inProgress ? 0.08 : 0.07),
         in: RoundedRectangle(cornerRadius: Theme.Radius.md)
       )
-      .overlay {
-        RoundedRectangle(cornerRadius: Theme.Radius.md)
-          .stroke(tintColor.opacity(0.28))
-      }
       .contentShape(Rectangle())
       .onTapGesture {
         withAnimation(.easeInOut(duration: 0.2)) {
@@ -1351,13 +1337,7 @@ struct EventRow: View {
       .background {
         if isNowEmphasized {
           RoundedRectangle(cornerRadius: Theme.Radius.sm)
-            .fill(
-              LinearGradient(
-                colors: [Color.green.opacity(0.09), Color.green.opacity(0.025)],
-                startPoint: .top,
-                endPoint: .bottom
-              )
-            )
+            .fill(Color.green.opacity(0.07))
             .padding(.horizontal, Theme.Spacing.sm)
         }
       }
