@@ -11,7 +11,7 @@ struct AppRuntimeOptions: Hashable {
     /// `--demo-now` / `UNTIL_DEMO_NOW`: pins the green in-progress hero.
     case inProgress
     /// `--demo-overlap` / `UNTIL_DEMO_OVERLAP`: pins a green NOW rail row
-    /// beside the blue "Up next" hero.
+    /// beside the blue "Next" hero.
     case overlap
     /// `--demo-free` / `UNTIL_DEMO_FREE`: pins the free-day hero with an
     /// all-day event today and a timed event tomorrow.
@@ -169,7 +169,7 @@ enum DemoCalendarData {
     // - `.overlap`: pinned to exactly 4 min out, with NO half-hour rounding,
     //   so it lands INSIDE the lead window while the standup is still
     //   running — that is what gives the rail a green NOW row beside the
-    //   blue "Up next" hero.
+    //   blue "Next" hero.
     //   Anchoring relative to `now` (rather than wall-clock minutes) means
     //   every demo re-anchor reproduces the same state, unlike the default
     //   mode's :23/:53 half-hour rule.

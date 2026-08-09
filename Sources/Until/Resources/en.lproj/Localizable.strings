@@ -37,8 +37,8 @@
 "Updated just now" = "Updated just now";
 "Updated %@ ago" = "Updated %@ ago";
 
-/* MARK: - Hero / "Up next" (Views) */
-"Up next" = "Up next";
+/* MARK: - Hero / "Next" (Views) */
+"Next" = "Next";
 "Now · started %@ ago" = "Now · started %@ ago";
 "in %@" = "in %@";
 "NOW" = "NOW";

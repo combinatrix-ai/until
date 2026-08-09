@@ -862,7 +862,7 @@ private struct HeroTimelineRow: View {
   private var kickerText: String {
     inProgress
       ? loc("Now · started %@ ago", relativeWhen(minutesSince(event.startDate)))
-      : loc("Up next")
+      : loc("Next")
   }
 
   private var countText: String {
@@ -1456,7 +1456,7 @@ private struct StateChip: View {
 
 /// Attendee display names for an event's metadata line: excludes the current
 /// user and resource attendees (rooms, etc.), preferring each attendee's name
-/// over their bare email. Shared by `EventRow` and the "Up next" hero so both
+/// over their bare email. Shared by `EventRow` and the "Next" hero so both
 /// draw from the same source of names.
 private func attendeeDisplayNames(for event: CalendarEvent) -> [String] {
   event.attendees
