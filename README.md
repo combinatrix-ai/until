@@ -19,9 +19,12 @@ Privacy policy: <https://combinatrix-ai.github.io/until/privacy.html>
 
 - **Menubar countdown** — the next event stays in the menubar all day with a
   live countdown, then shows the time remaining once the meeting starts.
+- **Your day on one timeline** — the popover opens on the present moment: the
+  current or next event sits inline as a card, the rest of the day runs above
+  and below it on a single rail, and free gaps are called out between them.
 - **Never lose the current meeting** — when the next event closes in, the
-  countdown switches ahead and the meeting you're still in folds into a
-  compact NOW strip pinned above the list.
+  countdown switches ahead while the meeting you're still in stays marked NOW
+  on the timeline.
 - **One-click join** — click an event's meeting link, or option-click the
   menubar item to join the meeting it's showing (Meet, Zoom, Teams,
   Whereby, and friends).
