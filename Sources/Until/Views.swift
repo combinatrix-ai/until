@@ -718,6 +718,20 @@ private struct HeroTimelineRow: View {
     Calendar.current.startOfDay(for: event.startDate)
   }
 
+  private var hasAttachedActions: Bool {
+    !event.conferenceUrl.isEmpty || !model.noteURL(for: event).isEmpty
+  }
+
+  private var actionMenuButton: some View {
+    EventActionMenuButton(
+      event: event,
+      model: model,
+      isVisible: isHovered,
+      requestAddConference: { showAddConferenceConfirmation = true },
+      requestCreateNotes: { showCreateNotesConfirmation = true }
+    )
+  }
+
   var body: some View {
     HStack(alignment: .top, spacing: 0) {
       TimelineTimeLabel(
@@ -748,41 +762,48 @@ private struct HeroTimelineRow: View {
           .font(.system(size: 15, weight: .bold))
           .lineLimit(2)
 
-        if !metadataLine.isEmpty {
-          Text(metadataLine)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+        // The ellipsis needs a home even when the metadata line is empty.
+        if !metadataLine.isEmpty || !hasAttachedActions {
+          HStack(spacing: Theme.Spacing.xs) {
+            if !metadataLine.isEmpty {
+              Text(metadataLine)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
+            if !hasAttachedActions {
+              Spacer(minLength: 0)
+              actionMenuButton
+            }
+          }
         }
 
-        HStack(spacing: Theme.Spacing.xs) {
-          if !event.conferenceUrl.isEmpty {
-            Button {
-              model.join(event)
-            } label: {
-              Label(loc("Join"), systemImage: "video.fill")
+        // Without an attached action the row would hold nothing but the
+        // hover-revealed ellipsis, stretching the card for no content.
+        if hasAttachedActions {
+          HStack(spacing: Theme.Spacing.xs) {
+            if !event.conferenceUrl.isEmpty {
+              Button {
+                model.join(event)
+              } label: {
+                Label(loc("Join"), systemImage: "video.fill")
+              }
+              .buttonStyle(.borderedProminent)
+              .tint(tintColor)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(tintColor)
-          }
-          // Attached-only, like the rows: an existing note earns a direct
-          // button; creating one lives in the ellipsis menu.
-          if !model.noteURL(for: event).isEmpty {
-            QuietButton(systemImage: "doc.text", label: loc("Open notes")) {
-              model.createOrOpenNote(for: event)
+            // Attached-only, like the rows: an existing note earns a direct
+            // button; creating one lives in the ellipsis menu.
+            if !model.noteURL(for: event).isEmpty {
+              QuietButton(systemImage: "doc.text", label: loc("Open notes")) {
+                model.createOrOpenNote(for: event)
+              }
+              .help(loc("Open meeting notes"))
             }
-            .help(loc("Open meeting notes"))
+            Spacer(minLength: 0)
+            actionMenuButton
           }
-          Spacer(minLength: 0)
-          EventActionMenuButton(
-            event: event,
-            model: model,
-            isVisible: isHovered,
-            requestAddConference: { showAddConferenceConfirmation = true },
-            requestCreateNotes: { showCreateNotesConfirmation = true }
-          )
+          .padding(.top, Theme.Spacing.xs)
         }
-        .padding(.top, Theme.Spacing.xs)
 
         if model.isExpanded(event, on: day) {
           EventDetailView(event: event)
