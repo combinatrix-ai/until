@@ -106,6 +106,54 @@ struct CalendarEvent: Identifiable, Hashable {
 
 }
 
+/// The uniform event-action sections shared by the row ellipsis menu and the
+/// row/card context menu. Applicability depends only on event attachments and
+/// the menubar visibility toggle; past and future events use the same shape.
+struct EventActionSet: Equatable {
+  enum Item: Hashable {
+    case joinVideoCall
+    case copyMeetingLink
+    case openMeetingNotes
+    case addGoogleMeet
+    case createNotes
+    case copyDetails
+    case openInCalendar
+    case skipInMenubar
+    case showInMenubar
+  }
+
+  var attached: [Item]
+  var addable: [Item]
+  var common: [Item]
+
+  static func make(event: CalendarEvent, noteURL: String?, isSkipped: Bool) -> EventActionSet {
+    let hasConference = !event.conferenceUrl.isEmpty
+    let hasNotes = !(noteURL ?? "").isEmpty
+
+    var attached: [Item] = []
+    if hasConference {
+      attached += [.joinVideoCall, .copyMeetingLink]
+    }
+    if hasNotes {
+      attached.append(.openMeetingNotes)
+    }
+
+    var addable: [Item] = []
+    if !hasConference && !event.allDay {
+      addable.append(.addGoogleMeet)
+    }
+    if !hasNotes {
+      addable.append(.createNotes)
+    }
+
+    return EventActionSet(
+      attached: attached,
+      addable: addable,
+      common: [.copyDetails, .openInCalendar, isSkipped ? .showInMenubar : .skipInMenubar]
+    )
+  }
+}
+
 /// One event as it appears on a specific day. A multi-day all-day event yields
 /// one `DayEvent` per covered day, each with a distinct `id` so SwiftUI treats
 /// the repeated rows as separate identities (independent expansion, etc.).

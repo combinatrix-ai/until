@@ -703,6 +703,8 @@ private struct HeroTimelineRow: View {
   var now: Date
 
   @State private var isHovered = false
+  @State private var showAddConferenceConfirmation = false
+  @State private var showCreateNotesConfirmation = false
 
   private var inProgress: Bool {
     AppModel.menubarHeroState(event: event, now: now) == .now
@@ -767,16 +769,21 @@ private struct HeroTimelineRow: View {
             event: event,
             model: model,
             showsLabel: true,
-            containerHovered: isHovered
+            containerHovered: nil
           )
-          QuietButton(systemImage: "arrow.up.right", label: loc("Open in Calendar")) {
-            model.open(event)
-          }
+          Spacer(minLength: 0)
+          EventActionMenuButton(
+            event: event,
+            model: model,
+            isVisible: isHovered,
+            requestAddConference: { showAddConferenceConfirmation = true },
+            requestCreateNotes: { showCreateNotesConfirmation = true }
+          )
         }
         .padding(.top, Theme.Spacing.xs)
 
         if model.isExpanded(event, on: day) {
-          EventDetailView(event: event, model: model)
+          EventDetailView(event: event)
             .transition(
               .asymmetric(
                 insertion: .opacity.animation(.easeInOut(duration: 0.12).delay(0.15)),
@@ -829,12 +836,25 @@ private struct HeroTimelineRow: View {
       }
       .onHover { isHovered = $0 }
       .contextMenu {
-        eventContextMenuItems(event: event, model: model)
+        eventActionMenu(
+          event: event,
+          model: model,
+          requestAddConference: { showAddConferenceConfirmation = true },
+          requestCreateNotes: { showCreateNotesConfirmation = true }
+        )
       }
       .padding(.leading, Theme.Spacing.sm)
     }
     .padding(.horizontal, Theme.Spacing.lg)
     .padding(.vertical, Theme.Spacing.xs)
+    .modifier(
+      EventActionConfirmationDialogs(
+        event: event,
+        model: model,
+        showAddConferenceConfirmation: $showAddConferenceConfirmation,
+        showCreateNotesConfirmation: $showCreateNotesConfirmation
+      )
+    )
   }
 
   private var kickerText: String {
@@ -952,52 +972,248 @@ private struct CondensedHeroStrip: View {
   }
 }
 
-/// Right-click menu content shared by `EventRow` and the inline hero
-/// (`HeroTimelineRow`) so both present the identical set of actions for an
-/// event — join/copy link, open in Calendar, open notes, and skip/unskip in
-/// the menubar.
+/// One menu content builder is used by both the ellipsis `Menu` and the row or
+/// card context menu. Confirmation-producing actions stay at the surface so
+/// the same action can be presented from either entry point.
+private struct EventActionMenuContext {
+  var event: CalendarEvent
+  var model: AppModel
+  var requestAddConference: () -> Void
+  var requestCreateNotes: () -> Void
+}
+
 @MainActor
 @ViewBuilder
-private func eventContextMenuItems(event: CalendarEvent, model: AppModel) -> some View {
-  if !event.conferenceUrl.isEmpty {
+private func eventActionMenu(
+  event: CalendarEvent,
+  model: AppModel,
+  requestAddConference: @escaping () -> Void,
+  requestCreateNotes: @escaping () -> Void
+) -> some View {
+  let actionSet = EventActionSet.make(
+    event: event,
+    noteURL: model.noteURL(for: event),
+    isSkipped: model.isSkippedInMenubar(event)
+  )
+  let context = EventActionMenuContext(
+    event: event,
+    model: model,
+    requestAddConference: requestAddConference,
+    requestCreateNotes: requestCreateNotes
+  )
+
+  if !actionSet.attached.isEmpty {
+    eventActionSection(
+      title: loc("Already attached"),
+      items: actionSet.attached,
+      context: context
+    )
+  }
+
+  if !actionSet.addable.isEmpty {
+    eventActionSection(
+      title: loc("Add more"),
+      items: actionSet.addable,
+      context: context
+    )
+  }
+
+  eventCommonActionSection(
+    items: actionSet.common,
+    context: context
+  )
+}
+
+@MainActor
+@ViewBuilder
+private func eventActionSection(
+  title: String,
+  items: [EventActionSet.Item],
+  context: EventActionMenuContext
+) -> some View {
+  Section {
+    eventActionMenuItems(
+      items: items,
+      context: context
+    )
+  } header: {
+    Text(title)
+  }
+}
+
+@MainActor
+@ViewBuilder
+private func eventCommonActionSection(
+  items: [EventActionSet.Item],
+  context: EventActionMenuContext
+) -> some View {
+  Section {
+    eventActionMenuItems(
+      items: Array(items.prefix(2)),
+      context: context
+    )
+    Divider()
+    eventActionMenuItems(
+      items: Array(items.dropFirst(2)),
+      context: context
+    )
+  }
+}
+
+@MainActor
+@ViewBuilder
+private func eventActionMenuItems(
+  items: [EventActionSet.Item],
+  context: EventActionMenuContext
+) -> some View {
+  ForEach(items, id: \.self) { item in
+    eventActionMenuItem(item, context: context)
+  }
+}
+
+@MainActor
+@ViewBuilder
+private func eventActionMenuItem(
+  _ item: EventActionSet.Item,
+  context: EventActionMenuContext
+) -> some View {
+  switch item {
+  case .joinVideoCall, .copyMeetingLink, .openMeetingNotes:
+    eventAttachedActionMenuItem(item, context: context)
+  case .addGoogleMeet, .createNotes:
+    eventAddableActionMenuItem(item, context: context)
+  case .copyDetails, .openInCalendar, .skipInMenubar, .showInMenubar:
+    eventCommonActionMenuItem(item, context: context)
+  }
+}
+
+@MainActor
+@ViewBuilder
+private func eventAttachedActionMenuItem(
+  _ item: EventActionSet.Item,
+  context: EventActionMenuContext
+) -> some View {
+  switch item {
+  case .joinVideoCall:
     Button {
-      model.join(event)
+      context.model.join(context.event)
     } label: {
       Label(loc("Join video call"), systemImage: "video")
     }
+  case .copyMeetingLink:
     Button {
-      let pasteboard = NSPasteboard.general
-      pasteboard.clearContents()
-      pasteboard.setString(event.conferenceUrl, forType: .string)
+      copyStringToPasteboard(context.event.conferenceUrl)
     } label: {
       Label(loc("Copy meeting link"), systemImage: "link")
     }
-  }
-  Button {
-    model.open(event)
-  } label: {
-    Label(loc("Open in Google Calendar"), systemImage: "calendar")
-  }
-  if !model.noteURL(for: event).isEmpty {
+  case .openMeetingNotes:
     Button {
-      model.createOrOpenNote(for: event)
+      context.model.createOrOpenNote(for: context.event)
     } label: {
       Label(loc("Open meeting notes"), systemImage: "doc.text")
     }
+  default:
+    EmptyView()
   }
-  Divider()
-  if model.isSkippedInMenubar(event) {
+}
+
+@MainActor
+@ViewBuilder
+private func eventAddableActionMenuItem(
+  _ item: EventActionSet.Item,
+  context: EventActionMenuContext
+) -> some View {
+  switch item {
+  case .addGoogleMeet:
     Button {
-      model.unskipInMenubar(event)
+      context.requestAddConference()
     } label: {
-      Label(loc("Show in menubar"), systemImage: "arrow.uturn.backward")
+      Label(loc("Add Google Meet"), systemImage: "video.badge.plus")
     }
-  } else {
+    .disabled(context.model.isAddingConference(for: context.event))
+  case .createNotes:
     Button {
-      model.skipInMenubar(event)
+      context.requestCreateNotes()
+    } label: {
+      Label(loc("Create notes"), systemImage: "doc.badge.plus")
+    }
+    .disabled(context.model.isCreatingNote(for: context.event))
+  default:
+    EmptyView()
+  }
+}
+
+@MainActor
+@ViewBuilder
+private func eventCommonActionMenuItem(
+  _ item: EventActionSet.Item,
+  context: EventActionMenuContext
+) -> some View {
+  switch item {
+  case .copyDetails:
+    Button {
+      copyEventDetailsToPasteboard(context.event)
+    } label: {
+      Label(loc("Copy details"), systemImage: "doc.on.doc")
+    }
+  case .openInCalendar:
+    Button {
+      context.model.open(context.event)
+    } label: {
+      Label(loc("Open in Calendar"), systemImage: "calendar")
+    }
+  case .skipInMenubar:
+    Button {
+      context.model.skipInMenubar(context.event)
     } label: {
       Label(loc("Skip in menubar"), systemImage: "forward.end")
     }
+  case .showInMenubar:
+    Button {
+      context.model.unskipInMenubar(context.event)
+    } label: {
+      Label(loc("Show in menubar"), systemImage: "arrow.uturn.backward")
+    }
+  default:
+    EmptyView()
+  }
+}
+
+private struct EventActionMenuButton: View {
+  var event: CalendarEvent
+  @ObservedObject var model: AppModel
+  var isVisible: Bool
+  var requestAddConference: () -> Void
+  var requestCreateNotes: () -> Void
+
+  @State private var isHovered = false
+
+  var body: some View {
+    Menu {
+      eventActionMenu(
+        event: event,
+        model: model,
+        requestAddConference: requestAddConference,
+        requestCreateNotes: requestCreateNotes
+      )
+    } label: {
+      ZStack {
+        Circle()
+          .fill(isHovered ? Theme.hoverFill : Color.clear)
+        Image(systemName: "ellipsis")
+          .font(.system(size: 12, weight: .medium))
+          .foregroundStyle(isHovered ? Color.accentColor : Color.secondary)
+      }
+      .frame(width: 22, height: 22)
+      .contentShape(Rectangle())
+    }
+    .menuStyle(.borderlessButton)
+    .buttonStyle(.borderless)
+    .accessibilityLabel(loc("More actions"))
+    .help(loc("More actions"))
+    .animation(.easeInOut(duration: Theme.hoverFadeDuration), value: isHovered)
+    .onHover { isHovered = $0 }
+    .revealOnHover(isVisible)
   }
 }
 
@@ -1015,6 +1231,8 @@ struct EventRow: View {
   var isNext: Bool
 
   @State private var isHovered = false
+  @State private var showAddConferenceConfirmation = false
+  @State private var showCreateNotesConfirmation = false
 
   init(
     event: CalendarEvent,
@@ -1077,21 +1295,26 @@ struct EventRow: View {
           Spacer(minLength: Theme.Spacing.sm)
 
           HStack(spacing: Theme.Spacing.xs) {
-            if isSkipped {
-              IconButton(systemImage: "arrow.uturn.backward") {
-                model.unskipInMenubar(event)
-              }
-              .help(loc("Show in menubar"))
-            }
-
             if !event.conferenceUrl.isEmpty {
               JoinVideoCallButton(event: event, model: model)
-            } else if !event.allDay {
-              ConferenceActionButton(event: event, model: model)
                 .revealOnHover(isHovered)
             }
 
-            NoteActionButton(event: event, model: model, containerHovered: isHovered)
+            if !model.noteURL(for: event).isEmpty {
+              IconButton(systemImage: "doc.text") {
+                model.createOrOpenNote(for: event)
+              }
+              .help(loc("Open meeting notes"))
+              .revealOnHover(isHovered)
+            }
+
+            EventActionMenuButton(
+              event: event,
+              model: model,
+              isVisible: isHovered,
+              requestAddConference: { showAddConferenceConfirmation = true },
+              requestCreateNotes: { showCreateNotesConfirmation = true }
+            )
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1121,7 +1344,7 @@ struct EventRow: View {
       .opacity(rowOpacity)
 
       if model.isExpanded(event, on: day) {
-        EventDetailView(event: event, model: model)
+        EventDetailView(event: event)
           .padding(.leading, Self.detailIndent)
           .transition(.opacity.combined(with: .move(edge: .top)))
       }
@@ -1151,8 +1374,21 @@ struct EventRow: View {
       }
     }
     .contextMenu {
-      eventContextMenuItems(event: event, model: model)
+      eventActionMenu(
+        event: event,
+        model: model,
+        requestAddConference: { showAddConferenceConfirmation = true },
+        requestCreateNotes: { showCreateNotesConfirmation = true }
+      )
     }
+    .modifier(
+      EventActionConfirmationDialogs(
+        event: event,
+        model: model,
+        showAddConferenceConfirmation: $showAddConferenceConfirmation,
+        showCreateNotesConfirmation: $showCreateNotesConfirmation
+      )
+    )
   }
 
   private var isPast: Bool {
@@ -1294,32 +1530,32 @@ private struct NoteActionButton: View {
       Button(loc("Create notes")) { model.createOrOpenNote(for: event) }
       Button(loc("Cancel"), role: .cancel) {}
     } message: {
-      Text(confirmMessage)
+      Text(noteCreationConfirmationMessage(for: event, model: model))
     }
     .revealOnHover(revealed)
   }
-
-  /// Names the same-domain attendees who will receive edit access, so the
-  /// automatic grant is visible before the user confirms. External attendees
-  /// are asked about separately (ExternalShareOverlay) and not repeated here.
-  private var confirmMessage: String {
-    let sameDomain = model.sameDomainAttendees(for: event)
-    guard !sameDomain.isEmpty else {
-      return loc("Create a Google Doc for %@ and attach it to the calendar event.", event.title)
-    }
-    let shown = sameDomain.prefix(3).joined(separator: ", ")
-    let overflow = sameDomain.count > 3 ? loc(" and %d more", sameDomain.count - 3) : ""
-    return loc(
-      "Create a Google Doc for %1$@, attach it to the calendar event, and give edit access to %2$@%3$@.",
-      event.title, shown, overflow
-    )
-  }
 }
 
-/// The row/strip "join the video call" action: one home for the icon, action,
-/// and help text, mirroring how `ConferenceActionButton` and
-/// `NoteActionButton` wrap theirs. Joining reads nothing observable from the
-/// model, so this holds a plain reference rather than an `@ObservedObject`.
+/// Names the same-domain attendees who will receive edit access, so the
+/// automatic grant is visible before the user confirms. External attendees
+/// are asked about separately (ExternalShareOverlay) and not repeated here.
+@MainActor
+private func noteCreationConfirmationMessage(for event: CalendarEvent, model: AppModel) -> String {
+  let sameDomain = model.sameDomainAttendees(for: event)
+  guard !sameDomain.isEmpty else {
+    return loc("Create a Google Doc for %@ and attach it to the calendar event.", event.title)
+  }
+  let shown = sameDomain.prefix(3).joined(separator: ", ")
+  let overflow = sameDomain.count > 3 ? loc(" and %d more", sameDomain.count - 3) : ""
+  return loc(
+    "Create a Google Doc for %1$@, attach it to the calendar event, and give edit access to %2$@%3$@.",
+    event.title, shown, overflow
+  )
+}
+
+/// The row "join the video call" shortcut: one home for the icon, action, and
+/// help text. Joining reads nothing observable from the model, so this holds a
+/// plain reference rather than an `@ObservedObject`.
 private struct JoinVideoCallButton: View {
   var event: CalendarEvent
   var model: AppModel
@@ -1332,52 +1568,37 @@ private struct JoinVideoCallButton: View {
   }
 }
 
-private struct ConferenceActionButton: View {
+private struct EventActionConfirmationDialogs: ViewModifier {
   var event: CalendarEvent
   @ObservedObject var model: AppModel
-  @State private var showConfirm = false
+  @Binding var showAddConferenceConfirmation: Bool
+  @Binding var showCreateNotesConfirmation: Bool
 
-  var body: some View {
-    let isAdding = model.isAddingConference(for: event)
-
-    IconButton(systemImage: "video.badge.plus", isBusy: isAdding) {
-      showConfirm = true
-    }
-    .disabled(isAdding)
-    .help(loc("Add Google Meet"))
-    .confirmationDialog(loc("Add Google Meet?"), isPresented: $showConfirm) {
-      Button(loc("Add Meet")) { model.addConference(for: event) }
-      Button(loc("Cancel"), role: .cancel) {}
-    } message: {
-      Text(loc("Add a Google Meet video link to %@.", event.title))
-    }
+  func body(content: Content) -> some View {
+    content
+      .confirmationDialog(loc("Add Google Meet?"), isPresented: $showAddConferenceConfirmation) {
+        Button(loc("Add Meet")) { model.addConference(for: event) }
+        Button(loc("Cancel"), role: .cancel) {}
+      } message: {
+        Text(loc("Add a Google Meet video link to %@.", event.title))
+      }
+      .confirmationDialog(loc("Create meeting notes?"), isPresented: $showCreateNotesConfirmation) {
+        Button(loc("Create notes")) { model.createOrOpenNote(for: event) }
+        Button(loc("Cancel"), role: .cancel) {}
+      } message: {
+        Text(noteCreationConfirmationMessage(for: event, model: model))
+      }
   }
 }
 
 private struct EventDetailView: View {
   var event: CalendarEvent
-  @ObservedObject var model: AppModel
-  @State private var copiedRecently = false
-
-  private static let copyDateFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .medium
-    formatter.timeStyle = .none
-    return formatter
-  }()
-
-  private static let copyDateTimeFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .medium
-    formatter.timeStyle = .short
-    return formatter
-  }()
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
       // Always present, unlike the description/attendee blocks below, so an
       // event with neither (e.g. a bare "移動" placeholder) still expands to
-      // a line of text instead of landing straight on a row of icon buttons.
+      // a useful line of event metadata.
       Text(detailMetadataLine)
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -1408,23 +1629,6 @@ private struct EventDetailView: View {
         }
       }
 
-      HStack(spacing: Theme.Spacing.sm) {
-        QuietButton(
-          systemImage: copiedRecently ? "checkmark" : "doc.on.doc",
-          label: loc("Copy details"),
-          size: .small,
-          tint: copiedRecently ? Color.green : nil,
-          action: copyEventDetails
-        )
-        .help(copiedRecently ? loc("Copied event details") : loc("Copy event details"))
-        .accessibilityLabel(loc("Copy event details"))
-
-        QuietButton(systemImage: "arrow.up.right", label: loc("Open in Calendar"), size: .small) {
-          model.open(event)
-        }
-        .help(loc("Open in Calendar"))
-        .accessibilityLabel(loc("Open in Calendar"))
-      }
     }
     .padding(.vertical, Theme.Spacing.xs)
   }
@@ -1434,65 +1638,6 @@ private struct EventDetailView: View {
   private var detailMetadataLine: String {
     let timePart = event.allDay ? loc("all-day") : timeRangeText(for: event)
     return "\(timePart) · \(event.account.email)"
-  }
-
-  private func copyEventDetails() {
-    let pasteboard = NSPasteboard.general
-    pasteboard.clearContents()
-    pasteboard.setString(copyText, forType: .string)
-
-    withAnimation(.easeInOut(duration: 0.12)) {
-      copiedRecently = true
-    }
-    Task { @MainActor in
-      try? await Task.sleep(nanoseconds: 1_200_000_000)
-      copiedRecently = false
-    }
-  }
-
-  private var copyText: String {
-    var lines = [
-      event.title,
-      copyTimeText
-    ]
-
-    if !event.location.isEmpty {
-      lines.append(loc("Location: %@", event.location))
-    }
-
-    let conferenceURL = EventLinks.conferenceURLString(for: event)
-    if !conferenceURL.isEmpty {
-      lines.append(loc("Meet: %@", conferenceURL))
-    }
-
-    let calendarURL = EventLinks.eventURLString(for: event)
-    if !calendarURL.isEmpty {
-      lines.append(loc("Calendar: %@", calendarURL))
-    }
-
-    return lines.joined(separator: "\n")
-  }
-
-  private var copyTimeText: String {
-    let calendar = Calendar.current
-
-    if event.allDay {
-      let displayEnd = calendar.date(byAdding: .second, value: -1, to: event.endDate) ?? event.endDate
-      let start = Self.copyDateFormatter.string(from: event.startDate)
-      if calendar.isDate(event.startDate, inSameDayAs: displayEnd) {
-        return "\(start) \(loc("all-day"))"
-      }
-      let end = Self.copyDateFormatter.string(from: displayEnd)
-      return "\(start) - \(end) \(loc("all-day"))"
-    }
-
-    if calendar.isDate(event.startDate, inSameDayAs: event.endDate) {
-      let day = Self.copyDateFormatter.string(from: event.startDate)
-      return "\(day), \(clock(event.startDate)) - \(clock(event.endDate))"
-    }
-    let start = Self.copyDateTimeFormatter.string(from: event.startDate)
-    let end = Self.copyDateTimeFormatter.string(from: event.endDate)
-    return "\(start) - \(end)"
   }
 
   private func responseIcon(_ status: String) -> String {
@@ -1542,6 +1687,79 @@ private struct EventDetailView: View {
     }
     return attr
   }
+}
+
+private enum EventCopyFormatters {
+  static let date: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .none
+    return formatter
+  }()
+
+  static let dateTime: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .short
+    return formatter
+  }()
+}
+
+/// The text copied by the event action menu. Kept independent of the detail
+/// view so the menu remains the single home for the copy action.
+func eventCopyDetailsText(for event: CalendarEvent) -> String {
+  var lines = [
+    event.title,
+    eventCopyTimeText(for: event)
+  ]
+
+  if !event.location.isEmpty {
+    lines.append(loc("Location: %@", event.location))
+  }
+
+  let conferenceURL = EventLinks.conferenceURLString(for: event)
+  if !conferenceURL.isEmpty {
+    lines.append(loc("Meet: %@", conferenceURL))
+  }
+
+  let calendarURL = EventLinks.eventURLString(for: event)
+  if !calendarURL.isEmpty {
+    lines.append(loc("Calendar: %@", calendarURL))
+  }
+
+  return lines.joined(separator: "\n")
+}
+
+private func eventCopyTimeText(for event: CalendarEvent) -> String {
+  let calendar = Calendar.current
+
+  if event.allDay {
+    let displayEnd = calendar.date(byAdding: .second, value: -1, to: event.endDate) ?? event.endDate
+    let start = EventCopyFormatters.date.string(from: event.startDate)
+    if calendar.isDate(event.startDate, inSameDayAs: displayEnd) {
+      return "\(start) \(loc("all-day"))"
+    }
+    let end = EventCopyFormatters.date.string(from: displayEnd)
+    return "\(start) - \(end) \(loc("all-day"))"
+  }
+
+  if calendar.isDate(event.startDate, inSameDayAs: event.endDate) {
+    let day = EventCopyFormatters.date.string(from: event.startDate)
+    return "\(day), \(clock(event.startDate)) - \(clock(event.endDate))"
+  }
+  let start = EventCopyFormatters.dateTime.string(from: event.startDate)
+  let end = EventCopyFormatters.dateTime.string(from: event.endDate)
+  return "\(start) - \(end)"
+}
+
+private func copyStringToPasteboard(_ string: String) {
+  let pasteboard = NSPasteboard.general
+  pasteboard.clearContents()
+  pasteboard.setString(string, forType: .string)
+}
+
+private func copyEventDetailsToPasteboard(_ event: CalendarEvent) {
+  copyStringToPasteboard(eventCopyDetailsText(for: event))
 }
 
 private struct ExternalShareOverlay: View {
