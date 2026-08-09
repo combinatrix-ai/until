@@ -1,0 +1,426 @@
+<meta charset="utf-8">
+<title>Until — ⋯1アイコン集約案</title>
+<style>
+  :root {
+    --bg: #eef0f3; --ink: #1d1d1f; --muted: #6e6e73;
+    --line: rgba(20,22,26,0.10); --accent: #0071e3;
+    --panel: #ffffff; --panel-inset: #f5f5f7;
+    --hover: rgba(20,22,26,0.045);
+    --now: #248a3d;
+    --now-card: linear-gradient(180deg, rgba(36,138,61,0.11), rgba(36,138,61,0.045));
+    --now-btn-ink: #ffffff;
+    --shadow: 0 18px 50px rgba(20,22,26,0.16), 0 2px 8px rgba(20,22,26,0.08);
+    --menu-shadow: 0 10px 30px rgba(20,22,26,0.18), 0 2px 6px rgba(20,22,26,0.10);
+    --cal-blue: #4285f4; --cal-orange: #f4a742; --cal-green: #34a853; --cal-red: #ea6060;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131316; --ink: #f5f5f7; --muted: #98989d;
+      --line: rgba(255,255,255,0.10); --accent: #0a84ff;
+      --panel: #262628; --panel-inset: #1e1e20;
+      --hover: rgba(255,255,255,0.055);
+      --now: #32d74b;
+      --now-card: linear-gradient(180deg, rgba(50,215,75,0.14), rgba(50,215,75,0.05));
+      --now-btn-ink: #06230e;
+      --shadow: 0 18px 50px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+      --menu-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131316; --ink: #f5f5f7; --muted: #98989d;
+    --line: rgba(255,255,255,0.10); --accent: #0a84ff;
+    --panel: #262628; --panel-inset: #1e1e20;
+    --hover: rgba(255,255,255,0.055);
+    --now: #32d74b;
+    --now-card: linear-gradient(180deg, rgba(50,215,75,0.14), rgba(50,215,75,0.05));
+    --now-btn-ink: #06230e;
+    --shadow: 0 18px 50px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+    --menu-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.4);
+  }
+  :root[data-theme="light"] {
+    --bg: #eef0f3; --ink: #1d1d1f; --muted: #6e6e73;
+    --line: rgba(20,22,26,0.10); --accent: #0071e3;
+    --panel: #ffffff; --panel-inset: #f5f5f7;
+    --hover: rgba(20,22,26,0.045);
+    --now: #248a3d;
+    --now-card: linear-gradient(180deg, rgba(36,138,61,0.11), rgba(36,138,61,0.045));
+    --now-btn-ink: #ffffff;
+    --shadow: 0 18px 50px rgba(20,22,26,0.16), 0 2px 8px rgba(20,22,26,0.08);
+    --menu-shadow: 0 10px 30px rgba(20,22,26,0.18), 0 2px 6px rgba(20,22,26,0.10);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", sans-serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+  }
+  .page { max-width: 1120px; margin: 0 auto; padding: 48px 24px 120px; }
+  .pagehead { display: flex; justify-content: space-between; gap: 16px; }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+  .lede { color: var(--muted); font-size: 13px; margin: 0 0 32px; max-width: 700px; }
+  .theme-toggle {
+    flex: none; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 12px; cursor: pointer; align-self: flex-start;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 40px; }
+  .variant h3 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+  .variant h3 .tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--accent); border: 1px solid currentColor; border-radius: 99px;
+    padding: 1px 8px; margin-right: 8px; vertical-align: 2px;
+  }
+  .variant .pitch { font-size: 12.5px; color: var(--muted); margin: 0 0 6px; }
+  .variant ul.notes { font-size: 12px; color: var(--muted); margin: 0 0 16px; padding-left: 18px; }
+  .variant ul.notes li { margin: 2px 0; }
+  .variant ul.notes b { color: var(--ink); font-weight: 600; }
+  .hint {
+    font-size: 12px; color: var(--muted); background: var(--panel);
+    border: 1px dashed var(--line); border-radius: 8px; padding: 8px 12px; margin: 24px 0 0;
+    max-width: 700px;
+  }
+
+  .pop {
+    width: 372px; margin: 0 auto; background: var(--panel); border-radius: 14px;
+    box-shadow: var(--shadow); border: 1px solid var(--line); font-size: 13px;
+  }
+  .pop > .dayhead:first-child { border-radius: 14px 14px 0 0; padding-top: 12px; }
+  .pop > .footer { border-radius: 0 0 14px 14px; }
+  .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
+    border-radius: 7px; padding: 4px 11px; border: 1px solid var(--line);
+    color: var(--ink); background: var(--panel); white-space: nowrap; cursor: pointer;
+  }
+  .btn.primary.green { background: var(--now); border-color: transparent; color: var(--now-btn-ink); }
+  .btn.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+  .btn.quiet:hover { background: var(--hover); color: var(--ink); }
+  .footer { display: flex; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+  .footer .spacer { flex: 1; }
+  .dayhead { font-size: 12px; font-weight: 700; color: var(--muted); padding: 10px 16px 2px; }
+
+  .row { display: flex; align-items: flex-start; padding: 6px 16px; position: relative; }
+  .row .time { width: 54px; flex: none; font-size: 11px; color: var(--muted); padding-top: 2px; text-align: right; padding-right: 10px; }
+  .row .node { width: 22px; flex: none; display: flex; justify-content: center; position: relative; }
+  .row .node::before { content: ""; position: absolute; top: -8px; bottom: -8px; left: 50%; width: 2px; margin-left: -1px; background: var(--line); }
+  .row .dot { position: relative; z-index: 1; width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; background: var(--cal-blue); box-shadow: 0 0 0 3px var(--panel); }
+  .row .body { min-width: 0; flex: 1; padding-left: 10px; }
+  .row .name { font-weight: 600; line-height: 1.3; }
+  .row .sub { font-size: 11.5px; color: var(--muted); }
+  .row.past { opacity: 0.55; }
+  .row.past .name { text-decoration: line-through; }
+
+  .icons { display: flex; gap: 2px; flex: none; padding-left: 8px; position: relative; }
+  .ic {
+    width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 13px; color: var(--muted); cursor: pointer; border: none; background: none;
+  }
+  .ic:hover { background: var(--hover); color: var(--accent); }
+  .reveal { opacity: 0; transition: opacity 0.12s; }
+  .row:hover .reveal, .hero-inline:hover .reveal, .icons.open .reveal { opacity: 1; }
+
+  .hero-wrap { display: flex; padding: 6px 16px; }
+  .hero-wrap .time { width: 54px; flex: none; font-size: 11px; font-weight: 700; color: var(--now); padding-top: 12px; text-align: right; padding-right: 10px; }
+  .hero-wrap .node { width: 22px; flex: none; display: flex; justify-content: center; position: relative; }
+  .hero-wrap .node::before { content: ""; position: absolute; top: -10px; bottom: -10px; left: 50%; width: 2px; margin-left: -1px; background: var(--line); }
+  .hero-wrap .dot { position: relative; z-index: 1; width: 13px; height: 13px; border-radius: 50%; margin-top: 11px; background: var(--now); box-shadow: 0 0 0 3px var(--panel), 0 0 0 6px color-mix(in srgb, var(--now) 25%, transparent); }
+  .hero-inline {
+    flex: 1; min-width: 0; margin-left: 10px; background: var(--now-card);
+    border: 1px solid color-mix(in srgb, var(--now) 35%, transparent);
+    border-radius: 10px; padding: 9px 12px 10px; position: relative;
+  }
+  .hero-inline .kicker { display: flex; justify-content: space-between; margin-bottom: 2px; }
+  .hero-inline .kicker .label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--now); }
+  .hero-inline .kicker .count { font-size: 12px; font-weight: 700; color: var(--now); }
+  .hero-inline .progress { height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--now) 18%, transparent); margin: 6px 0; overflow: hidden; }
+  .hero-inline .progress i { display: block; height: 100%; width: 17%; background: var(--now); }
+  .hero-inline .title { font-size: 15px; font-weight: 700; }
+  .hero-inline .meta { font-size: 11.5px; color: var(--muted); }
+  .hero-inline .actions { display: flex; gap: 7px; margin-top: 8px; align-items: center; position: relative; }
+
+  .gap { display: flex; align-items: center; padding: 2px 16px; }
+  .gap .time { width: 54px; flex: none; }
+  .gap .node { width: 22px; flex: none; display: flex; justify-content: center; align-self: stretch; }
+  .gap .node i { border-left: 2px dashed var(--line); }
+  .gap .lbl { font-size: 11px; color: var(--muted); padding: 5px 0 5px 10px; }
+
+  /* ---------- dropdown menu ---------- */
+  .menu {
+    position: absolute; top: 26px; right: 0; z-index: 10; min-width: 200px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: var(--menu-shadow); padding: 4px; display: none;
+  }
+  .menu.open { display: block; }
+  .menu button {
+    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    font: inherit; font-size: 12.5px; color: var(--ink); background: none; border: none;
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; white-space: nowrap;
+  }
+  .menu button:hover { background: var(--accent); color: #fff; }
+  .menu .sep { height: 1px; background: var(--line); margin: 4px 6px; }
+  .menu .glyph { width: 16px; text-align: center; flex: none; }
+</style>
+
+<div class="page">
+  <div class="pagehead">
+    <div>
+      <h1>Until — ⋯1アイコン集約案</h1>
+      <p class="lede">行のアクションを「⋯」1個に集約する。⋯を左クリック=行を右クリック=完全に同じメニュー(住所は1箇所)。📹📄が伝えていた情報はメタ行のテキストが既に持っているので、アイコンは操作口に徹する。展開ビューからはアクション行を撤去して純粋な情報表示に。⋯をクリックしてみてください。</p>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">☀︎ / ☾ テーマ切替</button>
+  </div>
+
+  <div class="grid">
+
+    <!-- ============ M1 ============ -->
+    <section class="variant">
+      <h3><span class="tag">M1</span>フル集約 — 行は⋯だけ</h3>
+      <p class="pitch">行のrestは完全に無装飾。ホバーで⋯が1個だけ現れ、Joinもメニューの中。いちばん静かで、いちばんクリック数が多い。</p>
+      <ul class="notes">
+        <li><b>効き所:</b> リストが完全にクリーン。ルールも「全部⋯の中」の一言</li>
+        <li><b>弱点:</b> 時刻ギリギリのJoinが2クリック(⋯→Join)。急いでる時に痛い</li>
+      </ul>
+      <div class="pop">
+        <div class="dayhead">Today</div>
+        <div class="row past">
+          <div class="time mono">11:30</div>
+          <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+          <div class="body"><div class="name">Morning run</div><div class="sub">Riverside Park</div></div>
+          <div class="icons">
+            <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
+            <div class="menu">
+              <button><span class="glyph">📄</span>Open notes</button>
+              <button><span class="glyph">⧉</span>Copy details</button>
+              <button><span class="glyph">↗</span>Open in Calendar</button>
+            </div>
+          </div>
+        </div>
+        <div class="hero-wrap">
+          <div class="time mono">12:55</div>
+          <div class="node"><span class="dot"></span></div>
+          <div class="hero-inline">
+            <div class="kicker"><span class="label">NOW · STARTED 5M AGO</span><span class="count">25m left</span></div>
+            <div class="progress"><i></i></div>
+            <div class="title">Launch standup</div>
+            <div class="meta">12:55 – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+            <div class="actions">
+              <span class="btn primary green">📹 Join</span>
+              <span class="btn quiet">📄 Create notes</span>
+              <span style="flex:1"></span>
+              <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
+              <div class="menu" style="top: 30px;">
+                <button><span class="glyph">🔗</span>Copy meeting link</button>
+                <button><span class="glyph">⧉</span>Copy details</button>
+                <button><span class="glyph">↗</span>Open in Calendar</button>
+                <div class="sep"></div>
+                <button><span class="glyph">⏭</span>Skip in menubar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="time mono">1:30 PM</div>
+          <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+          <div class="body">
+            <div class="name">Design review: website screenshots</div>
+            <div class="sub">Google Meet · Maya Chen, Ren Sato</div>
+          </div>
+          <div class="icons">
+            <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
+            <div class="menu">
+              <button><span class="glyph">📹</span>Join video call</button>
+              <button><span class="glyph">🔗</span>Copy meeting link</button>
+              <div class="sep"></div>
+              <button><span class="glyph">📄</span>Open notes</button>
+              <button><span class="glyph">⧉</span>Copy details</button>
+              <button><span class="glyph">↗</span>Open in Calendar</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⏭</span>Skip in menubar</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="time mono">3:00 PM</div>
+          <div class="node"><span class="dot" style="background: var(--cal-orange)"></span></div>
+          <div class="body"><div class="name">Project work block</div><div class="sub">Desk</div></div>
+          <div class="icons">
+            <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
+            <div class="menu">
+              <button><span class="glyph">📹</span>Add Google Meet</button>
+              <button><span class="glyph">📄</span>Create notes</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⧉</span>Copy details</button>
+              <button><span class="glyph">↗</span>Open in Calendar</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⏭</span>Skip in menubar</button>
+            </div>
+          </div>
+        </div>
+        <div class="gap">
+          <div class="time"></div><div class="node"><i></i></div>
+          <div class="lbl">free until 4:30 PM · 90m</div>
+        </div>
+        <div class="row">
+          <div class="time mono">4:30 PM</div>
+          <div class="node"><span class="dot" style="background: var(--cal-green)"></span></div>
+          <div class="body"><div class="name">Product sync</div><div class="sub">Google Meet · Alex Kim, Sam Rivera</div></div>
+          <div class="icons">
+            <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
+            <div class="menu">
+              <button><span class="glyph">📹</span>Join video call</button>
+              <button><span class="glyph">🔗</span>Copy meeting link</button>
+              <div class="sep"></div>
+              <button><span class="glyph">📄</span>Create notes</button>
+              <button><span class="glyph">⧉</span>Copy details</button>
+              <button><span class="glyph">↗</span>Open in Calendar</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⏭</span>Skip in menubar</button>
+            </div>
+          </div>
+        </div>
+        <div class="footer">⏻ Updated just now <span class="spacer"></span>↻ ⚙︎</div>
+      </div>
+    </section>
+
+    <!-- ============ M2 ============ -->
+    <section class="variant">
+      <h3><span class="tag">M2</span>Join直通 + ⋯ — 時間系だけ例外</h3>
+      <p class="pitch">通話がある未来行だけ📹がホバーで⋯の左に並ぶ(1クリックでJoin)。それ以外は全部⋯。「時刻に縛られる操作だけ直通」という1つの例外で済む。</p>
+      <ul class="notes">
+        <li><b>効き所:</b> Joinの即時性を守りつつ、住所は⋯=右クリックの1箇所</li>
+        <li><b>弱点:</b> 例外が1つ増える(が、理由を説明できる例外)</li>
+      </ul>
+      <div class="pop">
+        <div class="dayhead">Today</div>
+        <div class="row past">
+          <div class="time mono">11:30</div>
+          <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+          <div class="body"><div class="name">Morning run</div><div class="sub">Riverside Park</div></div>
+          <div class="icons">
+            <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
+            <div class="menu">
+              <button><span class="glyph">📄</span>Open notes</button>
+              <button><span class="glyph">⧉</span>Copy details</button>
+              <button><span class="glyph">↗</span>Open in Calendar</button>
+            </div>
+          </div>
+        </div>
+        <div class="hero-wrap">
+          <div class="time mono">12:55</div>
+          <div class="node"><span class="dot"></span></div>
+          <div class="hero-inline">
+            <div class="kicker"><span class="label">NOW · STARTED 5M AGO</span><span class="count">25m left</span></div>
+            <div class="progress"><i></i></div>
+            <div class="title">Launch standup</div>
+            <div class="meta">12:55 – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+            <div class="actions">
+              <span class="btn primary green">📹 Join</span>
+              <span class="btn quiet">📄 Create notes</span>
+              <span style="flex:1"></span>
+              <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
+              <div class="menu" style="top: 30px;">
+                <button><span class="glyph">🔗</span>Copy meeting link</button>
+                <button><span class="glyph">⧉</span>Copy details</button>
+                <button><span class="glyph">↗</span>Open in Calendar</button>
+                <div class="sep"></div>
+                <button><span class="glyph">⏭</span>Skip in menubar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="time mono">1:30 PM</div>
+          <div class="node"><span class="dot" style="background: var(--cal-blue)"></span></div>
+          <div class="body">
+            <div class="name">Design review: website screenshots</div>
+            <div class="sub">Google Meet · Maya Chen, Ren Sato</div>
+          </div>
+          <div class="icons">
+            <button class="ic reveal" title="Join video call">📹</button>
+            <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
+            <div class="menu">
+              <button><span class="glyph">📹</span>Join video call</button>
+              <button><span class="glyph">🔗</span>Copy meeting link</button>
+              <div class="sep"></div>
+              <button><span class="glyph">📄</span>Open notes</button>
+              <button><span class="glyph">⧉</span>Copy details</button>
+              <button><span class="glyph">↗</span>Open in Calendar</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⏭</span>Skip in menubar</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="time mono">3:00 PM</div>
+          <div class="node"><span class="dot" style="background: var(--cal-orange)"></span></div>
+          <div class="body"><div class="name">Project work block</div><div class="sub">Desk</div></div>
+          <div class="icons">
+            <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
+            <div class="menu">
+              <button><span class="glyph">📹</span>Add Google Meet</button>
+              <button><span class="glyph">📄</span>Create notes</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⧉</span>Copy details</button>
+              <button><span class="glyph">↗</span>Open in Calendar</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⏭</span>Skip in menubar</button>
+            </div>
+          </div>
+        </div>
+        <div class="gap">
+          <div class="time"></div><div class="node"><i></i></div>
+          <div class="lbl">free until 4:30 PM · 90m</div>
+        </div>
+        <div class="row">
+          <div class="time mono">4:30 PM</div>
+          <div class="node"><span class="dot" style="background: var(--cal-green)"></span></div>
+          <div class="body"><div class="name">Product sync</div><div class="sub">Google Meet · Alex Kim, Sam Rivera</div></div>
+          <div class="icons">
+            <button class="ic reveal" title="Join video call">📹</button>
+            <button class="ic reveal" onclick="toggleMenu(this)">⋯</button>
+            <div class="menu">
+              <button><span class="glyph">📹</span>Join video call</button>
+              <button><span class="glyph">🔗</span>Copy meeting link</button>
+              <div class="sep"></div>
+              <button><span class="glyph">📄</span>Create notes</button>
+              <button><span class="glyph">⧉</span>Copy details</button>
+              <button><span class="glyph">↗</span>Open in Calendar</button>
+              <div class="sep"></div>
+              <button><span class="glyph">⏭</span>Skip in menubar</button>
+            </div>
+          </div>
+        </div>
+        <div class="footer">⏻ Updated just now <span class="spacer"></span>↻ ⚙︎</div>
+      </div>
+    </section>
+  </div>
+
+  <p class="hint">💡 共通ルール: <b>⋯の中身=右クリックメニュー=イベントの全アクション</b>(Join / Copy link / ノート / Copy details / Open in Calendar / Skip)。メニューは文脈で並びと内容が変わる(過去行は閲覧系のみ、通話なし行はAdd Meet、ノート未作成はCreate notes)。展開ビューはアクション行を持たず、説明・出欠・メタ情報だけの純粋な情報面になる。ヒーローだけはJoin+Notesを直通ボタンとして残し、3つ目以降を⋯に畳む。</p>
+</div>
+
+<script>
+  function toggleMenu(btn) {
+    const icons = btn.closest(".icons") || btn.parentElement;
+    const menu = icons.querySelector(".menu") || btn.nextElementSibling;
+    const wasOpen = menu.classList.contains("open");
+    document.querySelectorAll(".menu.open").forEach(m => m.classList.remove("open"));
+    document.querySelectorAll(".icons.open").forEach(i => i.classList.remove("open"));
+    if (!wasOpen) {
+      menu.classList.add("open");
+      if (icons.classList) icons.classList.add("open");
+    }
+  }
+  document.addEventListener("click", event => {
+    if (!event.target.closest(".ic") && !event.target.closest(".menu")) {
+      document.querySelectorAll(".menu.open").forEach(m => m.classList.remove("open"));
+      document.querySelectorAll(".icons.open").forEach(i => i.classList.remove("open"));
+    }
+  });
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const cur = root.dataset.theme || (dark ? "dark" : "light");
+    root.dataset.theme = cur === "dark" ? "light" : "dark";
+  }
+</script>
