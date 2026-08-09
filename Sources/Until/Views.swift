@@ -1210,7 +1210,11 @@ private struct EventActionMenuButton: View {
       .contentShape(Rectangle())
     }
     .menuStyle(.borderlessButton)
+    .menuIndicator(.hidden)
     .buttonStyle(.borderless)
+    // The label is a fixed 22pt circle; without this the borderless menu
+    // style stretches the hit area to fill the row's trailing space.
+    .fixedSize()
     .accessibilityLabel(loc("More actions"))
     .help(loc("More actions"))
     .animation(.easeInOut(duration: Theme.hoverFadeDuration), value: isHovered)
