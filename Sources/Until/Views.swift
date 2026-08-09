@@ -499,9 +499,13 @@ private struct TimelineTimeLabel: View {
 private struct TimelineRailNode: View {
   var color: Color
   var emphasized = false
+  /// Pins the dot beside the row's first line instead of centering it. Card
+  /// rows are tall enough that a centered dot drifts away from the time label
+  /// it marks; list rows are short, so centering reads fine there.
+  var topAligned = false
 
   var body: some View {
-    ZStack {
+    ZStack(alignment: topAligned ? .top : .center) {
       Rectangle()
         .fill(Theme.hairline)
         .frame(width: 2)
@@ -623,7 +627,7 @@ private struct FreeDayTimelineRow: View {
   var body: some View {
     HStack(alignment: .top, spacing: 0) {
       TimelineTimeLabel(label: "")
-      TimelineRailNode(color: .green, emphasized: true)
+      TimelineRailNode(color: .green, emphasized: true, topAligned: true)
       VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
         HStack(alignment: .firstTextBaseline) {
           Text(loc("No more events today"))
@@ -731,7 +735,7 @@ private struct HeroTimelineRow: View {
         color: tintColor,
         weight: .bold
       )
-      TimelineRailNode(color: tintColor, emphasized: true)
+      TimelineRailNode(color: tintColor, emphasized: true, topAligned: true)
       VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
         HStack(alignment: .firstTextBaseline) {
           Text(kickerText)
