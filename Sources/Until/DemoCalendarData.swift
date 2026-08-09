@@ -273,14 +273,20 @@ enum DemoCalendarData {
   }
 
   private static func runAndLaunchSpecs(_ ctx: DemoContext) -> [DemoEventSpec] {
-    [
+    // The run sits behind the hero and is always already finished, so the rail
+    // opens with a completed event above the now-line. Anchoring it ahead of
+    // the hero (as the other specs are) put a "Morning run" after the day's
+    // first meeting — and, in the in-progress scenarios, straddling the very
+    // event being demoed.
+    let runEnd = min(minutes(from: ctx.nextSlot, -20), minutes(from: ctx.now, -10))
+    return [
       DemoEventSpec(
         id: "morning-run",
         title: "Morning run",
         description: "Keep the day clear before capture work starts.",
         location: "Riverside Park",
-        start: minutes(from: ctx.nextSlot, 30),
-        end: minutes(from: ctx.nextSlot, 75),
+        start: minutes(from: runEnd, -45),
+        end: runEnd,
         calendar: ctx.personal,
         accountEmail: personalAccountEmail,
         colorId: "9",

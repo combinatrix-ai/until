@@ -131,8 +131,10 @@ final class SkipInMenubarTests: XCTestCase {
   @MainActor
   func testSkipUnskipUpdateModelStateAndPopoverListStaysIntact() {
     let model = AppModel(options: AppRuntimeOptions(demoMode: true))
-    guard let event = model.state.events.first else {
-      XCTFail("Demo data should seed at least one timed event")
+    // A skip is stored until the event ends, so an already-finished demo row
+    // would expire the moment it is written.
+    guard let event = model.state.events.first(where: { $0.endDate > Date() }) else {
+      XCTFail("Demo data should seed at least one upcoming timed event")
       return
     }
 
@@ -151,8 +153,8 @@ final class SkipInMenubarTests: XCTestCase {
   @MainActor
   func testSkipInMenubarPurgesStaleEntriesFromConfig() {
     let model = AppModel(options: AppRuntimeOptions(demoMode: true))
-    guard let event = model.state.events.first else {
-      XCTFail("Demo data should seed at least one timed event")
+    guard let event = model.state.events.first(where: { $0.endDate > Date() }) else {
+      XCTFail("Demo data should seed at least one upcoming timed event")
       return
     }
     model.config.skippedMenubarEvents["gone::stale::0"] = Date().addingTimeInterval(-86400)
