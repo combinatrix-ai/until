@@ -1,0 +1,356 @@
+<meta charset="utf-8">
+<title>Until — ヒーローカードのシンプル化</title>
+<style>
+  :root {
+    --bg: #eef0f3; --ink: #1d1d1f; --muted: #6e6e73;
+    --line: rgba(20,22,26,0.10); --accent: #0071e3;
+    --panel: #ffffff; --panel-inset: #f5f5f7;
+    --hover: rgba(20,22,26,0.045);
+    --now: #248a3d;
+    --now-btn-ink: #ffffff;
+    --shadow: 0 12px 36px rgba(20,22,26,0.14), 0 2px 8px rgba(20,22,26,0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131316; --ink: #f5f5f7; --muted: #98989d;
+      --line: rgba(255,255,255,0.10); --accent: #0a84ff;
+      --panel: #262628; --panel-inset: #1e1e20;
+      --hover: rgba(255,255,255,0.055);
+      --now: #32d74b;
+      --now-btn-ink: #06230e;
+      --shadow: 0 12px 36px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131316; --ink: #f5f5f7; --muted: #98989d;
+    --line: rgba(255,255,255,0.10); --accent: #0a84ff;
+    --panel: #262628; --panel-inset: #1e1e20;
+    --hover: rgba(255,255,255,0.055);
+    --now: #32d74b;
+    --now-btn-ink: #06230e;
+    --shadow: 0 12px 36px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #eef0f3; --ink: #1d1d1f; --muted: #6e6e73;
+    --line: rgba(20,22,26,0.10); --accent: #0071e3;
+    --panel: #ffffff; --panel-inset: #f5f5f7;
+    --hover: rgba(20,22,26,0.045);
+    --now: #248a3d;
+    --now-btn-ink: #ffffff;
+    --shadow: 0 12px 36px rgba(20,22,26,0.14), 0 2px 8px rgba(20,22,26,0.07);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", sans-serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+  }
+  .page { max-width: 1220px; margin: 0 auto; padding: 48px 24px 96px; }
+  .pagehead { display: flex; justify-content: space-between; gap: 16px; }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+  .lede { color: var(--muted); font-size: 13px; margin: 0 0 36px; max-width: 720px; }
+  .theme-toggle {
+    flex: none; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 12px; cursor: pointer; align-self: flex-start;
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 44px 36px; }
+  .variant h3 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+  .variant h3 .tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--accent); border: 1px solid currentColor; border-radius: 99px;
+    padding: 1px 8px; margin-right: 8px; vertical-align: 2px;
+  }
+  .variant .pitch { font-size: 12.5px; color: var(--muted); margin: 0 0 14px; min-height: 57px; }
+  .variant .pitch b { color: var(--ink); font-weight: 600; }
+  .pair { display: flex; flex-direction: column; gap: 14px; }
+  .statelbl { text-align: center; font-size: 10.5px; color: var(--muted); letter-spacing: 0.05em; margin-bottom: -8px; }
+
+  /* surrounding-context frame: cards float on the popover surface with a
+     neighbour row, so the "quiet timeline" contrast is visible */
+  .frame { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 8px 0; }
+  .row { display: flex; align-items: flex-start; padding: 5px 14px; }
+  .row .time { width: 48px; flex: none; font-size: 11px; color: var(--muted); text-align: right; padding: 2px 10px 0 0; }
+  .row .node { width: 22px; flex: none; display: flex; justify-content: center; position: relative; }
+  .row .node::before { content: ""; position: absolute; top: -8px; bottom: -8px; left: 50%; width: 2px; margin-left: -1px; background: var(--line); }
+  .row .dot { position: relative; z-index: 1; width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; background: #b07fe0; box-shadow: 0 0 0 3px var(--panel); }
+  .row .body { padding-left: 10px; min-width: 0; }
+  .row .name { font-weight: 600; }
+  .row .sub { font-size: 11.5px; color: var(--muted); }
+
+  .hero-wrap { display: flex; padding: 5px 14px; }
+  .hero-wrap .time { width: 48px; flex: none; font-size: 11px; font-weight: 700; padding: 12px 10px 0 0; text-align: right; }
+  .hero-wrap .node { width: 22px; flex: none; display: flex; justify-content: center; position: relative; }
+  .hero-wrap .node::before { content: ""; position: absolute; top: -10px; bottom: -10px; left: 50%; width: 2px; margin-left: -1px; background: var(--line); }
+  .hero-wrap .dot { position: relative; z-index: 1; width: 13px; height: 13px; border-radius: 50%; margin-top: 11px; box-shadow: 0 0 0 3px var(--panel); }
+  .hero-wrap.now .time, .hero-wrap.now .kicker .label, .hero-wrap.now .kicker .count { color: var(--now); }
+  .hero-wrap.next .time, .hero-wrap.next .kicker .label, .hero-wrap.next .kicker .count { color: var(--accent); }
+  .hero-wrap.now .dot { background: var(--now); }
+  .hero-wrap.next .dot { background: var(--accent); }
+
+  .card { flex: 1; min-width: 0; margin-left: 10px; border-radius: 10px; padding: 9px 12px 10px; position: relative; }
+  .kicker { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+  .kicker .label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; }
+  .kicker .count { font-size: 12px; font-weight: 700; }
+  .progress { height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--now) 18%, transparent); margin: 6px 0; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 17%; background: var(--now); }
+  .title { font-size: 15px; font-weight: 700; line-height: 1.3; }
+  .meta { font-size: 11.5px; color: var(--muted); }
+  .metaline { display: flex; align-items: center; gap: 6px; }
+  .metaline .meta { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .actions { display: flex; align-items: center; gap: 7px; margin-top: 8px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
+    border-radius: 7px; padding: 4px 11px; border: none; white-space: nowrap; cursor: pointer;
+  }
+  .btn.join-now { background: var(--now); color: var(--now-btn-ink); }
+  .btn.quiet { background: transparent; color: var(--muted); }
+  .btn.quiet:hover { background: var(--hover); color: var(--ink); }
+  .ic {
+    width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 14px; color: var(--muted); cursor: pointer;
+    border: none; background: none; flex: none;
+  }
+  .ic:hover { background: var(--hover); color: var(--accent); }
+  .reveal { opacity: 0; transition: opacity 0.12s; }
+  .card:hover .reveal { opacity: 1; }
+  .spacer { flex: 1; }
+
+  /* ---- S0 現状 ---- */
+  .s0.now { background: linear-gradient(180deg, color-mix(in srgb, var(--now) 12%, transparent), color-mix(in srgb, var(--now) 2.5%, transparent)); border: 1px solid color-mix(in srgb, var(--now) 28%, transparent); }
+  .s0.next { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), color-mix(in srgb, var(--accent) 2.5%, transparent)); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); }
+  /* ---- S1 フラット+枠 ---- */
+  .s1.now { background: color-mix(in srgb, var(--now) 7%, transparent); border: 1px solid color-mix(in srgb, var(--now) 25%, transparent); }
+  .s1.next { background: color-mix(in srgb, var(--accent) 6%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+  /* ---- S2 フラットのみ ---- */
+  .s2.now { background: color-mix(in srgb, var(--now) 8%, transparent); }
+  .s2.next { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  /* ---- S3 ニュートラル+色スパイン ---- */
+  .s3 { background: var(--panel-inset); border-radius: 10px; overflow: hidden; }
+  .s3::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .s3.now::before { background: var(--now); }
+  .s3.next::before { background: var(--accent); }
+  .s3 { padding-left: 15px; }
+  /* ---- S4 カード廃止 ---- */
+  .s4 { padding: 4px 0 4px 12px; border-radius: 0; }
+</style>
+
+<div class="page">
+  <div class="pagehead">
+    <div>
+      <h1>Until — ヒーローカードのシンプル化</h1>
+      <p class="lede">現状(S0)=グラデーション+色付き枠。そこから一段ずつ装飾を削る4案。周囲の行との対比が本質なので、各カードは隣の通常行と一緒に表示。上=NOW(全部あり)/下=NEXT(何もなし)。ホバーで⋯。</p>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">☀︎ / ☾ テーマ切替</button>
+  </div>
+
+  <div class="grid">
+
+    <!-- ============ S0 ============ -->
+    <section class="variant">
+      <h3><span class="tag">S0</span>現状(比較用)</h3>
+      <p class="pitch">グラデーション+色付き枠+色テキスト。情報としては<b>枠とグラデが同じこと(=ここが主役)を二重に言っている</b>。</p>
+      <div class="pair">
+        <div class="statelbl">NOW</div>
+        <div class="frame">
+          <div class="hero-wrap now">
+            <div class="time mono">12:55</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="card s0 now">
+              <div class="kicker"><span class="label">NOW · STARTED 5M AGO</span><span class="count">25m left</span></div>
+              <div class="progress"><i></i></div>
+              <div class="title">Launch standup</div>
+              <div class="meta">12:55 – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+              <div class="actions"><span class="btn join-now">📹 Join</span><span class="btn quiet">📄 Open notes</span><span class="spacer"></span><button class="ic reveal">⋯</button></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="time mono">1:30 PM</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="body"><div class="name">Design review</div><div class="sub">Google Meet · Maya Chen</div></div>
+          </div>
+        </div>
+        <div class="statelbl">NEXT</div>
+        <div class="frame">
+          <div class="hero-wrap next">
+            <div class="time mono">21:30</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="card s0 next">
+              <div class="kicker"><span class="label">NEXT</span><span class="count">in 7h5m</span></div>
+              <div class="title">照射</div>
+              <div class="metaline"><div class="meta">21:30 – 22:00</div><button class="ic reveal">⋯</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S1 ============ -->
+    <section class="variant">
+      <h3><span class="tag">S1</span>フラット+枠</h3>
+      <p class="pitch">グラデーションだけをやめてフラットな淡色に。<b>一番保守的な一段</b>。枠は残るので「カード感」は現状のまま。</p>
+      <div class="pair">
+        <div class="statelbl">NOW</div>
+        <div class="frame">
+          <div class="hero-wrap now">
+            <div class="time mono">12:55</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="card s1 now">
+              <div class="kicker"><span class="label">NOW · STARTED 5M AGO</span><span class="count">25m left</span></div>
+              <div class="progress"><i></i></div>
+              <div class="title">Launch standup</div>
+              <div class="meta">12:55 – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+              <div class="actions"><span class="btn join-now">📹 Join</span><span class="btn quiet">📄 Open notes</span><span class="spacer"></span><button class="ic reveal">⋯</button></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="time mono">1:30 PM</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="body"><div class="name">Design review</div><div class="sub">Google Meet · Maya Chen</div></div>
+          </div>
+        </div>
+        <div class="statelbl">NEXT</div>
+        <div class="frame">
+          <div class="hero-wrap next">
+            <div class="time mono">21:30</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="card s1 next">
+              <div class="kicker"><span class="label">NEXT</span><span class="count">in 7h5m</span></div>
+              <div class="title">照射</div>
+              <div class="metaline"><div class="meta">21:30 – 22:00</div><button class="ic reveal">⋯</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S2 ============ -->
+    <section class="variant">
+      <h3><span class="tag">S2</span>フラットのみ(枠なし)</h3>
+      <p class="pitch">塗りだけで面を作り、枠を捨てる。<b>「静かな面がひとつ浮いている」</b>感じ。周囲が罫線レスのレールなので、枠が無いほうが馴染む。</p>
+      <div class="pair">
+        <div class="statelbl">NOW</div>
+        <div class="frame">
+          <div class="hero-wrap now">
+            <div class="time mono">12:55</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="card s2 now">
+              <div class="kicker"><span class="label">NOW · STARTED 5M AGO</span><span class="count">25m left</span></div>
+              <div class="progress"><i></i></div>
+              <div class="title">Launch standup</div>
+              <div class="meta">12:55 – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+              <div class="actions"><span class="btn join-now">📹 Join</span><span class="btn quiet">📄 Open notes</span><span class="spacer"></span><button class="ic reveal">⋯</button></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="time mono">1:30 PM</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="body"><div class="name">Design review</div><div class="sub">Google Meet · Maya Chen</div></div>
+          </div>
+        </div>
+        <div class="statelbl">NEXT</div>
+        <div class="frame">
+          <div class="hero-wrap next">
+            <div class="time mono">21:30</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="card s2 next">
+              <div class="kicker"><span class="label">NEXT</span><span class="count">in 7h5m</span></div>
+              <div class="title">照射</div>
+              <div class="metaline"><div class="meta">21:30 – 22:00</div><button class="ic reveal">⋯</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S3 ============ -->
+    <section class="variant">
+      <h3><span class="tag">S3</span>ニュートラル面+色スパイン</h3>
+      <p class="pitch">面は無彩色(inset)にして、色は左端3pxのスパインとテキストだけ。<b>「色の面」をUIから消す</b>。青緑2色の面が並ぶ騒がしさが無くなる。</p>
+      <div class="pair">
+        <div class="statelbl">NOW</div>
+        <div class="frame">
+          <div class="hero-wrap now">
+            <div class="time mono">12:55</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="card s3 now">
+              <div class="kicker"><span class="label">NOW · STARTED 5M AGO</span><span class="count">25m left</span></div>
+              <div class="progress"><i></i></div>
+              <div class="title">Launch standup</div>
+              <div class="meta">12:55 – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+              <div class="actions"><span class="btn join-now">📹 Join</span><span class="btn quiet">📄 Open notes</span><span class="spacer"></span><button class="ic reveal">⋯</button></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="time mono">1:30 PM</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="body"><div class="name">Design review</div><div class="sub">Google Meet · Maya Chen</div></div>
+          </div>
+        </div>
+        <div class="statelbl">NEXT</div>
+        <div class="frame">
+          <div class="hero-wrap next">
+            <div class="time mono">21:30</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="card s3 next">
+              <div class="kicker"><span class="label">NEXT</span><span class="count">in 7h5m</span></div>
+              <div class="title">照射</div>
+              <div class="metaline"><div class="meta">21:30 – 22:00</div><button class="ic reveal">⋯</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S4 ============ -->
+    <section class="variant">
+      <h3><span class="tag">S4</span>カード廃止</h3>
+      <p class="pitch">面も枠も無し。色付きキッカー+大ドット+太字タイトルだけで主役を張る。<b>タイムライン純粋主義</b>。A-1の「ヒーローもレールの一部」を最後まで推した形。</p>
+      <div class="pair">
+        <div class="statelbl">NOW</div>
+        <div class="frame">
+          <div class="hero-wrap now">
+            <div class="time mono">12:55</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="card s4 now">
+              <div class="kicker"><span class="label">NOW · STARTED 5M AGO</span><span class="count">25m left</span></div>
+              <div class="progress"><i></i></div>
+              <div class="title">Launch standup</div>
+              <div class="meta">12:55 – 1:25 PM · Google Meet · Maya Chen, Ren Sato</div>
+              <div class="actions"><span class="btn join-now">📹 Join</span><span class="btn quiet">📄 Open notes</span><span class="spacer"></span><button class="ic reveal">⋯</button></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="time mono">1:30 PM</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="body"><div class="name">Design review</div><div class="sub">Google Meet · Maya Chen</div></div>
+          </div>
+        </div>
+        <div class="statelbl">NEXT</div>
+        <div class="frame">
+          <div class="hero-wrap next">
+            <div class="time mono">21:30</div>
+            <div class="node"><span class="dot"></span></div>
+            <div class="card s4 next">
+              <div class="kicker"><span class="label">NEXT</span><span class="count">in 7h5m</span></div>
+              <div class="title">照射</div>
+              <div class="metaline"><div class="meta">21:30 – 22:00</div><button class="ic reveal">⋯</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const cur = root.dataset.theme || (dark ? "dark" : "light");
+    root.dataset.theme = cur === "dark" ? "light" : "dark";
+  }
+</script>
