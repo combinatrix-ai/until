@@ -52,6 +52,68 @@ final class DemoCalendarDataTests: XCTestCase {
     XCTAssertEqual(options.demoScenario, .freeDay)
   }
 
+  func testDemoNotificationFlagImpliesDemoModeAndNotificationScenario() {
+    let options = AppRuntimeOptions.fromProcess(arguments: ["until", "--demo-notification"], environment: [:])
+    XCTAssertTrue(options.demoMode)
+    XCTAssertEqual(options.demoScenario, .notification)
+  }
+
+  func testDemoNotificationEnvVarImpliesDemoModeAndNotificationScenario() {
+    let options = AppRuntimeOptions.fromProcess(
+      arguments: ["until"],
+      environment: ["UNTIL_DEMO_NOTIFICATION": "1"]
+    )
+    XCTAssertTrue(options.demoMode)
+    XCTAssertEqual(options.demoScenario, .notification)
+  }
+
+  func testDemoNotificationWinsOverEveryOtherDemoSwitch() {
+    // It is the only scenario with an effect outside the app, so combining it
+    // with another switch must never silently drop it.
+    let options = AppRuntimeOptions.fromProcess(
+      arguments: ["until", "--demo-overlap", "--demo-free", "--demo-now", "--demo-notification"],
+      environment: [:]
+    )
+    XCTAssertEqual(options.demoScenario, .notification)
+  }
+
+  // MARK: - Notification opt-in
+
+  func testOnlyTheNotificationScenarioMayPostSystemNotifications() {
+    for scenario in [AppRuntimeOptions.DemoScenario.upcoming, .inProgress, .overlap, .freeDay] {
+      let options = AppRuntimeOptions(demoMode: true, demoScenario: scenario)
+      XCTAssertFalse(options.allowsNotifications, "\(scenario) must stay silent")
+      XCTAssertFalse(DemoCalendarData.config(scenario: scenario).notifyEnabled)
+    }
+    let notifying = AppRuntimeOptions(demoMode: true, demoScenario: .notification)
+    XCTAssertTrue(notifying.allowsNotifications)
+    XCTAssertTrue(DemoCalendarData.config(scenario: .notification).notifyEnabled)
+  }
+
+  func testRealRunsAlwaysAllowNotifications() {
+    XCTAssertTrue(AppRuntimeOptions(demoMode: false, demoScenario: .upcoming).allowsNotifications)
+  }
+
+  func testNotificationScenarioFiresShortlyAfterLaunchRatherThanAfterTheFullLead() throws {
+    let now = Date()
+    let events = DemoCalendarData.events(
+      now: now,
+      selectedIds: DemoCalendarData.config(scenario: .notification).selectedCalendarIds,
+      scenario: .notification
+    )
+    let next = try XCTUnwrap(
+      events.filter { !$0.allDay && $0.startDate > now }.min { $0.startDate < $1.startDate }
+    )
+    let lead = TimeInterval(DemoCalendarData.notificationLeadMinutes * 60)
+    let delay = next.startDate.addingTimeInterval(-lead).timeIntervalSince(now)
+    XCTAssertEqual(
+      delay,
+      DemoCalendarData.notificationFireDelay,
+      accuracy: 2,
+      "the banner should land seconds after launch, not a full lead window later"
+    )
+  }
+
   func testDemoNowAndDemoOverlapFlagsTogetherPickOverlap() {
     // Overlap is the superset state, so it wins regardless of flag order.
     let options = AppRuntimeOptions.fromProcess(

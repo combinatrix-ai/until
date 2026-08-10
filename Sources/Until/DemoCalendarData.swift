@@ -16,10 +16,22 @@ struct AppRuntimeOptions: Hashable {
     /// `--demo-free` / `UNTIL_DEMO_FREE`: pins the free-day hero with an
     /// all-day event today and a timed event tomorrow.
     case freeDay
+    /// `--demo-notification` / `UNTIL_DEMO_NOTIFICATION`: the only scenario
+    /// that lets demo mode post real system notifications, for screenshots of
+    /// the reminder banner. "Design review" is anchored just past the lead
+    /// window so the banner fires seconds after launch instead of minutes.
+    case notification
   }
 
   var demoMode: Bool
   var demoScenario: DemoScenario = .upcoming
+
+  /// Whether this run may schedule real `UNUserNotificationCenter` reminders.
+  /// Demo mode is otherwise silent: a screenshot or dev run must not put
+  /// synthetic events into the user's Notification Center.
+  var allowsNotifications: Bool {
+    !demoMode || demoScenario == .notification
+  }
 
   static func fromProcess(
     arguments: [String] = CommandLine.arguments,
@@ -29,11 +41,13 @@ struct AppRuntimeOptions: Hashable {
     let demoNowFlags = Set(["--demo-now"])
     let demoOverlapFlags = Set(["--demo-overlap"])
     let demoFreeFlags = Set(["--demo-free"])
+    let demoNotificationFlags = Set(["--demo-notification"])
     let processArguments = arguments.dropFirst()
     let hasFlag = processArguments.contains { demoFlags.contains($0) }
     let hasNowFlag = processArguments.contains { demoNowFlags.contains($0) }
     let hasOverlapFlag = processArguments.contains { demoOverlapFlags.contains($0) }
     let hasFreeFlag = processArguments.contains { demoFreeFlags.contains($0) }
+    let hasNotificationFlag = processArguments.contains { demoNotificationFlags.contains($0) }
     let envValue = environment["UNTIL_DEMO_MODE"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     let hasEnv = ["1", "true", "yes", "on"].contains(envValue ?? "")
     let envNowValue = environment["UNTIL_DEMO_NOW"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -46,17 +60,23 @@ struct AppRuntimeOptions: Hashable {
       .trimmingCharacters(in: .whitespacesAndNewlines)
       .lowercased()
     let hasFreeEnv = ["1", "true", "yes", "on"].contains(envFreeValue ?? "")
+    let envNotificationValue = environment["UNTIL_DEMO_NOTIFICATION"]?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased()
+    let hasNotificationEnv = ["1", "true", "yes", "on"].contains(envNotificationValue ?? "")
     let hasNow = hasNowFlag || hasNowEnv
     let hasOverlap = hasOverlapFlag || hasOverlapEnv
     let hasFree = hasFreeFlag || hasFreeEnv
-    // Overlap is the superset state (in-progress event AND imminent next), so
-    // it wins when both flags are given. It also wins over the free-day flag
-    // if several demo switches are supplied together.
-    let scenario: DemoScenario = hasOverlap
-      ? .overlap
-      : (hasFree ? .freeDay : (hasNow ? .inProgress : .upcoming))
+    let hasNotification = hasNotificationFlag || hasNotificationEnv
+    // Notification wins outright: it is the only scenario with a side effect
+    // outside the app, so combining it with another switch must never quietly
+    // drop it. Overlap is next — it is the superset popover state (in-progress
+    // event AND imminent next) — then free-day, then in-progress.
+    let scenario: DemoScenario = hasNotification
+      ? .notification
+      : (hasOverlap ? .overlap : (hasFree ? .freeDay : (hasNow ? .inProgress : .upcoming)))
     return AppRuntimeOptions(
-      demoMode: hasFlag || hasEnv || hasNow || hasOverlap || hasFree,
+      demoMode: hasFlag || hasEnv || hasNow || hasOverlap || hasFree || hasNotification,
       demoScenario: scenario
     )
   }
@@ -67,7 +87,16 @@ enum DemoCalendarData {
   static let workAccountEmail = "work@example.com"
   static let accountEmails = [personalAccountEmail, workAccountEmail]
 
-  static func config() -> AppConfig {
+  /// Notification lead used by the `.notification` scenario. `eventDefinitions`
+  /// anchors "Design review" this far out plus `notificationFireDelay`, so the
+  /// reminder fires seconds after launch rather than minutes.
+  static let notificationLeadMinutes = 5
+  /// How long after launch the `.notification` banner should appear — long
+  /// enough for the app to finish its first refresh and for the authorization
+  /// prompt to be answered, short enough not to stall a capture run.
+  static let notificationFireDelay: TimeInterval = 25
+
+  static func config(scenario: AppRuntimeOptions.DemoScenario = .upcoming) -> AppConfig {
     var config = AppConfig.default
     config.filterRules = Rule.group(.and, [
       .condition("selfResponse", "is_not", .string("declined")),
@@ -78,8 +107,11 @@ enum DemoCalendarData {
     config.pollIntervalSeconds = 120
     config.maxTitleLength = 48
     config.menubarLeadMinutes = 45
-    config.notifyEnabled = false
+    config.notifyEnabled = scenario == .notification
     config.notifyVideoOnly = false
+    if scenario == .notification {
+      config.notifyLeadMinutes = notificationLeadMinutes
+    }
     return config
   }
 
@@ -183,6 +215,12 @@ enum DemoCalendarData {
       nextSlot = minutes(from: now, 4)
     case .freeDay:
       nextSlot = date(on: tomorrow, hour: 10, minute: 0)
+    case .notification:
+      // Lead window plus a short delay: the reminder fires `notificationFireDelay`
+      // after the first refresh, so a capture run waits seconds, not minutes.
+      nextSlot = now.addingTimeInterval(
+        TimeInterval(notificationLeadMinutes * 60) + notificationFireDelay
+      )
     }
     let context = DemoContext(
       now: now,
@@ -211,6 +249,8 @@ enum DemoCalendarData {
     case .overlap:
       specs += inProgressSpecs(context, startOffset: -22, endOffset: 8)
     case .freeDay:
+      break
+    case .notification:
       break
     }
     return specs.compactMap { event($0, now: now) }

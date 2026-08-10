@@ -57,14 +57,21 @@ final class AppModel: ObservableObject {
 
   init(options: AppRuntimeOptions = .fromProcess()) {
     runtimeOptions = options
-    config = options.demoMode ? DemoCalendarData.config() : store.load()
+    config = options.demoMode ? DemoCalendarData.config(scenario: options.demoScenario) : store.load()
     observeWake()
     refreshLaunchAtLoginState()
     applyDefaultLaunchAtLoginIfNeeded()
     if runtimeOptions.demoMode {
-      notificationAuthorizationState = .unavailable
+      // The notification scenario needs the real authorization state so the
+      // system prompt is raised and the reminder can actually be delivered.
+      if !runtimeOptions.allowsNotifications {
+        notificationAuthorizationState = .unavailable
+      }
       loadDemoData(now: Date())
       startTimers()
+      if runtimeOptions.allowsNotifications {
+        Task { await refreshNotificationAuthorizationState() }
+      }
       return
     }
     accounts = KeychainStore.loadTokens().map { GoogleAuth(config: config, token: $0) }
@@ -792,7 +799,7 @@ final class AppModel: ObservableObject {
     let notificationEvents = config.notifyVideoOnly
       ? activeEvents.filter { !$0.conferenceUrl.isEmpty }
       : activeEvents
-    guard !runtimeOptions.demoMode else { return }
+    guard runtimeOptions.allowsNotifications else { return }
     Task {
       await notifier.sync(
         events: notificationEvents,
