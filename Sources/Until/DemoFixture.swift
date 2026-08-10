@@ -85,6 +85,7 @@ extension DemoFixture {
     case unknownCalendar(event: String, calendar: String)
     case badTime(event: String, value: String)
     case missingTime(event: String)
+    case unresolvable(event: String)
 
     var description: String {
       switch self {
@@ -98,6 +99,8 @@ extension DemoFixture {
         return "event \"\(event)\" has an unparseable time \"\(value)\" (expected \"HH:MM\")"
       case .missingTime(let event):
         return "event \"\(event)\" is not all-day and needs both \"start\" and \"end\""
+      case .unresolvable(let event):
+        return "event \"\(event)\" could not be turned into a calendar event"
       }
     }
   }
@@ -170,80 +173,101 @@ extension DemoFixture {
         throw LoadError.unknownCalendar(event: event.id, calendar: event.calendar)
       }
       guard selected.contains(definition.id) else { return nil }
-
-      let dayOffset = event.day ?? 0
-      let startOfDay = calendar.date(byAdding: .day, value: dayOffset, to: today) ?? today
-      let isAllDay = event.allDay ?? false
-      let start: Date
-      let end: Date
-      if isAllDay {
-        start = startOfDay
-        end = calendar.date(byAdding: .day, value: max(1, event.days ?? 1), to: startOfDay) ?? startOfDay
-      } else {
-        guard let startText = event.start, let endText = event.end else {
-          throw LoadError.missingTime(event: event.id)
-        }
-        start = try Self.date(on: startOfDay, time: startText, event: event.id, calendar: calendar)
-        let endDayOffset = event.endDay ?? dayOffset
-        let endBase = calendar.date(byAdding: .day, value: endDayOffset, to: today) ?? today
-        var resolved = try Self.date(on: endBase, time: endText, event: event.id, calendar: calendar)
-        if resolved <= start, event.endDay == nil {
-          // Crossing midnight without an explicit endDay.
-          resolved = calendar.date(byAdding: .day, value: 1, to: resolved) ?? resolved
-        }
-        end = resolved
+      let span = try Self.span(for: event, today: today, calendar: calendar)
+      guard let resolved = Self.calendarEvent(event, on: definition, span: span, now: now) else {
+        throw LoadError.unresolvable(event: event.id)
       }
+      return resolved
+    }
+    .sorted { $0.startDate < $1.startDate }
+  }
 
-      let ref = CalendarRef(
+  /// An entry's resolved wall-clock extent.
+  private struct Span {
+    var start: Date
+    var end: Date
+    var allDay: Bool
+  }
+
+  /// Resolves an entry's wall-clock times against `today`'s calendar day.
+  private static func span(
+    for event: Event,
+    today: Date,
+    calendar: Foundation.Calendar
+  ) throws -> Span {
+    let dayOffset = event.day ?? 0
+    let startOfDay = calendar.date(byAdding: .day, value: dayOffset, to: today) ?? today
+    if event.allDay ?? false {
+      let end = calendar.date(byAdding: .day, value: max(1, event.days ?? 1), to: startOfDay)
+      return Span(start: startOfDay, end: end ?? startOfDay, allDay: true)
+    }
+    guard let startText = event.start, let endText = event.end else {
+      throw LoadError.missingTime(event: event.id)
+    }
+    let start = try date(on: startOfDay, time: startText, event: event.id, calendar: calendar)
+    let endBase = calendar.date(byAdding: .day, value: event.endDay ?? dayOffset, to: today) ?? today
+    var end = try date(on: endBase, time: endText, event: event.id, calendar: calendar)
+    if end <= start, event.endDay == nil {
+      // Crossing midnight without an explicit endDay.
+      end = calendar.date(byAdding: .day, value: 1, to: end) ?? end
+    }
+    return Span(start: start, end: end, allDay: false)
+  }
+
+  private static func calendarEvent(
+    _ event: Event,
+    on definition: Calendar,
+    span: Span,
+    now: Date
+  ) -> CalendarEvent? {
+    let others = (event.attendees ?? []).map {
+      Attendee(
+        email: $0.email,
+        name: $0.name ?? $0.email,
+        responseStatus: $0.response ?? "accepted",
+        selfUser: false,
+        resource: $0.resource ?? false
+      )
+    }
+    // A solo hold has no attendee list at all; only a real invite gains "You".
+    let attendees = others.isEmpty
+      ? []
+      : [Attendee(
+          email: definition.account,
+          name: "You",
+          responseStatus: event.selfResponse ?? "accepted",
+          selfUser: true,
+          resource: false
+        )] + others
+
+    return CalendarEvent(
+      id: event.id,
+      title: event.title,
+      description: event.description ?? "",
+      location: event.location ?? "",
+      startISO: ISO8601DateFormatter.fallback.string(from: span.start),
+      endISO: ISO8601DateFormatter.fallback.string(from: span.end),
+      allDay: span.allDay,
+      status: "confirmed",
+      startMinutesFromNow: Int((span.start.timeIntervalSince(now) / 60).rounded()),
+      durationMinutes: max(0, Int((span.end.timeIntervalSince(span.start) / 60).rounded())),
+      calendar: CalendarRef(
         id: definition.id,
         googleId: definition.googleId ?? definition.id,
         primary: definition.primary ?? false,
         backgroundColor: definition.color
-      )
-      let attendees = (event.attendees ?? []).map {
-        Attendee(
-          email: $0.email,
-          name: $0.name ?? $0.email,
-          responseStatus: $0.response ?? "accepted",
-          selfUser: false,
-          resource: $0.resource ?? false
-        )
-      }
-      let withSelf = attendees.isEmpty
-        ? []
-        : [Attendee(
-            email: definition.account,
-            name: "You",
-            responseStatus: event.selfResponse ?? "accepted",
-            selfUser: true,
-            resource: false
-          )] + attendees
-
-      return CalendarEvent(
-        id: event.id,
-        title: event.title,
-        description: event.description ?? "",
-        location: event.location ?? "",
-        startISO: ISO8601DateFormatter.fallback.string(from: start),
-        endISO: ISO8601DateFormatter.fallback.string(from: end),
-        allDay: isAllDay,
-        status: "confirmed",
-        startMinutesFromNow: Int((start.timeIntervalSince(now) / 60).rounded()),
-        durationMinutes: max(0, Int((end.timeIntervalSince(start) / 60).rounded())),
-        calendar: ref,
-        account: AccountRef(email: definition.account),
-        attendees: withSelf,
-        organizer: definition.account,
-        selfResponse: event.selfResponse ?? "accepted",
-        isRecurring: event.isRecurring ?? false,
-        conferenceUrl: event.conferenceUrl ?? "",
-        notesUrl: event.notesUrl ?? "",
-        colorId: event.colorId ?? "9",
-        transparency: event.transparency ?? "busy",
-        htmlLink: "https://calendar.google.com/calendar/event?eid=demo-\(event.id)"
-      )
-    }
-    .sorted { $0.startDate < $1.startDate }
+      ),
+      account: AccountRef(email: definition.account),
+      attendees: attendees,
+      organizer: definition.account,
+      selfResponse: event.selfResponse ?? "accepted",
+      isRecurring: event.isRecurring ?? false,
+      conferenceUrl: event.conferenceUrl ?? "",
+      notesUrl: event.notesUrl ?? "",
+      colorId: event.colorId ?? "9",
+      transparency: event.transparency ?? "busy",
+      htmlLink: "https://calendar.google.com/calendar/event?eid=demo-\(event.id)"
+    )
   }
 
   private static func date(

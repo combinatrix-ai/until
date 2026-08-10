@@ -52,20 +52,7 @@ struct AppRuntimeOptions: Hashable {
     let hasOverlapFlag = processArguments.contains { demoOverlapFlags.contains($0) }
     let hasFreeFlag = processArguments.contains { demoFreeFlags.contains($0) }
     let hasNotificationFlag = processArguments.contains { demoNotificationFlags.contains($0) }
-    // `--demo-json <path>`, or `--demo-json=<path>`.
-    var fixturePath: String?
-    let argumentList = Array(processArguments)
-    for (index, argument) in argumentList.enumerated() {
-      if argument == "--demo-json", index + 1 < argumentList.count {
-        fixturePath = argumentList[index + 1]
-      } else if argument.hasPrefix("--demo-json=") {
-        fixturePath = String(argument.dropFirst("--demo-json=".count))
-      }
-    }
-    if fixturePath == nil {
-      let envPath = environment["UNTIL_DEMO_JSON"]?.trimmingCharacters(in: .whitespacesAndNewlines)
-      fixturePath = (envPath?.isEmpty == false) ? envPath : nil
-    }
+    let fixturePath = demoFixturePath(arguments: Array(processArguments), environment: environment)
     let envValue = environment["UNTIL_DEMO_MODE"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     let hasEnv = ["1", "true", "yes", "on"].contains(envValue ?? "")
     let envNowValue = environment["UNTIL_DEMO_NOW"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -99,6 +86,27 @@ struct AppRuntimeOptions: Hashable {
       demoScenario: scenario,
       demoFixturePath: fixturePath
     )
+  }
+
+  /// `--demo-json <path>`, `--demo-json=<path>`, or `UNTIL_DEMO_JSON`. The flag
+  /// wins so a one-off capture can override an exported env var.
+  private static func demoFixturePath(
+    arguments: [String],
+    environment: [String: String]
+  ) -> String? {
+    var path: String?
+    for (index, argument) in arguments.enumerated() {
+      if argument == "--demo-json", index + 1 < arguments.count {
+        path = arguments[index + 1]
+      } else if argument.hasPrefix("--demo-json=") {
+        path = String(argument.dropFirst("--demo-json=".count))
+      }
+    }
+    if path == nil {
+      let fromEnv = environment["UNTIL_DEMO_JSON"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+      path = (fromEnv?.isEmpty == false) ? fromEnv : nil
+    }
+    return path
   }
 }
 
@@ -205,6 +213,30 @@ enum DemoCalendarData {
     )
   ]
 
+  /// When "Design review" (the next timed event) starts, per scenario.
+  private static func scheduleAnchor(
+    now: Date,
+    tomorrow: Date,
+    scenario: AppRuntimeOptions.DemoScenario
+  ) -> Date {
+    switch scenario {
+    case .upcoming:
+      return nextHalfHour(after: now)
+    case .inProgress:
+      return nextHalfHour(after: minutes(from: now, 25))
+    case .overlap:
+      return minutes(from: now, 4)
+    case .freeDay:
+      return date(on: tomorrow, hour: 10, minute: 0)
+    case .notification:
+      // Lead window plus a short delay: the reminder fires `notificationFireDelay`
+      // after the first refresh, so a capture run waits seconds, not minutes.
+      return now.addingTimeInterval(
+        TimeInterval(notificationLeadMinutes * 60) + notificationFireDelay
+      )
+    }
+  }
+
   private static func eventDefinitions(
     now: Date,
     scenario: AppRuntimeOptions.DemoScenario
@@ -225,26 +257,9 @@ enum DemoCalendarData {
     //   Anchoring relative to `now` (rather than wall-clock minutes) means
     //   every demo re-anchor reproduces the same state, unlike the default
     //   mode's :23/:53 half-hour rule.
-    let nextSlot: Date
-    switch scenario {
-    case .upcoming:
-      nextSlot = nextHalfHour(after: now)
-    case .inProgress:
-      nextSlot = nextHalfHour(after: minutes(from: now, 25))
-    case .overlap:
-      nextSlot = minutes(from: now, 4)
-    case .freeDay:
-      nextSlot = date(on: tomorrow, hour: 10, minute: 0)
-    case .notification:
-      // Lead window plus a short delay: the reminder fires `notificationFireDelay`
-      // after the first refresh, so a capture run waits seconds, not minutes.
-      nextSlot = now.addingTimeInterval(
-        TimeInterval(notificationLeadMinutes * 60) + notificationFireDelay
-      )
-    }
     let context = DemoContext(
       now: now,
-      nextSlot: nextSlot,
+      nextSlot: scheduleAnchor(now: now, tomorrow: tomorrow, scenario: scenario),
       personal: calendarRef(for: calendarDefinitions[0]),
       family: calendarRef(for: calendarDefinitions[1]),
       work: calendarRef(for: calendarDefinitions[2]),
