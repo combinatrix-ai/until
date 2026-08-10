@@ -84,7 +84,6 @@
 "Add more" = "Add more";
 "More actions" = "More actions";
 "Copy meeting link" = "Copy meeting link";
-"Open in Google Calendar" = "Open in Google Calendar";
 "Skip in menubar" = "Skip in menubar";
 "Show in menubar" = "Show in menubar";
 "Skipped" = "Skipped";
@@ -98,8 +97,6 @@
 
 /* MARK: - Event detail (Views) */
 "Copy details" = "Copy details";
-"Copy event details" = "Copy event details";
-"Copied event details" = "Copied event details";
 "Open in Calendar" = "Open in Calendar";
 "Location: %@" = "Location: %@";
 "Meet: %@" = "Meet: %@";

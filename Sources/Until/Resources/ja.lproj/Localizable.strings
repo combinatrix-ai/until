@@ -84,7 +84,6 @@
 "Add more" = "さらに追加するもの";
 "More actions" = "その他の操作";
 "Copy meeting link" = "会議リンクをコピー";
-"Open in Google Calendar" = "Googleカレンダーで開く";
 "Skip in menubar" = "メニューバーでスキップ";
 "Show in menubar" = "メニューバーに表示する";
 "Skipped" = "スキップ中";
@@ -98,8 +97,6 @@
 
 /* MARK: - Event detail (Views) */
 "Copy details" = "詳細をコピー";
-"Copy event details" = "予定の詳細をコピー";
-"Copied event details" = "予定の詳細をコピーしました";
 "Open in Calendar" = "カレンダーで開く";
 "Location: %@" = "場所: %@";
 "Meet: %@" = "Meet: %@";
