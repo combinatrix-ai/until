@@ -262,170 +262,10 @@ h3 {
   fill: currentColor;
 }
 
-.popover {
-  position: relative;
-  z-index: 3;
-  align-self: center;
-  justify-self: end;
-  width: min(100%, 390px);
-  border: 1px solid color-mix(in oklch, var(--ink) 12%, transparent);
-  border-radius: var(--radius);
-  background: color-mix(in oklch, var(--white) 92%, transparent);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(26px) saturate(1.08);
-  overflow: hidden;
-  transform-origin: top right;
-  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease;
-}
-
-.popover.is-hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-10px) scale(0.98);
-}
-
-.popover-head {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 18px 18px 14px;
-}
-
-.popover-head p,
-.event-row p,
-.event-detail p,
-.popover-foot {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.day-label {
-  border-block: 1px solid color-mix(in oklch, var(--ink) 9%, transparent);
-  padding: 7px 18px;
-  color: var(--muted);
-  background: color-mix(in oklch, var(--paper-2) 55%, transparent);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.event-row {
-  display: grid;
-  grid-template-columns: 3px 48px minmax(0, 1fr) 31px 31px;
-  gap: 10px;
-  align-items: center;
-  min-height: 70px;
-  padding: 10px 14px 10px 18px;
-  border-bottom: 1px solid color-mix(in oklch, var(--ink) 8%, transparent);
-}
-
-.event-row.muted {
-  grid-template-columns: 3px 48px minmax(0, 1fr);
-  opacity: 0.55;
-}
-
-.event-row.active {
-  background: color-mix(in oklch, var(--blue) 7%, transparent);
-}
-
-.event-color {
-  width: 3px;
-  height: 38px;
-  border-radius: 2px;
-}
-
-.event-color.blue {
-  background: var(--blue);
-}
-
-.event-color.green {
-  background: var(--green);
-}
-
-.event-color.coral {
-  background: var(--coral);
-}
-
 time {
   color: var(--muted);
   font-size: 0.76rem;
   font-weight: 720;
-}
-
-.event-row strong {
-  display: block;
-  overflow-wrap: anywhere;
-}
-
-.event-row > div {
-  min-width: 0;
-}
-
-.event-row button {
-  width: 31px;
-  height: 31px;
-  border: 1px solid color-mix(in oklch, var(--ink) 11%, transparent);
-  border-radius: 999px;
-  background: var(--white);
-  color: transparent;
-  cursor: pointer;
-  position: relative;
-}
-
-.event-row button::before {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  border: 2px solid var(--blue);
-  border-radius: 3px;
-}
-
-.event-row button:nth-of-type(2)::before {
-  border-color: var(--ink);
-  border-radius: 2px;
-  border-top-width: 5px;
-}
-
-.event-detail {
-  margin: 0 18px 12px 79px;
-  border-left: 2px solid color-mix(in oklch, var(--blue) 25%, transparent);
-  padding: 2px 0 2px 12px;
-}
-
-.attendee {
-  margin-top: 6px;
-  color: var(--ink);
-  font-size: 0.78rem;
-}
-
-.attendee::before {
-  content: "";
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: var(--green);
-}
-
-.attendee.tentative::before {
-  background: var(--gold);
-}
-
-.event-detail a {
-  display: inline-flex;
-  margin-top: 10px;
-  color: var(--blue);
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.popover-foot {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 14px;
-  background: color-mix(in oklch, var(--paper-2) 45%, transparent);
 }
 
 .timeline-story {
@@ -1544,12 +1384,6 @@ ul.legal-lead {
     flex: 1 1 auto;
   }
 
-  .popover {
-    align-self: start;
-    justify-self: center;
-    width: min(100%, var(--hero-card-width));
-  }
-
   h1 {
     font-size: 4rem;
   }
@@ -1630,18 +1464,6 @@ ul.legal-lead {
     flex-basis: 0;
   }
 
-  .event-row {
-    grid-template-columns: 3px 43px minmax(0, 1fr) 29px 29px;
-    gap: 8px;
-    padding-inline: 12px;
-  }
-
-  .popover {
-    margin: 28px auto 0;
-    width: min(100%, var(--hero-card-width));
-    max-width: var(--hero-card-width);
-  }
-
   .hero-shot {
     margin-top: 34px;
   }
@@ -1654,16 +1476,6 @@ ul.legal-lead {
 
   .hero-shot figcaption {
     font-size: 0.78rem;
-  }
-
-  .event-detail,
-  .event-row:not(.active),
-  .popover-foot {
-    display: none;
-  }
-
-  .event-detail {
-    margin-left: 66px;
   }
 
   .workflow {

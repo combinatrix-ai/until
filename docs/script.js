@@ -1,12 +1,3 @@
-const popover = document.querySelector("[data-popover]");
-const toggle = document.querySelector("[data-popover-toggle]");
-
-if (popover && toggle) {
-  toggle.addEventListener("click", () => {
-    popover.classList.toggle("is-hidden");
-  });
-}
-
 const observer = new IntersectionObserver(
   (entries) => {
     for (const entry of entries) {
