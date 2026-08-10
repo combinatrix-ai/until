@@ -25,6 +25,10 @@ struct AppRuntimeOptions: Hashable {
 
   var demoMode: Bool
   var demoScenario: DemoScenario = .upcoming
+  /// `--demo-json <path>` / `UNTIL_DEMO_JSON`: a hand-authored day that
+  /// overrides the built-in scenario. See `DemoFixture` for why wall-clock
+  /// times beat `now`-relative ones for capture work.
+  var demoFixturePath: String?
 
   /// Whether this run may schedule real `UNUserNotificationCenter` reminders.
   /// Demo mode is otherwise silent: a screenshot or dev run must not put
@@ -48,6 +52,20 @@ struct AppRuntimeOptions: Hashable {
     let hasOverlapFlag = processArguments.contains { demoOverlapFlags.contains($0) }
     let hasFreeFlag = processArguments.contains { demoFreeFlags.contains($0) }
     let hasNotificationFlag = processArguments.contains { demoNotificationFlags.contains($0) }
+    // `--demo-json <path>`, or `--demo-json=<path>`.
+    var fixturePath: String?
+    let argumentList = Array(processArguments)
+    for (index, argument) in argumentList.enumerated() {
+      if argument == "--demo-json", index + 1 < argumentList.count {
+        fixturePath = argumentList[index + 1]
+      } else if argument.hasPrefix("--demo-json=") {
+        fixturePath = String(argument.dropFirst("--demo-json=".count))
+      }
+    }
+    if fixturePath == nil {
+      let envPath = environment["UNTIL_DEMO_JSON"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+      fixturePath = (envPath?.isEmpty == false) ? envPath : nil
+    }
     let envValue = environment["UNTIL_DEMO_MODE"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     let hasEnv = ["1", "true", "yes", "on"].contains(envValue ?? "")
     let envNowValue = environment["UNTIL_DEMO_NOW"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -76,8 +94,10 @@ struct AppRuntimeOptions: Hashable {
       ? .notification
       : (hasOverlap ? .overlap : (hasFree ? .freeDay : (hasNow ? .inProgress : .upcoming)))
     return AppRuntimeOptions(
-      demoMode: hasFlag || hasEnv || hasNow || hasOverlap || hasFree || hasNotification,
-      demoScenario: scenario
+      demoMode: hasFlag || hasEnv || hasNow || hasOverlap || hasFree || hasNotification
+        || fixturePath != nil,
+      demoScenario: scenario,
+      demoFixturePath: fixturePath
     )
   }
 }

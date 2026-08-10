@@ -1,0 +1,116 @@
+{
+  "_comment": [
+    "A hand-authored demo day for --demo-json. Times are wall-clock, so the",
+    "machine's clock picks the moment: pin it (sudo date -f '%Y-%m-%d %H:%M:%S'",
+    "'2026-08-12 09:53:00') and the state is simply there — no waiting for a",
+    "half-hour boundary and no drift from the 120s poll re-anchor.",
+    "",
+    "Days are offsets from today (0 today, 1 tomorrow), not calendar dates, so",
+    "this file keeps working tomorrow.",
+    "",
+    "  swift run Until --demo-json scripts/demo-data-example.json",
+    "  open Until.app --args --demo-json /path/to/demo-data-example.json",
+    "",
+    "The built-in scenarios (--demo-mode / --demo-now / --demo-overlap /",
+    "--demo-free / --demo-notification) are unaffected; a fixture overrides",
+    "them. Anything wrong in here stops the app with a message on stderr rather",
+    "than falling back, so a typo can never hand back a subtly different shot."
+  ],
+
+  "config": {
+    "menubarLeadMinutes": 45,
+    "lookaheadHours": 48,
+    "maxTitleLength": 48,
+    "notifyEnabled": false,
+    "notifyLeadMinutes": 5
+  },
+
+  "calendars": [
+    { "id": "personal", "account": "personal@example.com", "name": "Personal", "color": "#5484ed", "primary": true },
+    { "id": "family", "account": "personal@example.com", "name": "Family", "color": "#f4511e" },
+    { "id": "work", "account": "work@example.com", "name": "Acme Work", "color": "#16a765", "primary": true },
+    { "id": "launch", "account": "work@example.com", "name": "Launch Team", "color": "#8e24aa" }
+  ],
+
+  "events": [
+    {
+      "id": "launch-assets-due",
+      "title": "Launch assets due",
+      "calendar": "launch",
+      "allDay": true,
+      "day": 0,
+      "description": "Final images, tablet captures, and mobile screenshots for the website.",
+      "notesUrl": "https://docs.google.com/document/d/demo-launch-assets/edit"
+    },
+    {
+      "id": "morning-run",
+      "title": "Morning run",
+      "calendar": "personal",
+      "start": "08:10",
+      "end": "08:55",
+      "location": "Riverside Park",
+      "transparency": "free",
+      "description": "Keep the day clear before capture work starts."
+    },
+    {
+      "id": "design-review",
+      "title": "Design review: website screenshots",
+      "calendar": "work",
+      "start": "10:00",
+      "end": "10:45",
+      "conferenceUrl": "https://meet.google.com/abc-defg-hij",
+      "attendees": [
+        { "email": "maya.chen@acme.example", "name": "Maya Chen" },
+        { "email": "sam.rivera@acme.example", "name": "Sam Rivera", "response": "tentative" }
+      ]
+    },
+    {
+      "id": "project-work-block",
+      "title": "Project work block",
+      "calendar": "personal",
+      "start": "11:30",
+      "end": "12:30",
+      "location": "Desk",
+      "colorId": "5"
+    },
+    {
+      "id": "product-sync",
+      "title": "Product sync",
+      "calendar": "work",
+      "start": "13:00",
+      "end": "13:30",
+      "isRecurring": true,
+      "conferenceUrl": "https://meet.google.com/xyz-1234-uvw",
+      "attendees": [
+        { "email": "alex.kim@acme.example", "name": "Alex Kim" },
+        { "email": "sam.rivera@acme.example", "name": "Sam Rivera" }
+      ]
+    },
+    {
+      "id": "focus-copy-polish",
+      "title": "Focus: Until copy polish",
+      "calendar": "work",
+      "start": "14:30",
+      "end": "16:00",
+      "colorId": "11",
+      "transparency": "busy"
+    },
+    {
+      "id": "school-pickup",
+      "title": "School pickup",
+      "calendar": "family",
+      "start": "16:30",
+      "end": "17:00",
+      "colorId": "6"
+    },
+    {
+      "id": "tomorrow-standup",
+      "title": "Launch standup",
+      "calendar": "launch",
+      "day": 1,
+      "start": "10:00",
+      "end": "10:15",
+      "conferenceUrl": "https://meet.google.com/std-9876-abc"
+    }
+  ]
+}

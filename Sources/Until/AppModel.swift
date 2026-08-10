@@ -54,10 +54,17 @@ final class AppModel: ObservableObject {
   /// have since changed. Older results may still refresh the cache, but they
   /// must never restore coverage metadata for the newer inputs.
   private var calendarRefreshGeneration = 0
+  /// The hand-authored demo day from `--demo-json`, when one was given. It
+  /// replaces the built-in scenario's calendars, events, and accounts.
+  private let demoFixture: DemoFixture?
 
   init(options: AppRuntimeOptions = .fromProcess()) {
     runtimeOptions = options
-    config = options.demoMode ? DemoCalendarData.config(scenario: options.demoScenario) : store.load()
+    demoFixture = AppModel.loadDemoFixture(path: options.demoFixturePath)
+    let demoConfig = DemoCalendarData.config(scenario: options.demoScenario)
+    config = options.demoMode
+      ? (demoFixture?.appConfig(base: demoConfig) ?? demoConfig)
+      : store.load()
     observeWake()
     refreshLaunchAtLoginState()
     applyDefaultLaunchAtLoginIfNeeded()
@@ -1321,14 +1328,41 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Reads `--demo-json`, exiting on any problem. A fixture exists to pin one
+  /// exact frame, so a typo must stop the run loudly rather than fall back to
+  /// the built-in day and hand back a subtly different picture.
+  private static func loadDemoFixture(path: String?) -> DemoFixture? {
+    guard let path else { return nil }
+    do {
+      return try DemoFixture.load(path: path)
+    } catch {
+      FileHandle.standardError.write(Data("until: --demo-json: \(error)\n".utf8))
+      exit(1)
+    }
+  }
+
   private func loadDemoData(now: Date) {
-    calendars = DemoCalendarData.calendars(selectedIds: config.selectedCalendarIds)
-    rawEvents = DemoCalendarData.events(
-      now: now,
-      selectedIds: config.selectedCalendarIds,
-      scenario: runtimeOptions.demoScenario
-    )
-    state.auth = DemoCalendarData.accountState()
+    if let demoFixture {
+      calendars = demoFixture.calendarSummaries(selectedIds: config.selectedCalendarIds)
+      do {
+        rawEvents = try demoFixture.calendarEvents(now: now, selectedIds: config.selectedCalendarIds)
+      } catch {
+        FileHandle.standardError.write(Data("until: --demo-json: \(error)\n".utf8))
+        exit(1)
+      }
+      state.auth = AuthState(
+        authenticated: true,
+        accounts: demoFixture.accountEmails().map { AccountState(email: $0) }
+      )
+    } else {
+      calendars = DemoCalendarData.calendars(selectedIds: config.selectedCalendarIds)
+      rawEvents = DemoCalendarData.events(
+        now: now,
+        selectedIds: config.selectedCalendarIds,
+        scenario: runtimeOptions.demoScenario
+      )
+      state.auth = DemoCalendarData.accountState()
+    }
     state.lastSync = now
     state.lastError = nil
     state.calendarCoverageEnd = now.addingTimeInterval(
