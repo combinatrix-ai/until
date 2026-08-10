@@ -675,21 +675,18 @@ private struct FreeDayTimelineRow: View {
 
 private struct HeroProgressBar: View {
   var fraction: Double
-  var height: CGFloat = 3
-  var cornerRadius: CGFloat = 2
-  var trackOpacity: Double = 0.18
 
   var body: some View {
     GeometryReader { proxy in
       ZStack(alignment: .leading) {
-        RoundedRectangle(cornerRadius: cornerRadius)
-          .fill(Color.green.opacity(trackOpacity))
-        RoundedRectangle(cornerRadius: cornerRadius)
+        RoundedRectangle(cornerRadius: 2)
+          .fill(Color.green.opacity(0.18))
+        RoundedRectangle(cornerRadius: 2)
           .fill(Color.green)
           .frame(width: proxy.size.width * fraction)
       }
     }
-    .frame(height: height)
+    .frame(height: 3)
   }
 }
 

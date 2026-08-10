@@ -809,12 +809,6 @@ final class AppModel: ObservableObject {
     state.next
   }
 
-  /// The in-progress event that receives the rail's green NOW treatment when
-  /// it is not already the menubar hero. There is no separate pinned strip.
-  var nowEmphasisEvent: CalendarEvent? {
-    AppModel.pickNowStripEvent(menubarEvent: menubarEvent, config: config, timed: state.events, now: Date())
-  }
-
   /// Events grouped into day sections for display. Multi-day all-day events are
   /// repeated on each day they cover, clamped to the lookahead window.
   func daySections(now: Date) -> [DaySection] {

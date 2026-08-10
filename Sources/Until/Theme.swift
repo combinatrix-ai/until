@@ -285,29 +285,10 @@ struct IconButton: View {
 
 /// Borderless text+icon button for an action that shouldn't outrank a
 /// screen's one loud `.borderedProminent` control: no chrome at rest, a soft
-/// backdrop and full-strength label on hover. `.regular` sits in the hero's
-/// action row; `.small` sits in expanded event detail, where two of these
-/// share a line.
+/// backdrop and full-strength label on hover. Sits in the hero's action row.
 struct QuietButton: View {
-  struct Size {
-    var font: Font
-    var horizontalPadding: CGFloat
-    var verticalPadding: CGFloat
-
-    static let regular = Size(font: .system(size: 12, weight: .medium), horizontalPadding: 8, verticalPadding: 3)
-    static let small = Size(font: .caption.weight(.medium), horizontalPadding: 7, verticalPadding: 2)
-  }
-
   var systemImage: String
   var label: String
-  var size: Size = .regular
-  /// Overrides the rest/hover foreground with a fixed color — used for the
-  /// copy-details button's transient green "copied" flash, where the tint
-  /// signals success rather than hover.
-  var tint: Color?
-  /// Swaps the leading symbol for a spinner, e.g. the hero's "Create notes"
-  /// while the note doc is being created.
-  var isBusy: Bool = false
   var action: () -> Void
 
   @State private var isHovered = false
@@ -315,17 +296,13 @@ struct QuietButton: View {
   var body: some View {
     Button(action: action) {
       HStack(spacing: Theme.Spacing.xs) {
-        if isBusy {
-          ProgressView().controlSize(.small)
-        } else {
-          Image(systemName: systemImage)
-        }
+        Image(systemName: systemImage)
         Text(label)
       }
-      .font(size.font)
-      .foregroundStyle(tint ?? (isHovered ? Color.primary : Color.secondary))
-      .padding(.horizontal, size.horizontalPadding)
-      .padding(.vertical, size.verticalPadding)
+      .font(.system(size: 12, weight: .medium))
+      .foregroundStyle(isHovered ? Color.primary : Color.secondary)
+      .padding(.horizontal, 8)
+      .padding(.vertical, 3)
       .background(
         isHovered ? Theme.hoverFill : Color.clear,
         in: RoundedRectangle(cornerRadius: Theme.Radius.sm)
