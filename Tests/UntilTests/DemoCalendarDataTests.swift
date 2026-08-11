@@ -90,6 +90,15 @@ final class DemoCalendarDataTests: XCTestCase {
     XCTAssertTrue(DemoCalendarData.config(scenario: .notification).notifyEnabled)
   }
 
+  func testFixtureRunsMaySyncSoTheirOwnNotifyEnabledDecides() {
+    let options = AppRuntimeOptions(
+      demoMode: true,
+      demoScenario: .upcoming,
+      demoFixturePath: "/tmp/day.json"
+    )
+    XCTAssertTrue(options.allowsNotifications)
+  }
+
   func testRealRunsAlwaysAllowNotifications() {
     XCTAssertTrue(AppRuntimeOptions(demoMode: false, demoScenario: .upcoming).allowsNotifications)
   }

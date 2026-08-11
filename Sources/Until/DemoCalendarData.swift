@@ -33,8 +33,11 @@ struct AppRuntimeOptions: Hashable {
   /// Whether this run may schedule real `UNUserNotificationCenter` reminders.
   /// Demo mode is otherwise silent: a screenshot or dev run must not put
   /// synthetic events into the user's Notification Center.
+  ///
+  /// A fixture opts in by its own `notifyEnabled`, so letting the sync run is
+  /// enough — with notifications off it only clears stale pending requests.
   var allowsNotifications: Bool {
-    !demoMode || demoScenario == .notification
+    !demoMode || demoScenario == .notification || demoFixturePath != nil
   }
 
   static func fromProcess(
