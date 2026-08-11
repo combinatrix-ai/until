@@ -1,234 +1,56 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Until - Google Calendar in your macOS menubar</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Until — Google Calendar in your macOS menubar</title>
     <meta
       name="description"
-      content="Until keeps your next Google Calendar event in the macOS menubar and shows your day on one continuous timeline, with quick join links, meeting notes, reminders, and precise filters."
-    />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="Until - Google Calendar in your macOS menubar" />
+      content="Until keeps a live menubar countdown close, lets you join meetings in one click, prepares notes, shows your day on a timeline, and filters out what does not matter."
+    >
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Until — Google Calendar in your macOS menubar">
     <meta
       property="og:description"
-      content="Your next event stays in the macOS menubar while your whole day remains visible on one continuous timeline. One-click join, notes, reminders, and precise filters."
-    />
-    <meta property="og:image" content="https://combinatrix-ai.github.io/until/site-preview-desktop.png" />
-    <meta property="og:image:width" content="1440" />
-    <meta property="og:image:height" content="900" />
-    <meta property="og:url" content="https://combinatrix-ai.github.io/until/" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Until - Google Calendar in your macOS menubar" />
+      content="A live menubar countdown, one-click joining, ready-to-go notes, a full-day timeline, and precise filters for Google Calendar on macOS."
+    >
+    <meta property="og:image" content="https://combinatrix-ai.github.io/until/site-preview-desktop.png">
+    <meta property="og:image:width" content="1440">
+    <meta property="og:image:height" content="900">
+    <meta property="og:url" content="https://combinatrix-ai.github.io/until/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Until — Google Calendar in your macOS menubar">
     <meta
       name="twitter:description"
-      content="Your next event stays in the macOS menubar while your whole day remains visible on one continuous timeline. One-click join, notes, reminders, and precise filters."
-    />
-    <meta name="twitter:image" content="https://combinatrix-ai.github.io/until/site-preview-desktop.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      content="A live menubar countdown, one-click joining, ready-to-go notes, a full-day timeline, and precise filters for Google Calendar on macOS."
+    >
+    <meta name="twitter:image" content="https://combinatrix-ai.github.io/until/site-preview-desktop.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,780&amp;family=Manrope:wght@400;520;620;720;800&amp;display=swap"
       rel="stylesheet"
-    />
-    <link rel="stylesheet" href="styles.css?v=20260811-real-captures" />
-    <script>document.documentElement.classList.add("js");</script>
+    >
+    <link rel="stylesheet" href="styles.css?v=20260811-poster-hero2">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='8' cy='12' r='3' fill='%23d9664e'/%3E%3Cpath d='M14 7l5 5-5 5' fill='none' stroke='%23d9664e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <main id="top">
       <section class="hero" id="main-content" aria-labelledby="hero-title">
-        <div class="hero-shell">
-          <div class="desktop-copy">
-            <h1 id="hero-title">
-              <span class="hero-brand">
-                <svg class="hero-mark" viewBox="4 5 15 14" aria-hidden="true">
-                  <circle cx="7" cy="12" r="2.6" />
-                  <path d="M12.5 7 17.5 12 12.5 17" />
-                </svg>
-                Until:
-              </span>
-              next up, always visible.
-            </h1>
-            <p>
-              Google Calendar in your macOS menubar, with join links, notes, reminders, and filters close at hand.
-            </p>
-            <ul class="hero-points">
-              <li><strong>NOW stays put.</strong> Keep the meeting you are in visible while the countdown looks ahead.</li>
-              <li><strong>NEXT expands in place.</strong> Join the call or open notes without leaving the schedule.</li>
-              <li><strong>Free time has shape.</strong> See the usable gaps between events, not just a stack of meetings.</li>
-            </ul>
-            <div class="hero-actions">
-              <a class="primary-action" href="https://github.com/combinatrix-ai/until/releases/latest">Get the app</a>
-              <a class="icon-action" href="https://github.com/combinatrix-ai/until" aria-label="View on GitHub">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M12 2C6.48 2 2 6.58 2 12.24c0 4.52 2.86 8.35 6.84 9.7.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.88-2.51.47-3.16-.63-3.36-1.21-.11-.3-.6-1.21-1.03-1.45-.35-.19-.85-.66-.01-.67.79-.01 1.35.74 1.54 1.05.9 1.55 2.34 1.11 2.91.85.09-.67.35-1.11.64-1.37-2.22-.26-4.55-1.14-4.55-5.05 0-1.11.39-2.02 1.03-2.73-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.04A9.28 9.28 0 0 1 12 6.99c.85 0 1.71.12 2.51.35 1.91-1.32 2.75-1.04 2.75-1.04.55 1.4.2 2.44.1 2.7.64.71 1.03 1.62 1.03 2.73 0 3.92-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.09 10.09 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z"
-                  />
-                </svg>
-              </a>
-            </div>
+        <div class="hero-intro">
+          <div class="hero-brand-row">
+            <svg class="hero-mark" viewBox="4 5 15 14" aria-hidden="true">
+              <circle cx="7" cy="12" r="2.6" />
+              <path d="M12.5 7 17.5 12 12.5 17" />
+            </svg>
+            <span>Until</span>
           </div>
-
-          <figure class="hero-shot">
-            <img
-              src="until-timeline-hero.webp"
-              width="1440"
-              height="1080"
-              alt="Until open from the macOS menubar, showing the current time, an expanded next event, free gaps, and the rest of the day's events on one timeline."
-            />
-            <figcaption>One menubar item, your whole day in context.</figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <section class="workflow" id="workflow" aria-labelledby="workflow-title">
-        <div class="section-copy">
-          <h2 id="workflow-title">Built for back-to-back days.</h2>
-          <p>
-            Until keeps the next thing visible, reminds you before it starts, and
-            puts the links you need one click away.
-          </p>
-        </div>
-        <div class="workflow-grid">
-          <article>
-            <div class="feature-visual glance-visual" aria-hidden="true">
-              <div class="menubar-strip">
-                <img
-                  src="until-menubar-next.webp"
-                  width="245"
-                  height="25"
-                  loading="lazy"
-                  alt="The macOS menubar showing Until counting down: 6m until Design review."
-                />
-              </div>
-              <div class="menubar-strip">
-                <img
-                  src="until-menubar-live.webp"
-                  width="293"
-                  height="25"
-                  loading="lazy"
-                  alt="The same menubar item once the meeting has started: 8m left of Design review."
-                />
-              </div>
-            </div>
-            <h3>Countdown</h3>
-            <p>Your next event stays in the menubar all day with a live countdown, then shows the time left once the meeting starts.</p>
-          </article>
-          <article>
-            <div class="feature-visual remind-visual">
-              <img
-                src="until-notification.webp"
-                width="718"
-                height="162"
-                loading="lazy"
-                alt="A macOS notification from Until reading &quot;Design review: website screenshots — Starts at 10:00 · Google Meet&quot;."
-              />
-            </div>
-            <h3>Remind &amp; Join</h3>
-            <p>A native reminder arrives before the call. Click it to join &mdash; or hold it to open the event or snooze for five minutes.</p>
-          </article>
-          <article>
-            <div class="feature-visual prepare-visual" aria-hidden="true">
-              <div class="mini-doc">
-                <div class="doc-toolbar">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-                <strong>Design Review notes</strong>
-                <i></i>
-                <i></i>
-                <div class="doc-share">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                  <em>Shared</em>
-                </div>
-              </div>
-            </div>
-            <h3>Notes</h3>
-            <p>One click creates a Google Doc from your template, shares it with attendees, and attaches it to the event.</p>
-          </article>
-          <article>
-            <div class="feature-visual filter-visual" aria-hidden="true">
-              <div class="mini-rule rule-head">
-                <span>Show events where</span>
-              </div>
-              <div class="mini-rule active">
-                <span class="rule-bullet"></span>
-                <strong>selfResponse</strong>
-                <em>is not declined</em>
-              </div>
-              <div class="mini-rule active">
-                <span class="rule-bullet"></span>
-                <strong>status</strong>
-                <em>is not cancelled</em>
-              </div>
-            </div>
-            <h3>Filter</h3>
-            <p>Hide low-signal calendars, all-day holds, and events that do not need your attention.</p>
-          </article>
-          <article>
-            <div class="feature-visual access-visual" aria-hidden="true">
-              <div class="mini-menubar">
-                <span class="status-pill">
-                  <span class="brand-mark micro"><span></span><i></i></span>
-                  <b>23m</b>
-                  Design Review
-                </span>
-                <span class="pill-alt">⌥ join</span>
-              </div>
-              <div class="keycap-row">
-                <kbd>⌃</kbd>
-                <kbd>⌥</kbd>
-                <kbd>U</kbd>
-                <span>toggle Until</span>
-              </div>
-            </div>
-            <h3>Quick access</h3>
-            <p>Option-click the icon to join the meeting it's showing, right-click to collapse it to just the icon, set a global shortcut to flip the popover open, and launch at login.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="privacy" id="privacy" aria-labelledby="privacy-title">
-        <div class="privacy-inner">
-          <div class="section-copy">
-            <h2 id="privacy-title">Private by design.</h2>
-            <p>
-              Until runs entirely on your Mac and talks straight to Google. No
-              account with us, no middle server, nothing to collect.
-            </p>
-          </div>
-          <ul class="privacy-points">
-            <li>
-              <strong>Only its own files.</strong>
-              <span>Until uses Google's <code>drive.file</code> scope, so it can only see the notes and folders it created &mdash; never the rest of your Drive.</span>
-            </li>
-            <li>
-              <strong>Tokens in the Keychain.</strong>
-              <span>Your Google sign-in stays in the macOS Keychain, protected by the system like any other credential.</span>
-            </li>
-            <li>
-              <strong>No servers in between.</strong>
-              <span>The app calls Google's APIs directly from your machine. Your data is never sent anywhere else, and nothing is tracked.</span>
-            </li>
-          </ul>
-          <a class="privacy-link" href="privacy.html">Read the full privacy policy &rarr;</a>
-        </div>
-      </section>
-
-      <section class="closing-cta" aria-labelledby="closing-title">
-        <div>
-          <h2 id="closing-title">Stop hunting. Show up prepared.</h2>
-          <p>
-            Until stays in the menubar, keeps the next meeting close, and leaves
-            the rest of your calendar out of the way.
-          </p>
-          <div class="closing-actions">
-            <a class="primary-action" href="https://github.com/combinatrix-ai/until/releases/latest">Get the app</a>
-            <a class="icon-action" href="https://github.com/combinatrix-ai/until" aria-label="View on GitHub">
+          <h1 id="hero-title">Next up, always visible.</h1>
+          <p class="hero-subtitle">Google Calendar in your macOS menubar — countdown above, your day below.</p>
+          <div class="cta-row">
+            <a class="primary-action" href="https://github.com/combinatrix-ai/until/releases/latest">Download for macOS</a>
+            <a class="icon-action" href="https://github.com/combinatrix-ai/until" aria-label="View Until on GitHub">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   d="M12 2C6.48 2 2 6.58 2 12.24c0 4.52 2.86 8.35 6.84 9.7.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.88-2.51.47-3.16-.63-3.36-1.21-.11-.3-.6-1.21-1.03-1.45-.35-.19-.85-.66-.01-.67.79-.01 1.35.74 1.54 1.05.9 1.55 2.34 1.11 2.91.85.09-.67.35-1.11.64-1.37-2.22-.26-4.55-1.14-4.55-5.05 0-1.11.39-2.02 1.03-2.73-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.04A9.28 9.28 0 0 1 12 6.99c.85 0 1.71.12 2.51.35 1.91-1.32 2.75-1.04 2.75-1.04.55 1.4.2 2.44.1 2.7.64.71 1.03 1.62 1.03 2.73 0 3.92-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.09 10.09 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z"
@@ -236,7 +58,158 @@
               </svg>
             </a>
           </div>
-          <p class="lang-note">Fully localized &mdash; English / 日本語.</p>
+          <p class="hero-meta">Free &amp; open source <span aria-hidden="true">·</span> English / 日本語</p>
+        </div>
+
+        <figure class="hero-poster">
+          <img
+            src="until-hero-menubar-timeline.webp"
+            width="984"
+            height="560"
+            fetchpriority="high"
+            alt="Until's macOS menubar view expanded into a continuous day timeline, with the next event prominent and later events continuing below."
+          >
+          <div class="hero-poster-fade" aria-hidden="true"></div>
+        </figure>
+      </section>
+
+      <section class="landing-section" id="menubar" aria-labelledby="menubar-title">
+        <div class="section-inner">
+          <header class="section-heading">
+            <p class="kicker">Menubar</p>
+            <h2 id="menubar-title">Your focus, always visible.</h2>
+            <p class="section-lede">The countdown to your next event stays in the menubar all day; once the meeting starts, it flips to time left.</p>
+          </header>
+
+          <div class="menubar-states">
+            <figure class="menubar-state">
+              <div class="menubar-chrome">
+                <img
+                  src="until-menubar-next.webp"
+                  width="245"
+                  height="25"
+                  loading="lazy"
+                  alt="Until in the macOS menubar showing 6m until Design review."
+                >
+              </div>
+              <figcaption>before &mdash; counting down</figcaption>
+            </figure>
+            <figure class="menubar-state">
+              <div class="menubar-chrome">
+                <img
+                  src="until-menubar-live.webp"
+                  width="293"
+                  height="25"
+                  loading="lazy"
+                  alt="Until in the macOS menubar showing 8m left of Design review."
+                >
+              </div>
+              <figcaption>during &mdash; time left</figcaption>
+            </figure>
+          </div>
+
+          <p class="section-note">⌥-click the icon to join · right-click to collapse · global shortcut · launch at login</p>
+        </div>
+      </section>
+
+      <section class="landing-section" id="notification" aria-labelledby="notification-title">
+        <div class="section-inner">
+          <header class="section-heading">
+            <p class="kicker">Notification</p>
+            <h2 id="notification-title">Reminded — and one click from joining.</h2>
+            <p class="section-lede">A native reminder arrives before every meeting; click it to join instantly, or hold it to open the event or snooze five minutes.</p>
+          </header>
+
+          <figure class="notification-visual">
+            <img
+              src="until-notification.webp"
+              width="718"
+              height="162"
+              loading="lazy"
+              alt="A macOS notification from Until for Design review, showing its start time and Google Meet link."
+            >
+          </figure>
+        </div>
+      </section>
+
+      <section class="landing-section" id="timeline" aria-labelledby="timeline-title">
+        <div class="section-inner">
+          <header class="section-heading">
+            <p class="kicker">Timeline</p>
+            <h2 id="timeline-title">Plan your day at a glance.</h2>
+            <p class="section-lede">Click the menubar and the whole day unfolds — one continuous timeline where free time has shape, not just a stack of meetings.</p>
+          </header>
+
+          <figure class="timeline-visual">
+            <img
+              src="until-timeline-popover.webp"
+              width="660"
+              height="782"
+              loading="lazy"
+              alt="Until's full-day timeline in a macOS popover, showing the current event, free gaps, and upcoming calendar events."
+            >
+          </figure>
+        </div>
+      </section>
+
+      <section class="landing-section" id="meeting-notes" aria-labelledby="meeting-notes-title">
+        <div class="section-inner">
+          <header class="section-heading">
+            <p class="kicker">Meeting notes</p>
+            <h2 id="meeting-notes-title">Notes, ready before you are.</h2>
+            <p class="section-lede">One click on any event:</p>
+          </header>
+
+          <div class="step-card">
+            <ol class="step-list">
+              <li><span class="step-number" aria-hidden="true">1</span><span>Creates a Google Doc &mdash; from your template</span></li>
+              <li><span class="step-number" aria-hidden="true">2</span><span>Shares it &mdash; with every attendee</span></li>
+              <li><span class="step-number" aria-hidden="true">3</span><span>Attaches it &mdash; to the calendar event</span></li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-section" id="focus" aria-labelledby="focus-title">
+        <div class="section-inner">
+          <header class="section-heading">
+            <p class="kicker">Focus</p>
+            <h2 id="focus-title">Only the events that matter.</h2>
+            <p class="section-lede">Precise filters hide declined invites, low-signal calendars, and all-day holds — so what's left deserves your attention.</p>
+          </header>
+
+          <div class="rule-card" role="group" aria-label="Example filter rules">
+            <div class="rule-list">
+              <div class="rule-pill"><code class="rule-field">selfResponse</code><span class="rule-operator">&mdash; is not</span><strong class="rule-value">declined</strong></div>
+              <div class="rule-pill"><code class="rule-field">status</code><span class="rule-operator">&mdash; is not</span><strong class="rule-value">cancelled</strong></div>
+              <div class="rule-pill"><code class="rule-field">calendar</code><span class="rule-operator">&mdash; is not</span><strong class="rule-value">&quot;Holidays&quot;</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-section privacy-section" id="privacy" aria-labelledby="privacy-title">
+        <div class="section-inner privacy-inner">
+          <header class="section-heading">
+            <h2 id="privacy-title">Private by design.</h2>
+          </header>
+          <p class="privacy-copy">Until runs entirely on your Mac, talks straight to Google, has no account with us and no servers in between; tokens stay in the macOS Keychain, and Drive access is limited to files it created (<code>drive.file</code> scope). <a class="privacy-link" href="privacy.html">Full privacy policy &rarr;</a></p>
+        </div>
+      </section>
+
+      <section class="closing-cta" aria-labelledby="closing-title">
+        <div class="section-inner">
+          <h2 id="closing-title">Look up. You're ready.</h2>
+          <div class="cta-row">
+            <a class="primary-action" href="https://github.com/combinatrix-ai/until/releases/latest">Download for macOS</a>
+            <a class="icon-action" href="https://github.com/combinatrix-ai/until" aria-label="View Until on GitHub">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 2C6.48 2 2 6.58 2 12.24c0 4.52 2.86 8.35 6.84 9.7.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.88-2.51.47-3.16-.63-3.36-1.21-.11-.3-.6-1.21-1.03-1.45-.35-.19-.85-.66-.01-.67.79-.01 1.35.74 1.54 1.05.9 1.55 2.34 1.11 2.91.85.09-.67.35-1.11.64-1.37-2.22-.26-4.55-1.14-4.55-5.05 0-1.11.39-2.02 1.03-2.73-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.04A9.28 9.28 0 0 1 12 6.99c.85 0 1.71.12 2.51.35 1.91-1.32 2.75-1.04 2.75-1.04.55 1.4.2 2.44.1 2.7.64.71 1.03 1.62 1.03 2.73 0 3.92-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.09 10.09 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z"
+                />
+              </svg>
+            </a>
+          </div>
         </div>
       </section>
 
@@ -254,7 +227,6 @@
           <p class="footer-made">Made by <a href="https://combinatrix.ai">combinatrix.ai</a></p>
         </div>
       </footer>
-
     </main>
 
     <script src="script.js"></script>
