@@ -408,92 +408,186 @@ a:focus-visible {
   box-shadow: 0 30px 64px color-mix(in oklch, var(--ink) 16%, transparent);
 }
 
-.step-card,
-.rule-card {
-  width: min(100%, 600px);
-  margin: 43px auto 0;
-  border: 1px solid color-mix(in oklch, var(--ink) 12%, transparent);
-  border-radius: 11px;
-  background: var(--white);
-  box-shadow: var(--shadow);
-}
-
-.step-card {
-  padding: 9px 22px;
-  text-align: left;
-}
-
-.step-list {
-  margin: 0;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
   padding: 0;
-  list-style: none;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
-.step-list li {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-  padding: 18px 0;
-  color: var(--ink);
-  font-size: 0.94rem;
+.notes-visual,
+.filter-visual {
+  width: min(100%, 560px);
+  margin: 43px auto 0;
+}
+
+.notes-visual svg,
+.filter-visual svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.filter-visual svg {
+  filter: drop-shadow(0 18px 34px color-mix(in oklch, var(--ink) 10%, transparent));
+}
+
+.fv-label {
+  fill: var(--ink);
+  font-family: var(--body);
+  font-size: 12.5px;
+  font-weight: 620;
+}
+
+.fv-muted {
+  fill: var(--muted);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 620;
+}
+
+/* ---- meeting-notes animation ---- */
+
+.nv-title {
+  fill: var(--ink);
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.nv-sub {
+  fill: var(--muted);
+  font-family: var(--body);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.nv-btn-label {
+  fill: #2f6fe0;
+  font-family: var(--body);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.nv-initial {
+  fill: var(--white);
+  font-family: var(--body);
+  font-size: 16px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+.nv-name {
+  fill: var(--muted);
+  font-family: var(--body);
+  font-size: 10.5px;
+  font-weight: 720;
+  text-anchor: middle;
+}
+
+.nv-attach-label {
+  fill: var(--ink);
+  font-family: var(--body);
+  font-size: 11.5px;
   font-weight: 720;
 }
 
-.step-list li + li {
-  border-top: 1px solid var(--line);
+/* Rest state: everything after the click is hidden until the section
+   scrolls into view and script.js adds .is-visible. */
+.nv-cursor,
+.nv-ripple,
+.nv-doc,
+.nv-fly,
+.nv-check,
+.nv-attach {
+  opacity: 0;
 }
 
-.step-number {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: color-mix(in oklch, var(--coral) 14%, var(--white));
-  color: var(--coral);
-  font-size: 0.78rem;
-  font-weight: 800;
+.is-visible .nv-cursor { animation: nv-cursor 5s both; }
+.is-visible .nv-button { animation: nv-press 5s both; transform-origin: 97px 106px; }
+.is-visible .nv-ripple { animation: nv-ripple 5s both; transform-origin: 97px 106px; }
+.is-visible .nv-doc { animation: nv-doc 5s both; transform-origin: 280px 162px; }
+.is-visible .nv-fly1 { animation: nv-fly1 5s both; }
+.is-visible .nv-fly2 { animation: nv-fly2 5s both; }
+.is-visible .nv-fly3 { animation: nv-fly3 5s both; }
+.is-visible .nv-check1 { animation: nv-check1 5s both; transform-origin: 490px 56px; }
+.is-visible .nv-check2 { animation: nv-check2 5s both; transform-origin: 490px 144px; }
+.is-visible .nv-check3 { animation: nv-check3 5s both; transform-origin: 490px 232px; }
+.is-visible .nv-attach { animation: nv-attach 5s both; }
+
+@keyframes nv-cursor {
+  0% { opacity: 0; transform: translate(320px, 300px); }
+  6% { opacity: 1; }
+  16% { transform: translate(99px, 108px); }
+  20% { opacity: 1; transform: translate(99px, 108px); }
+  30%, 100% { opacity: 0; transform: translate(99px, 108px); }
 }
 
-.rule-card {
-  padding: 17px;
+@keyframes nv-press {
+  0%, 16% { transform: scale(1); }
+  18% { transform: scale(0.94); }
+  22%, 100% { transform: scale(1); }
 }
 
-.rule-list {
-  display: grid;
-  gap: 10px;
+@keyframes nv-ripple {
+  0%, 17% { opacity: 0; transform: scale(0.4); stroke-width: 2; }
+  20% { opacity: 0.55; }
+  28%, 100% { opacity: 0; transform: scale(2.1); stroke-width: 0.5; }
 }
 
-.rule-pill {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: center;
-  gap: 7px;
-  min-height: 42px;
-  padding: 10px 14px;
-  border: 1px solid color-mix(in oklch, var(--green) 18%, transparent);
-  border-radius: 999px;
-  background: color-mix(in oklch, var(--green) 7%, var(--white));
-  color: var(--muted);
-  font-size: 0.8rem;
+@keyframes nv-doc {
+  0%, 20% { opacity: 0; transform: scale(0.3); }
+  27% { opacity: 1; transform: scale(1.05); }
+  30%, 100% { opacity: 1; transform: scale(1); }
 }
 
-.rule-field {
-  color: var(--ink);
-  font-family: var(--mono);
-  font-size: 0.92em;
-  font-weight: 800;
+@keyframes nv-fly1 {
+  0%, 34% { opacity: 0; transform: translate(320px, 150px) scale(0.6); }
+  38% { opacity: 1; }
+  45% { opacity: 1; transform: translate(452px, 74px) scale(1); }
+  47%, 100% { opacity: 0; transform: translate(452px, 74px) scale(0.5); }
 }
 
-.rule-operator {
-  color: var(--muted);
+@keyframes nv-fly2 {
+  0%, 42% { opacity: 0; transform: translate(320px, 165px) scale(0.6); }
+  46% { opacity: 1; }
+  53% { opacity: 1; transform: translate(452px, 162px) scale(1); }
+  55%, 100% { opacity: 0; transform: translate(452px, 162px) scale(0.5); }
 }
 
-.rule-value {
-  color: color-mix(in oklch, var(--green) 78%, var(--ink));
-  font-weight: 800;
+@keyframes nv-fly3 {
+  0%, 50% { opacity: 0; transform: translate(320px, 180px) scale(0.6); }
+  54% { opacity: 1; }
+  61% { opacity: 1; transform: translate(452px, 250px) scale(1); }
+  63%, 100% { opacity: 0; transform: translate(452px, 250px) scale(0.5); }
+}
+
+@keyframes nv-check1 {
+  0%, 45% { opacity: 0; transform: scale(0.2); }
+  50% { opacity: 1; transform: scale(1.18); }
+  54%, 100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes nv-check2 {
+  0%, 53% { opacity: 0; transform: scale(0.2); }
+  58% { opacity: 1; transform: scale(1.18); }
+  62%, 100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes nv-check3 {
+  0%, 61% { opacity: 0; transform: scale(0.2); }
+  66% { opacity: 1; transform: scale(1.18); }
+  70%, 100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes nv-attach {
+  0%, 72% { opacity: 0; transform: translateY(10px); }
+  82%, 100% { opacity: 1; transform: translateY(0); }
 }
 
 .privacy-section {
@@ -776,19 +870,6 @@ ul.legal-lead {
 
   .section-note {
     max-width: 34ch;
-  }
-
-  .step-card {
-    padding-right: 17px;
-    padding-left: 17px;
-  }
-
-  .rule-card {
-    padding: 12px;
-  }
-
-  .rule-pill {
-    border-radius: 12px;
   }
 
   .privacy-copy {

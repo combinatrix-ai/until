@@ -3,12 +3,13 @@ const observer = new IntersectionObserver(
     for (const entry of entries) {
       if (entry.isIntersecting) {
         entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
       }
     }
   },
-  { threshold: 0.18 }
+  { threshold: 0.45 }
 );
 
-document.querySelectorAll(".workflow-grid article").forEach((node) => {
+document.querySelectorAll(".notes-visual").forEach((node) => {
   observer.observe(node);
 });
