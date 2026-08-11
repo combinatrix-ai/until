@@ -375,10 +375,6 @@ time {
   --accent: var(--blue);
 }
 
-.workflow-grid article:nth-child(6) {
-  --accent: var(--green);
-}
-
 .workflow-grid article:nth-child(1),
 .workflow-grid article:nth-child(4) {
   min-height: 256px;
@@ -477,7 +473,6 @@ time {
 
 .mini-menubar,
 .mini-doc,
-.mini-event-row,
 .mini-rule {
   position: relative;
   z-index: 1;
@@ -720,63 +715,6 @@ time {
 .doc-share em {
   margin-left: 8px;
   font-style: normal;
-}
-
-.mini-event-row {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 30px 30px;
-  gap: 10px;
-  align-items: center;
-  width: min(100%, 304px);
-  min-height: 66px;
-  padding: 0 12px;
-  border-left: 3px solid var(--accent);
-  background: color-mix(in oklch, var(--accent) 8%, var(--white));
-  box-shadow: 0 16px 38px color-mix(in oklch, var(--ink) 11%, transparent);
-}
-
-.mini-event-row time {
-  font-size: 0.72rem;
-}
-
-.mini-event-row strong {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mini-event-row em {
-  display: block;
-  margin-top: 2px;
-  overflow: hidden;
-  color: var(--muted);
-  font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.join-icon {
-  position: relative;
-  width: 30px;
-  height: 30px;
-  border: 1px solid color-mix(in oklch, var(--ink) 12%, transparent);
-  border-radius: 999px;
-  background: var(--white);
-}
-
-.join-icon::before {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  border: 2px solid var(--accent);
-  border-radius: 3px;
-}
-
-.join-icon.doc::before {
-  border-color: var(--ink);
-  border-radius: 2px;
-  border-top-width: 5px;
 }
 
 .filter-visual {
