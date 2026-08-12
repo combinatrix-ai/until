@@ -8,11 +8,11 @@
 macOS menubar, with join links, meeting notes, reminders, and precise filters
 close at hand.
 
-Website: <https://combinatrix-ai.github.io/until/> ·
-Privacy policy: <https://combinatrix-ai.github.io/until/privacy.html>
+Website: <https://until.combinatrix.ai/> ·
+Privacy policy: <https://until.combinatrix.ai/privacy.html>
 
 <p align="center">
-  <img src="docs/anka-until-demo-popover-neutral.png" alt="Until menubar countdown and event list popover" width="720" />
+  <img src="docs/until-hero-menubar-timeline.webp" alt="Until's menubar countdown expanded into the day timeline, with the next event's Join and Open notes actions inline" width="720" />
 </p>
 
 ## Features
@@ -29,7 +29,8 @@ Privacy policy: <https://combinatrix-ai.github.io/until/privacy.html>
   menubar item to join the meeting it's showing (Meet, Zoom, Teams,
   Whereby, and friends).
 - **Native reminders** — sleep-safe notifications before events, with snooze.
-- **Meeting notes** — create a Google Doc per meeting from your own templates,
+- **Meeting notes** — one click creates a Google Doc from your template,
+  shares it with every attendee, and attaches it to the event; docs are
   organized in an app-managed Drive folder.
 - **Precise filters** — a structured rule builder decides which events count
   (by calendar, title, attendees, response status, and more).
