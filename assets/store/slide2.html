@@ -1,0 +1,69 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  /* Mac App Store slide — render at 2880x1800 via scripts/render-store-shots.sh.
+     Tweak numbers here, preview in any browser (open this file), re-render. */
+  @font-face { font-family: "Fraunces"; src: url("Fraunces.ttf"); }
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    width: 2880px; height: 1800px; overflow: hidden;
+    background: #E8E4DC;
+    font-family: "Fraunces", Georgia, serif;
+    position: relative;
+  }
+  .headline {
+    font-variation-settings: "opsz" 9, "wght" 900;
+    position: absolute; top: 120px; width: 100%;
+    text-align: center; font-size: 128px; font-weight: 800; color: #221f1c;
+  }
+  .caption { position: absolute; color: #5c574f; font-variation-settings: "opsz" 9, "wght" 700; }
+
+  /* ---- menubar pills (same construction as the site strips) ---- */
+  .chrome {
+    position: absolute;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 26px 50px;
+    border: 3px solid rgba(34,31,28,0.12); border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(242,238,231,0.85));
+    box-shadow: 0 28px 64px rgba(34,31,28,0.10), inset 0 3px 0 rgba(255,255,255,0.8);
+  }
+  .chrome svg { display: block; height: 116px; width: auto; }
+  .ms-mark { fill: #221f1c; }
+  .ms-chevron { fill: none; stroke: #221f1c; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .ms-text { fill: #221f1c; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; font-size: 13.5px; font-weight: 500; }
+
+  /* ---- layout knobs ---- */
+  #pill-left  { top: 520px; left: 290px; }
+  #pill-right { top: 520px; left: 1560px; }
+  #flip-arrow { position: absolute; top: 555px; left: 1300px; }
+  #flip-label { top: 890px; width: 100%; text-align: center; font-size: 44px; }
+  #notif      { position: absolute; top: 1000px; left: 1414px; width: 1113px; }
+  #join-label { top: 1300px; left: 1414px; width: 1113px; text-align: center; font-size: 46px; }
+</style></head>
+<body>
+  <div class="headline">Your focus, always visible.</div>
+
+  <div class="chrome" id="pill-left">
+    <svg viewBox="0 0 190 25">
+      <circle cx="8" cy="12.5" r="3.2" class="ms-mark" />
+      <path d="M14.5 6.5 20.5 12.5 14.5 18.5" class="ms-chevron" />
+      <text x="27" y="17.3" class="ms-text">8m left Launch standup</text>
+    </svg>
+  </div>
+
+  <div class="chrome" id="pill-right">
+    <svg viewBox="0 0 155 25">
+      <circle cx="8" cy="12.5" r="3.2" class="ms-mark" />
+      <path d="M14.5 6.5 20.5 12.5 14.5 18.5" class="ms-chevron" />
+      <text x="27" y="17.3" class="ms-text">4m Design review</text>
+    </svg>
+  </div>
+
+  <svg id="flip-arrow" width="300" height="130" viewBox="0 0 300 130">
+    <path d="M 30 80 C 100 50 170 50 240 75" fill="none" stroke="#221f1c" stroke-width="11" stroke-linecap="round"/>
+    <path d="M 292 93 L 231 99 L 249 51 Z" fill="#221f1c"/>
+  </svg>
+  <div class="caption" id="flip-label">flips ahead when your next meeting closes in</div>
+
+  <img id="notif" src="notification.png" alt="">
+  <div class="caption" id="join-label">one click to join.</div>
+</body></html>
