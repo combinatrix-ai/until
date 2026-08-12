@@ -44,6 +44,15 @@ cp "$EXECUTABLE" "$APP_DIR/Contents/MacOS/Until"
 RESOURCE_BUNDLE="$ROOT/.build/$CONFIGURATION/Until_Until.bundle"
 if [[ -d "$RESOURCE_BUNDLE" ]]; then
   cp -R "$RESOURCE_BUNDLE" "$APP_DIR/Contents/Resources/Until_Until.bundle"
+  # SwiftPM writes only CFBundleDevelopmentRegion into the bundle's Info.plist.
+  # App Store validation (error 90276) rejects nested bundles without a
+  # CFBundleIdentifier, so fill in the standard identity keys here.
+  RB_PLIST="$APP_DIR/Contents/Resources/Until_Until.bundle/Info.plist"
+  plutil -replace CFBundleIdentifier -string "ai.combinatrix.until.resources" "$RB_PLIST"
+  plutil -replace CFBundleName -string "Until_Until" "$RB_PLIST"
+  plutil -replace CFBundlePackageType -string "BNDL" "$RB_PLIST"
+  plutil -replace CFBundleShortVersionString -string "$APP_VERSION" "$RB_PLIST"
+  plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$RB_PLIST"
 else
   echo "Warning: $RESOURCE_BUNDLE not found; localized strings will fall back to English." >&2
 fi
@@ -186,6 +195,13 @@ if [[ "$MAS" == "1" ]]; then
 </dict>|" "$ROOT/scripts/entitlements/mas.entitlements" > "$entitlements_file"
     fi
 
+    # Sign the nested resource bundle first (no entitlements — it has no code),
+    # then the app itself with the sandbox entitlements.
+    RB_BUNDLE="$APP_DIR/Contents/Resources/Until_Until.bundle"
+    if [[ -d "$RB_BUNDLE" ]]; then
+      codesign --force --sign "$codesign_identity" --timestamp=none "$RB_BUNDLE" >/dev/null
+    fi
+
     codesign_args=(
       --force
       --sign "$codesign_identity"
@@ -224,6 +240,12 @@ if [[ -n "$codesign_identity" ]]; then
     codesign_args+=(--options runtime --timestamp)
   else
     codesign_args+=(--timestamp=none)
+  fi
+
+  # Keep the resource bundle's signature uniform with the app.
+  RB_BUNDLE="$APP_DIR/Contents/Resources/Until_Until.bundle"
+  if [[ -d "$RB_BUNDLE" ]]; then
+    codesign "${codesign_args[@]}" "$RB_BUNDLE" >/dev/null
   fi
 
   # Sparkle ships nested helper code (XPC services, the Autoupdate CLI, and the
