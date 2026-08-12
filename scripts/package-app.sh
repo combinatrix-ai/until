@@ -141,6 +141,11 @@ if [[ "$MAS" == "1" && -n "${MAS_PROVISIONING_PROFILE:-}" ]]; then
   cp "$MAS_PROVISIONING_PROFILE" "$APP_DIR/Contents/embedded.provisionprofile"
 fi
 
+# Strip extended attributes (notably com.apple.quarantine, which rides along
+# on browser-downloaded files like the provisioning profile). App Store
+# processing rejects packages containing quarantined files (error 91109).
+xattr -cr "$APP_DIR"
+
 # Signing.
 # - Dev (default): an Apple Development identity, no secure timestamp, so
 #   rebuilds stay fast/offline and the Keychain doesn't re-prompt every launch.
