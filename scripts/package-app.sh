@@ -18,6 +18,7 @@ fi
 CONFIGURATION="${CONFIGURATION:-debug}"
 APP_VERSION="${APP_VERSION:-0.1.0}"
 BUILD_NUMBER="${BUILD_NUMBER:-1}"
+MAS="${MAS:-0}"
 APP_NAME="Until"
 APP_DIR="$ROOT/.build/$CONFIGURATION/$APP_NAME.app"
 EXECUTABLE="$ROOT/.build/$CONFIGURATION/Until"
@@ -25,6 +26,9 @@ EXECUTABLE="$ROOT/.build/$CONFIGURATION/Until"
 build_args=()
 if [[ -n "$CONFIGURATION" ]]; then
   build_args=(--configuration "$CONFIGURATION")
+fi
+if [[ "$MAS" == "1" ]]; then
+  build_args+=(--disable-default-traits)
 fi
 swift build "${build_args[@]}"
 
@@ -42,6 +46,21 @@ if [[ -d "$RESOURCE_BUNDLE" ]]; then
   cp -R "$RESOURCE_BUNDLE" "$APP_DIR/Contents/Resources/Until_Until.bundle"
 else
   echo "Warning: $RESOURCE_BUNDLE not found; localized strings will fall back to English." >&2
+fi
+
+SPARKLE_PLIST_KEYS=""
+if [[ "$MAS" != "1" ]]; then
+  SPARKLE_PLIST_KEYS=$(cat <<'SPARKLE_PLIST'
+  <key>SUFeedURL</key>
+  <string>https://github.com/combinatrix-ai/until/releases/latest/download/appcast.xml</string>
+  <key>SUPublicEDKey</key>
+  <string>u+Q8/UjDUddA0GV7hkaAaLr6erPJohhGGopaFdv+x2I=</string>
+  <key>SUEnableAutomaticChecks</key>
+  <true/>
+  <key>SUScheduledCheckInterval</key>
+  <integer>86400</integer>
+SPARKLE_PLIST
+  )
 fi
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
@@ -70,20 +89,17 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <string>13.0</string>
   <key>LSUIElement</key>
   <true/>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.productivity</string>
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
   <key>NSUserNotificationAlertStyle</key>
   <string>alert</string>
   <key>GoogleOAuthClientID</key>
   <string>${GOOGLE_OAUTH_CLIENT_ID}</string>
   <key>GoogleOAuthClientSecret</key>
   <string>${GOOGLE_OAUTH_CLIENT_SECRET}</string>
-  <key>SUFeedURL</key>
-  <string>https://github.com/combinatrix-ai/until/releases/latest/download/appcast.xml</string>
-  <key>SUPublicEDKey</key>
-  <string>u+Q8/UjDUddA0GV7hkaAaLr6erPJohhGGopaFdv+x2I=</string>
-  <key>SUEnableAutomaticChecks</key>
-  <true/>
-  <key>SUScheduledCheckInterval</key>
-  <integer>86400</integer>
+${SPARKLE_PLIST_KEYS}
 </dict>
 </plist>
 PLIST
@@ -96,18 +112,24 @@ if [[ ! -f "$ICON_SRC" ]]; then
 fi
 cp "$ICON_SRC" "$APP_DIR/Contents/Resources/Until.icns"
 
-# Embed Sparkle.framework (auto-update). SwiftPM links against the xcframework
-# but does not copy it into our hand-built bundle, so do it here. The framework's
-# install name is @rpath/Sparkle.framework/..., and the executable's only rpath
-# is @loader_path (Contents/MacOS); add @loader_path/../Frameworks so the loader
-# finds the framework in the conventional Contents/Frameworks location.
-SPARKLE_SRC="$ROOT/.build/$CONFIGURATION/Sparkle.framework"
-if [[ -d "$SPARKLE_SRC" ]]; then
-  mkdir -p "$APP_DIR/Contents/Frameworks"
-  cp -R "$SPARKLE_SRC" "$APP_DIR/Contents/Frameworks/Sparkle.framework"
-  install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_DIR/Contents/MacOS/Until"
-else
-  echo "Warning: $SPARKLE_SRC not found; auto-update (Sparkle) will be unavailable. Run 'swift build' first." >&2
+if [[ "$MAS" != "1" ]]; then
+  # Embed Sparkle.framework (auto-update). SwiftPM links against the xcframework
+  # but does not copy it into our hand-built bundle, so do it here. The framework's
+  # install name is @rpath/Sparkle.framework/..., and the executable's only rpath
+  # is @loader_path (Contents/MacOS); add @loader_path/../Frameworks so the loader
+  # finds the framework in the conventional Contents/Frameworks location.
+  SPARKLE_SRC="$ROOT/.build/$CONFIGURATION/Sparkle.framework"
+  if [[ -d "$SPARKLE_SRC" ]]; then
+    mkdir -p "$APP_DIR/Contents/Frameworks"
+    cp -R "$SPARKLE_SRC" "$APP_DIR/Contents/Frameworks/Sparkle.framework"
+    install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_DIR/Contents/MacOS/Until"
+  else
+    echo "Warning: $SPARKLE_SRC not found; auto-update (Sparkle) will be unavailable. Run 'swift build' first." >&2
+  fi
+fi
+
+if [[ "$MAS" == "1" && -n "${MAS_PROVISIONING_PROFILE:-}" ]]; then
+  cp "$MAS_PROVISIONING_PROFILE" "$APP_DIR/Contents/embedded.provisionprofile"
 fi
 
 # Signing.
@@ -116,6 +138,70 @@ fi
 # - Distribution (DISTRIBUTION=1): a Developer ID Application identity with the
 #   hardened runtime and a secure timestamp — both prerequisites for
 #   notarization. Driven by scripts/release.sh.
+if [[ "$MAS" == "1" ]]; then
+  codesign_identity="${CODESIGN_IDENTITY:-}"
+  if [[ -z "$codesign_identity" ]]; then
+    for identity_pattern in \
+      'Apple Distribution' \
+      '3rd Party Mac Developer Application'; do
+      codesign_identity="$(
+        security find-identity -v -p codesigning 2>/dev/null \
+          | sed -n "s/.*\"\\(${identity_pattern}:[^\"]*\\)\".*/\\1/p" \
+          | head -n 1
+      )"
+      [[ -n "$codesign_identity" ]] && break
+    done
+  fi
+
+  if [[ -z "$codesign_identity" ]]; then
+    identity_pattern='Apple Development'
+    codesign_identity="$(
+      security find-identity -v -p codesigning 2>/dev/null \
+        | sed -n "s/.*\"\\(${identity_pattern}:[^\"]*\\)\".*/\\1/p" \
+        | head -n 1
+    )"
+    if [[ -n "$codesign_identity" ]]; then
+      echo "Warning: no Apple Distribution or 3rd Party Mac Developer Application identity found; using '$codesign_identity'. This is a local-test signature only; the app is still sandboxed but cannot be submitted to the Mac App Store." >&2
+    fi
+  fi
+
+  if [[ -n "$codesign_identity" ]]; then
+    if [[ "$codesign_identity" == "Apple Development"* ]]; then
+      echo "Warning: MAS build is signed with Apple Development; this is a local-test signature only and cannot be submitted to the Mac App Store." >&2
+    fi
+
+    # Store validation requires the application-identifier and team-identifier
+    # entitlements that Xcode normally injects from the provisioning profile.
+    # They are RESTRICTED entitlements: without an embedded provisioning profile
+    # authorizing them, AMFI refuses to launch the app (launchd spawn error 163).
+    # So inject them only when both TEAM_ID and a profile are present; the base
+    # file alone gives a locally testable sandboxed app.
+    entitlements_file="$ROOT/scripts/entitlements/mas.entitlements"
+    if [[ -n "${TEAM_ID:-}" && -n "${MAS_PROVISIONING_PROFILE:-}" ]]; then
+      entitlements_file="$(mktemp -t until-mas-entitlements).plist"
+      sed "s|</dict>|  <key>com.apple.application-identifier</key>\\
+  <string>${TEAM_ID}.ai.combinatrix.until</string>\\
+  <key>com.apple.developer.team-identifier</key>\\
+  <string>${TEAM_ID}</string>\\
+</dict>|" "$ROOT/scripts/entitlements/mas.entitlements" > "$entitlements_file"
+    fi
+
+    codesign_args=(
+      --force
+      --sign "$codesign_identity"
+      --entitlements "$entitlements_file"
+      --timestamp=none
+    )
+    codesign "${codesign_args[@]}" "$APP_DIR" >/dev/null
+    echo "Signed with: $codesign_identity"
+  else
+    echo "Warning: no MAS codesigning identity found; app is unsigned and cannot run as a sandboxed local test." >&2
+  fi
+
+  echo "$APP_DIR"
+  exit 0
+fi
+
 DISTRIBUTION="${DISTRIBUTION:-0}"
 if [[ "$DISTRIBUTION" == "1" ]]; then
   identity_pattern='Developer ID Application'

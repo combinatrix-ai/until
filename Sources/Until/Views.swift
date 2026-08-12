@@ -1976,6 +1976,7 @@ struct SettingsView: View {
               .labelsHidden()
           }
         }
+#if SPARKLE
         Divider()
         SettingRow(
           loc("Software updates"),
@@ -1984,6 +1985,7 @@ struct SettingsView: View {
           Button(loc("Check for Updates...")) { model.updater.checkForUpdates() }
             .disabled(!model.updater.canCheckForUpdates)
         }
+#endif
       }
       .task {
         model.refreshLaunchAtLoginState()

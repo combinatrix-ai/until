@@ -36,10 +36,12 @@ final class AppModel: ObservableObject {
     case free(next: CalendarEvent?)
   }
 
+#if SPARKLE
   /// Sparkle updater. Lives on the model so the Settings "Check for Updates"
   /// button can drive it (the status item no longer has a menu). `startingUpdater`
   /// fires on init, so creating it here also kicks off scheduled background checks.
   let updater = UpdaterController()
+#endif
 
   private let runtimeOptions: AppRuntimeOptions
   private let store = ConfigStore()

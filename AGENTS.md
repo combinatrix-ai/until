@@ -102,3 +102,12 @@ shot. See `scripts/demo-data-example.json` for the schema.
 
 ## Filter language
 The Swift build evaluates structured rule conditions natively.
+
+## Mac App Store build
+
+Use `MAS=1 scripts/package-app.sh` for a sandboxed local MAS build; it disables
+Sparkle and signs with MAS entitlements. Use `TEAM_ID=... scripts/release-mas.sh`
+to produce `.build/release/Until-mas.pkg`. A submission needs an Apple
+Distribution app certificate, a Mac Installer Distribution certificate, and an
+App Store provisioning profile. macOS TestFlight uses the resulting signed pkg,
+uploaded through Transporter.app or Xcode Organizer.
