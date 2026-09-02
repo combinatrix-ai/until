@@ -763,6 +763,7 @@ private struct HeroTimelineRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .help(metadataLine)
             }
             if !hasAttachedActions {
               Spacer(minLength: 0)
@@ -799,7 +800,7 @@ private struct HeroTimelineRow: View {
         }
 
         if model.isExpanded(event, on: day) {
-          EventDetailView(event: event, showsTimeRange: false)
+          EventDetailView(event: event, metadataStyle: .hero)
             .transition(
               .asymmetric(
                 insertion: .opacity.animation(.easeInOut(duration: 0.12).delay(0.15)),
@@ -1348,7 +1349,7 @@ struct EventRow: View {
       .opacity(rowOpacity)
 
       if model.isExpanded(event, on: day) {
-        EventDetailView(event: event, showsTimeRange: true)
+        EventDetailView(event: event, metadataStyle: .timeline)
           .padding(.leading, Self.detailIndent)
           .transition(.opacity.combined(with: .move(edge: .top)))
       }
@@ -1537,19 +1538,24 @@ private struct EventActionConfirmationDialogs: ViewModifier {
   }
 }
 
+private enum EventDetailMetadataStyle {
+  case hero
+  case timeline
+}
+
 private struct EventDetailView: View {
   var event: CalendarEvent
-  var showsTimeRange: Bool
+  var metadataStyle: EventDetailMetadataStyle
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-      // Always present, unlike the description/attendee blocks below, so an
-      // event with neither (e.g. a bare "移動" placeholder) still expands to
-      // a useful line of event metadata.
-      Text(detailMetadataLine)
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .lineLimit(1)
+      let metadataLines = detailMetadataLines
+      ForEach(metadataLines.indices, id: \.self) { index in
+        Text(metadataLines[index])
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
 
       if !event.description.isEmpty {
         Text(htmlAttributedString(event.description))
@@ -1580,13 +1586,23 @@ private struct EventDetailView: View {
     .padding(.vertical, Theme.Spacing.xs)
   }
 
-  /// The timeline row needs the full range because its time rail only shows
-  /// the start. The hero already shows the range in its metadata, so its
-  /// expanded detail keeps only the account and avoids repeating the time.
-  private var detailMetadataLine: String {
-    guard showsTimeRange else { return event.account.email }
-    let timePart = event.allDay ? loc("all-day") : timeRangeText(for: event)
-    return "\(timePart) · \(event.account.email)"
+  private var detailMetadataLines: [String] {
+    switch metadataStyle {
+    case .hero:
+      var lines: [String] = []
+      if !event.location.isEmpty {
+        lines.append(event.location)
+      }
+      if let provider = EventLinks.meetingProvider(for: event),
+         event.location.caseInsensitiveCompare(provider.label) != .orderedSame {
+        lines.append(provider.label)
+      }
+      lines.append(event.account.email)
+      return lines
+    case .timeline:
+      let timePart = event.allDay ? loc("all-day") : timeRangeText(for: event)
+      return ["\(timePart) · \(event.account.email)"]
+    }
   }
 
   private func responseIcon(_ status: String) -> String {
