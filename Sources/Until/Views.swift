@@ -799,7 +799,7 @@ private struct HeroTimelineRow: View {
         }
 
         if model.isExpanded(event, on: day) {
-          EventDetailView(event: event)
+          EventDetailView(event: event, showsTimeRange: false)
             .transition(
               .asymmetric(
                 insertion: .opacity.animation(.easeInOut(duration: 0.12).delay(0.15)),
@@ -1352,7 +1352,7 @@ struct EventRow: View {
       .opacity(rowOpacity)
 
       if model.isExpanded(event, on: day) {
-        EventDetailView(event: event)
+        EventDetailView(event: event, showsTimeRange: true)
           .padding(.leading, Self.detailIndent)
           .transition(.opacity.combined(with: .move(edge: .top)))
       }
@@ -1544,6 +1544,7 @@ private struct EventActionConfirmationDialogs: ViewModifier {
 
 private struct EventDetailView: View {
   var event: CalendarEvent
+  var showsTimeRange: Bool
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -1584,9 +1585,11 @@ private struct EventDetailView: View {
     .padding(.vertical, Theme.Spacing.xs)
   }
 
-  /// "<start – end> · <account email>" (all-day: `loc("all-day")` in place of
-  /// the range).
+  /// The timeline row needs the full range because its time rail only shows
+  /// the start. The hero already shows the range in its metadata, so its
+  /// expanded detail keeps only the account and avoids repeating the time.
   private var detailMetadataLine: String {
+    guard showsTimeRange else { return event.account.email }
     let timePart = event.allDay ? loc("all-day") : timeRangeText(for: event)
     return "\(timePart) · \(event.account.email)"
   }
