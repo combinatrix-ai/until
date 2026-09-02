@@ -11,7 +11,7 @@ let package = Package(
   ],
   traits: [
     .trait(name: "sparkle", description: "Enable Sparkle auto-updates"),
-    .default(enabledTraits: ["sparkle"]),
+    .default(enabledTraits: ["sparkle"])
   ],
   dependencies: [
     .package(

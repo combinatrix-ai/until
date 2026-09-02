@@ -38,6 +38,18 @@ enum RuleEngine {
       return false
     }
 
+    if let result = evaluateMappedCondition(field, operatorId, value, event: event) {
+      return result
+    }
+    return evaluateSpecialCondition(field, operatorId, value, event: event)
+  }
+
+  private static func evaluateMappedCondition(
+    _ field: String,
+    _ operatorId: String,
+    _ value: RuleValue,
+    event: CalendarEvent
+  ) -> Bool? {
     if let actual = stringValue(for: field, event: event) {
       return compareString(actual, operatorId, value)
     }
@@ -50,7 +62,15 @@ enum RuleEngine {
     if let actual = numberValue(for: field, event: event) {
       return compareNumber(actual, operatorId, value)
     }
+    return nil
+  }
 
+  private static func evaluateSpecialCondition(
+    _ field: String,
+    _ operatorId: String,
+    _ value: RuleValue,
+    event: CalendarEvent
+  ) -> Bool {
     switch field {
     case "calendar": return compareCalendar(event.calendar, operatorId, value)
     case "startsWithin":
@@ -63,16 +83,24 @@ enum RuleEngine {
       let weekday = Calendar.current.component(.weekday, from: event.startDate) - 1
       return compareEnum(String(weekday), operatorId, value)
     case "attendee":
-      guard case .string(let needleValue) = value else { return false }
-      let needle = needleValue.lowercased()
-      let contains = event.attendees.contains { $0.email.lowercased().contains(needle) }
-      switch operatorId {
-      case "includes": return contains
-      case "excludes": return !contains
-      default: return false
-      }
+      return compareAttendees(event.attendees, operatorId, value)
     default:
       return false
+    }
+  }
+
+  private static func compareAttendees(
+    _ attendees: [Attendee],
+    _ operatorId: String,
+    _ value: RuleValue
+  ) -> Bool {
+    guard case .string(let needleValue) = value else { return false }
+    let needle = needleValue.lowercased()
+    let contains = attendees.contains { $0.email.lowercased().contains(needle) }
+    switch operatorId {
+    case "includes": return contains
+    case "excludes": return !contains
+    default: return false
     }
   }
 
@@ -122,13 +150,16 @@ enum RuleEngine {
     case "ends_with": return actualLowercased.hasSuffix(valueLowercased)
     case "equals": return actualLowercased == valueLowercased
     case "not_equals": return actualLowercased != valueLowercased
-    case "matches":
-      guard case .string = value else { return false }
-      return actual.range(of: value.string, options: [.regularExpression, .caseInsensitive]) != nil
+    case "matches": return matchesRegex(actual, value)
     case "is_empty": return actual.isEmpty
     case "is_not_empty": return !actual.isEmpty
     default: return false
     }
+  }
+
+  private static func matchesRegex(_ actual: String, _ value: RuleValue) -> Bool {
+    guard case .string(let pattern) = value else { return false }
+    return actual.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
   }
 
   private static func compareEnum(_ actual: String, _ operatorId: String, _ value: RuleValue) -> Bool {
