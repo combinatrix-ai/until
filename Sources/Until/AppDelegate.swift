@@ -225,7 +225,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         let remaining = max(0, Int((next.endDate.timeIntervalSince(now) / 60).rounded()))
         when = loc("%@ left", relativeWhen(remaining))
       } else {
-        when = relativeWhen(next.startMinutesFromNow)
+        when = loc("in %@", relativeWhen(next.startMinutesFromNow))
       }
       nextContent = .event(
         when: when,
