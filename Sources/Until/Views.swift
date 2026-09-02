@@ -894,10 +894,6 @@ private struct HeroTimelineRow: View {
        event.location.caseInsensitiveCompare(provider.label) != .orderedSame {
       parts.append(provider.label)
     }
-    let attendees = attendeeDisplayNames(for: event)
-    if !attendees.isEmpty {
-      parts.append(attendees.joined(separator: ", "))
-    }
     return parts.joined(separator: " · ")
   }
 
@@ -1458,8 +1454,7 @@ private struct StateChip: View {
 
 /// Attendee display names for an event's metadata line: excludes the current
 /// user and resource attendees (rooms, etc.), preferring each attendee's name
-/// over their bare email. Shared by `EventRow` and the "Next" hero so both
-/// draw from the same source of names.
+/// over their bare email.
 private func attendeeDisplayNames(for event: CalendarEvent) -> [String] {
   event.attendees
     .filter { !$0.selfUser && !$0.resource }
