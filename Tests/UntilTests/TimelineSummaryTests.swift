@@ -35,7 +35,7 @@ final class TimelineSummaryTests: XCTestCase {
   }
 
   func testSummaryKindsMapToDistinctIcons() {
-    XCTAssertEqual(TimelineSummary.Kind.location.systemImage, "mappin")
+    XCTAssertEqual(TimelineSummary.Kind.location.systemImage, "mappin.and.ellipse")
     XCTAssertEqual(TimelineSummary.Kind.meetingProvider.systemImage, "video")
   }
 

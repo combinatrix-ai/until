@@ -1258,9 +1258,9 @@ private enum TimelineRowMetrics {
   static let iconWidth: CGFloat = 16
   static let iconGap: CGFloat = 6
   static let iconPointSize: CGFloat = 11
-  /// Distance from the summary line's bottom to the first detail line.
-  static let detailTopGap: CGFloat = 10
-  /// Between the time range and the account line.
+  /// Between the where/when/account lines. The collapsed location line is
+  /// the first of these, so the header ends with this gap and the expanded
+  /// time range continues the same rhythm instead of opening a new block.
   static let metaGap: CGFloat = 4
   /// Between description and attendee lines.
   static let contentGap: CGFloat = 6
@@ -1315,9 +1315,10 @@ struct EventRow: View {
         topAligned: true,
         dotCenterY: Theme.Spacing.xs + TimelineRowMetrics.titleCenterY
       )
-      VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+      VStack(alignment: .leading, spacing: 0) {
         header
-          .padding(.vertical, Theme.Spacing.xs)
+          .padding(.top, Theme.Spacing.xs)
+          .padding(.bottom, TimelineRowMetrics.metaGap)
           .contentShape(Rectangle())
           .onTapGesture {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -1329,32 +1330,33 @@ struct EventRow: View {
 
         if model.isExpanded(event, on: day) {
           TimelineEventDetail(event: event)
-            // Header bottom padding + stack spacing already contribute 8pt.
-            .padding(.top, TimelineRowMetrics.detailTopGap - Theme.Spacing.xs * 2)
             .padding(.bottom, Theme.Spacing.sm)
             .transition(.opacity.combined(with: .move(edge: .top)))
         }
 
-        if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
-          ExternalShareOverlay(prompt: prompt, model: model)
-        }
+        Group {
+          if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
+            ExternalShareOverlay(prompt: prompt, model: model)
+          }
 
-        if let issue = model.noteError(for: event) {
-          NoteErrorOverlay(issue: issue) {
-            switch issue.kind {
-            case .retry:
-              model.createOrOpenNote(for: event)
-            case .reauthorize(let email):
-              model.startReauthorize(email: email)
+          if let issue = model.noteError(for: event) {
+            NoteErrorOverlay(issue: issue) {
+              switch issue.kind {
+              case .retry:
+                model.createOrOpenNote(for: event)
+              case .reauthorize(let email):
+                model.startReauthorize(email: email)
+              }
+            }
+          }
+
+          if let error = model.conferenceError(for: event) {
+            NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
+              model.addConference(for: event)
             }
           }
         }
-
-        if let error = model.conferenceError(for: event) {
-          NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
-            model.addConference(for: event)
-          }
-        }
+        .padding(.top, Theme.Spacing.xs)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1583,7 +1585,7 @@ struct TimelineSummary: Equatable {
 
     var systemImage: String {
       switch self {
-      case .location: return "mappin"
+      case .location: return "mappin.and.ellipse"
       case .meetingProvider: return "video"
       }
     }
