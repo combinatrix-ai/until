@@ -34,6 +34,7 @@ final class LocalizationTests: XCTestCase {
       ("NEXT · in %@", "次 · %@後"),
       ("ends %@", "%@に終了"),
       ("Calendar account", "カレンダーアカウント"),
+      ("Time", "時間"),
       ("Video call", "ビデオ通話"),
       ("free until %@ · %@", "%@まで空き · %@"),
       ("%dm", "%d分"),

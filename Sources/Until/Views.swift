@@ -1491,29 +1491,26 @@ struct EventRow: View {
   }
 }
 
-/// One secondary line of a timeline row: a fixed icon slot, a small gap, then
-/// the content. Icon-less lines keep the empty slot so every line's text
-/// shares the same left edge.
+/// One secondary line of a timeline row: a fixed-width icon slot, a small
+/// gap, then the content, so every line's text shares the same left edge.
+/// The icon is decorative for sighted users but names the line for
+/// VoiceOver and on hover.
 private struct TimelineGutterRow<Content: View>: View {
-  var systemImage: String?
+  var systemImage: String
+  var accessibilityLabel: String
   var iconColor: Color = .secondary
-  var accessibilityLabel: String?
+  /// `.top` keeps the icon beside the first line of multi-line content.
+  var iconAlignment: VerticalAlignment = .center
   @ViewBuilder var content: () -> Content
 
   var body: some View {
-    HStack(alignment: .center, spacing: TimelineRowMetrics.iconGap) {
-      Group {
-        if let systemImage, let accessibilityLabel {
-          Image(systemName: systemImage)
-            .font(.system(size: TimelineRowMetrics.iconPointSize))
-            .foregroundStyle(iconColor)
-            .accessibilityLabel(accessibilityLabel)
-            .help(accessibilityLabel)
-        } else {
-          Color.clear
-        }
-      }
-      .frame(width: TimelineRowMetrics.iconWidth, height: TimelineRowMetrics.iconWidth)
+    HStack(alignment: iconAlignment, spacing: TimelineRowMetrics.iconGap) {
+      Image(systemName: systemImage)
+        .font(.system(size: TimelineRowMetrics.iconPointSize))
+        .foregroundStyle(iconColor)
+        .accessibilityLabel(accessibilityLabel)
+        .help(accessibilityLabel)
+        .frame(width: TimelineRowMetrics.iconWidth, height: TimelineRowMetrics.iconWidth)
       content()
     }
   }
@@ -1531,7 +1528,7 @@ private struct TimelineEventDetail: View {
   var body: some View {
     VStack(alignment: .leading, spacing: TimelineRowMetrics.groupGap) {
       VStack(alignment: .leading, spacing: TimelineRowMetrics.metaGap) {
-        TimelineGutterRow {
+        TimelineGutterRow(systemImage: "clock", accessibilityLabel: loc("Time")) {
           Text(event.allDay ? loc("all-day") : timeRangeText(for: event))
             .monospacedDigit()
         }
@@ -1548,7 +1545,11 @@ private struct TimelineEventDetail: View {
       if !event.description.isEmpty || !others.isEmpty {
         VStack(alignment: .leading, spacing: TimelineRowMetrics.contentGap) {
           if !event.description.isEmpty {
-            TimelineGutterRow {
+            TimelineGutterRow(
+              systemImage: "text.alignleft",
+              accessibilityLabel: loc("Description"),
+              iconAlignment: .top
+            ) {
               Text(descriptionAttributedString(event.description))
                 .foregroundStyle(.secondary)
                 .lineLimit(isBareLink(event.description) ? 2 : 10)
@@ -1558,8 +1559,8 @@ private struct TimelineEventDetail: View {
           ForEach(others, id: \.email) { attendee in
             TimelineGutterRow(
               systemImage: attendeeResponseIcon(attendee.responseStatus),
-              iconColor: attendeeResponseColor(attendee.responseStatus),
-              accessibilityLabel: attendeeResponseLabel(attendee.responseStatus)
+              accessibilityLabel: attendeeResponseLabel(attendee.responseStatus),
+              iconColor: attendeeResponseColor(attendee.responseStatus)
             ) {
               Text(attendee.name.isEmpty ? attendee.email : attendee.name)
                 .lineLimit(1)
