@@ -759,11 +759,7 @@ private struct HeroTimelineRow: View {
         if !metadataLine.isEmpty || !hasAttachedActions {
           HStack(spacing: Theme.Spacing.xs) {
             if !metadataLine.isEmpty {
-              Text(metadataLine)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .help(metadataLine)
+              metadataSummary
             }
             if !hasAttachedActions {
               Spacer(minLength: 0)
@@ -887,15 +883,28 @@ private struct HeroTimelineRow: View {
   }
 
   private var metadataLine: String {
-    var parts = [timeRangeText(for: event)]
-    if !event.location.isEmpty {
-      parts.append(event.location)
+    heroMetadataParts(for: event).joined(separator: " · ")
+  }
+
+  /// The collapsed hero keeps the summary to one line; once expanded, this
+  /// same text is allowed to wrap in place so the action row simply moves down
+  /// with it. The tooltip is only useful while the line is truncated.
+  @ViewBuilder
+  private var metadataSummary: some View {
+    if model.isExpanded(event, on: day) {
+      Text(metadataLine)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    } else {
+      Text(metadataLine)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .help(metadataLine)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
-    if let provider = EventLinks.meetingProvider(for: event),
-       event.location.caseInsensitiveCompare(provider.label) != .orderedSame {
-      parts.append(provider.label)
-    }
-    return parts.joined(separator: " · ")
   }
 
   private func minutesUntil(_ date: Date) -> Int {
@@ -1463,9 +1472,34 @@ private func attendeeDisplayNames(for event: CalendarEvent) -> [String] {
 }
 
 /// "start – end" clock times for a timed event. Shared by the hero's metadata
-/// line and expanded event detail so the dash and spacing can't drift apart.
+/// line and timeline detail so the dash and spacing can't drift apart.
 private func timeRangeText(for event: CalendarEvent) -> String {
   "\(clock(event.startDate)) – \(clock(event.endDate))"
+}
+
+/// Returns the hero's compact metadata in display order. Location and the
+/// meeting provider are intentionally deduplicated: calendar data often puts
+/// the provider name in both the location field and the conference link.
+/// Whitespace-only values are treated as empty so an absent location/provider
+/// never creates a blank separator in the summary.
+func heroMetadataParts(for event: CalendarEvent) -> [String] {
+  var parts: [String] = []
+  let time = timeRangeText(for: event).trimmingCharacters(in: .whitespacesAndNewlines)
+  if !time.isEmpty {
+    parts.append(time)
+  }
+
+  let location = event.location.trimmingCharacters(in: .whitespacesAndNewlines)
+  if !location.isEmpty {
+    parts.append(location)
+  }
+
+  if let provider = EventLinks.meetingProvider(for: event),
+     location.caseInsensitiveCompare(provider.label) != .orderedSame {
+    parts.append(provider.label)
+  }
+
+  return parts
 }
 
 /// Small inline caption chip marking an event as hidden from the menubar
@@ -1589,16 +1623,7 @@ private struct EventDetailView: View {
   private var detailMetadataLines: [String] {
     switch metadataStyle {
     case .hero:
-      var lines: [String] = []
-      if !event.location.isEmpty {
-        lines.append(event.location)
-      }
-      if let provider = EventLinks.meetingProvider(for: event),
-         event.location.caseInsensitiveCompare(provider.label) != .orderedSame {
-        lines.append(provider.label)
-      }
-      lines.append(event.account.email)
-      return lines
+      return event.account.email.isEmpty ? [] : [event.account.email]
     case .timeline:
       let timePart = event.allDay ? loc("all-day") : timeRangeText(for: event)
       return ["\(timePart) · \(event.account.email)"]
