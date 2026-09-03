@@ -45,6 +45,8 @@
 "NEXT" = "次";
 "NEXT · in %@" = "次 · %@後";
 "ends %@" = "%@に終了";
+"Calendar account" = "カレンダーアカウント";
+"Video call" = "ビデオ通話";
 "Join" = "参加";
 "Open notes" = "議事録を開く";
 "free until %@" = "%@まで空き";

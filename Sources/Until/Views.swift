@@ -503,6 +503,19 @@ private struct TimelineRailNode: View {
   /// rows are tall enough that a centered dot drifts away from the time label
   /// it marks; list rows are short, so centering reads fine there.
   var topAligned = false
+  /// With `topAligned`, where the dot's vertical center sits, measured from
+  /// the top of the rail. Lets a row line the dot up with its title regardless
+  /// of dot size. `nil` keeps the dot flush with the top edge.
+  var dotCenterY: CGFloat?
+
+  private var dotSize: CGFloat {
+    emphasized ? 13 : 9
+  }
+
+  private var dotTopInset: CGFloat {
+    guard topAligned, let dotCenterY else { return 0 }
+    return max(0, dotCenterY - dotSize / 2)
+  }
 
   var body: some View {
     ZStack(alignment: topAligned ? .top : .center) {
@@ -512,11 +525,12 @@ private struct TimelineRailNode: View {
         .frame(maxHeight: .infinity)
       Circle()
         .fill(color)
-        .frame(width: emphasized ? 13 : 9, height: emphasized ? 13 : 9)
+        .frame(width: dotSize, height: dotSize)
         .overlay {
           Circle()
             .stroke(Color(nsColor: .textBackgroundColor), lineWidth: 3)
         }
+        .padding(.top, dotTopInset)
     }
     .frame(width: 22)
   }
@@ -796,7 +810,7 @@ private struct HeroTimelineRow: View {
         }
 
         if model.isExpanded(event, on: day) {
-          EventDetailView(event: event, metadataStyle: .hero)
+          EventDetailView(event: event)
             .transition(
               .asymmetric(
                 insertion: .opacity.animation(.easeInOut(duration: 0.12).delay(0.15)),
@@ -1237,12 +1251,26 @@ private struct EventActionMenuButton: View {
   }
 }
 
-struct EventRow: View {
-  private static let railColumnWidth: CGFloat = 22
-  private static let timeColumnWidth: CGFloat = clockColumnWidth()
-  private static let detailIndent =
-    timeColumnWidth + Theme.Spacing.sm + railColumnWidth + Theme.Spacing.sm + Theme.Spacing.md
+/// Spacing for a regular timeline row's secondary lines. The collapsed summary
+/// and every expanded detail line share one icon gutter so their text starts
+/// at a common left edge under the title.
+private enum TimelineRowMetrics {
+  static let iconWidth: CGFloat = 16
+  static let iconGap: CGFloat = 6
+  static let iconPointSize: CGFloat = 11
+  /// Distance from the summary line's bottom to the first detail line.
+  static let detailTopGap: CGFloat = 10
+  /// Between the time range and the account line.
+  static let metaGap: CGFloat = 4
+  /// Between description and attendee lines.
+  static let contentGap: CGFloat = 6
+  /// Between the when/who-from group and the what/who group.
+  static let groupGap: CGFloat = 10
+  /// Half the title's line height (13pt body): where the dot centers.
+  static let titleCenterY: CGFloat = 8
+}
 
+struct EventRow: View {
   var event: CalendarEvent
   var day: Date
   @ObservedObject var model: AppModel
@@ -1271,120 +1299,71 @@ struct EventRow: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-      HStack(alignment: .top, spacing: 0) {
-        TimelineTimeLabel(
-          label: event.allDay ? loc("all-day") : clock(event.startDate),
-          color: isNowEmphasized ? .green : .secondary,
-          weight: isNowEmphasized ? .bold : .regular
-        )
-        TimelineRailNode(
-          color: isNowEmphasized ? .green : eventColor,
-          emphasized: isNowEmphasized
-        )
-        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-          VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: Theme.Spacing.xs) {
-              Text(event.title)
-                .font((isNowEmphasized || isNext) ? .body.weight(.bold) : .body)
-                .lineLimit(2)
-                .strikethrough(isPast, color: .secondary)
-              if isNowEmphasized {
-                StateChip(label: loc("NOW"), color: .green)
-              }
-              if isNext {
-                StateChip(
-                  label: loc("NEXT · in %@", relativeWhen(minutesUntil(event.startDate))),
-                  color: .accentColor
-                )
-              }
-              if isSkipped {
-                SkippedBadge()
-              }
-            }
-
-            if !metadataLine.isEmpty {
-              Text(metadataLine)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+    // Time | rail | content. The rail sits beside a column holding both the
+    // header and the expanded detail, so it runs the row's full height by
+    // construction rather than being patched in with an overlay.
+    HStack(alignment: .top, spacing: 0) {
+      TimelineTimeLabel(
+        label: event.allDay ? loc("all-day") : clock(event.startDate),
+        color: isNowEmphasized ? .green : .secondary,
+        weight: isNowEmphasized ? .bold : .regular
+      )
+      .padding(.top, Theme.Spacing.xs)
+      TimelineRailNode(
+        color: isNowEmphasized ? .green : eventColor,
+        emphasized: isNowEmphasized,
+        topAligned: true,
+        dotCenterY: Theme.Spacing.xs + TimelineRowMetrics.titleCenterY
+      )
+      VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+        header
+          .padding(.vertical, Theme.Spacing.xs)
+          .contentShape(Rectangle())
+          .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+              model.toggleExpanded(event, on: day)
             }
           }
-          .frame(maxWidth: .infinity, alignment: .leading)
+          .onHover { isHovered = $0 }
+          .opacity(rowOpacity)
 
-          Spacer(minLength: Theme.Spacing.sm)
+        if model.isExpanded(event, on: day) {
+          TimelineEventDetail(event: event)
+            // Header bottom padding + stack spacing already contribute 8pt.
+            .padding(.top, TimelineRowMetrics.detailTopGap - Theme.Spacing.xs * 2)
+            .padding(.bottom, Theme.Spacing.sm)
+            .transition(.opacity.combined(with: .move(edge: .top)))
+        }
 
-          HStack(spacing: Theme.Spacing.xs) {
-            if !event.conferenceUrl.isEmpty {
-              JoinVideoCallButton(event: event, model: model)
-                .revealOnHover(isHovered)
+        if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
+          ExternalShareOverlay(prompt: prompt, model: model)
+        }
+
+        if let issue = model.noteError(for: event) {
+          NoteErrorOverlay(issue: issue) {
+            switch issue.kind {
+            case .retry:
+              model.createOrOpenNote(for: event)
+            case .reauthorize(let email):
+              model.startReauthorize(email: email)
             }
-
-            if !model.noteURL(for: event).isEmpty {
-              IconButton(systemImage: "doc.text") {
-                model.createOrOpenNote(for: event)
-              }
-              .help(loc("Open meeting notes"))
-              .revealOnHover(isHovered)
-            }
-
-            EventActionMenuButton(
-              event: event,
-              model: model,
-              isVisible: isHovered,
-              requestAddConference: { showAddConferenceConfirmation = true },
-              requestCreateNotes: { showCreateNotesConfirmation = true }
-            )
           }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-      }
-      .padding(.horizontal, Theme.Spacing.lg)
-      .padding(.vertical, Theme.Spacing.xs)
-      .background {
-        if isNowEmphasized {
-          RoundedRectangle(cornerRadius: Theme.Radius.sm)
-            .fill(Color.green.opacity(0.07))
-            .padding(.horizontal, Theme.Spacing.sm)
-        }
-      }
-      .contentShape(Rectangle())
-      .onTapGesture {
-        withAnimation(.easeInOut(duration: 0.2)) {
-          model.toggleExpanded(event, on: day)
-        }
-      }
-      .onHover { isHovered = $0 }
-      .opacity(rowOpacity)
 
-      if model.isExpanded(event, on: day) {
-        EventDetailView(event: event, metadataStyle: .timeline)
-          .padding(.leading, Self.detailIndent)
-          .transition(.opacity.combined(with: .move(edge: .top)))
-      }
-
-      if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
-        ExternalShareOverlay(prompt: prompt, model: model)
-          .padding(.leading, Self.detailIndent)
-      }
-
-      if let issue = model.noteError(for: event) {
-        NoteErrorOverlay(issue: issue) {
-          switch issue.kind {
-          case .retry:
-            model.createOrOpenNote(for: event)
-          case .reauthorize(let email):
-            model.startReauthorize(email: email)
+        if let error = model.conferenceError(for: event) {
+          NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
+            model.addConference(for: event)
           }
         }
-        .padding(.leading, Self.detailIndent)
       }
-
-      if let error = model.conferenceError(for: event) {
-        NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
-          model.addConference(for: event)
-        }
-        .padding(.leading, Self.detailIndent)
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(.horizontal, Theme.Spacing.lg)
+    .background {
+      if isNowEmphasized {
+        RoundedRectangle(cornerRadius: Theme.Radius.sm)
+          .fill(Color.green.opacity(0.07))
+          .padding(.horizontal, Theme.Spacing.sm)
       }
     }
     .contextMenu {
@@ -1405,6 +1384,91 @@ struct EventRow: View {
     )
   }
 
+  private var header: some View {
+    HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+      VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: Theme.Spacing.xs) {
+          Text(event.title)
+            .font((isNowEmphasized || isNext) ? .body.weight(.bold) : .body)
+            .lineLimit(2)
+            .strikethrough(isPast, color: .secondary)
+          if isNowEmphasized {
+            StateChip(label: loc("NOW"), color: .green)
+          }
+          if isNext {
+            StateChip(
+              label: loc("NEXT · in %@", relativeWhen(minutesUntil(event.startDate))),
+              color: .accentColor
+            )
+          }
+          if isSkipped {
+            SkippedBadge()
+          }
+        }
+
+        summaryLine
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+
+      Spacer(minLength: Theme.Spacing.sm)
+
+      HStack(spacing: Theme.Spacing.xs) {
+        if !event.conferenceUrl.isEmpty {
+          JoinVideoCallButton(event: event, model: model)
+            .revealOnHover(isHovered)
+        }
+
+        if !model.noteURL(for: event).isEmpty {
+          IconButton(systemImage: "doc.text") {
+            model.createOrOpenNote(for: event)
+          }
+          .help(loc("Open meeting notes"))
+          .revealOnHover(isHovered)
+        }
+
+        EventActionMenuButton(
+          event: event,
+          model: model,
+          isVisible: isHovered,
+          requestAddConference: { showAddConferenceConfirmation = true },
+          requestCreateNotes: { showCreateNotesConfirmation = true }
+        )
+      }
+    }
+  }
+
+  /// The collapsed row's one secondary line: where the event is (location,
+  /// else the meeting provider). Attendees are never shown here; they belong
+  /// to the expanded detail. A NOW row also carries its end time, set apart
+  /// in the emphasis color rather than run into the place text.
+  @ViewBuilder
+  private var summaryLine: some View {
+    let summary = timelineSummary(for: event)
+    if summary != nil || isNowEmphasized {
+      HStack(spacing: Theme.Spacing.sm) {
+        if let summary {
+          TimelineGutterRow(
+            systemImage: summary.kind.systemImage,
+            accessibilityLabel: summary.kind.accessibilityLabel
+          ) {
+            Text(summary.text)
+              .lineLimit(1)
+              .truncationMode(.tail)
+          }
+        }
+        if isNowEmphasized {
+          Text(loc("ends %@", clock(event.endDate)))
+            .fontWeight(.medium)
+            .monospacedDigit()
+            .foregroundStyle(.green)
+            .fixedSize()
+        }
+      }
+      .font(.subheadline)
+      .foregroundStyle(.secondary)
+    }
+  }
+
   private var isPast: Bool {
     !event.allDay && event.endDate <= now
   }
@@ -1422,26 +1486,145 @@ struct EventRow: View {
     Color(hex: googleEventColor(event.colorId) ?? event.calendar.backgroundColor) ?? .accentColor
   }
 
-  private var metadataLine: String {
-    var parts: [String] = []
-    if !event.location.isEmpty {
-      parts.append(event.location)
-    } else if let provider = EventLinks.meetingProvider(for: event) {
-      parts.append(provider.label)
-    }
-    let attendees = attendeeDisplayNames(for: event)
-    if !attendees.isEmpty {
-      parts.append(attendees.joined(separator: ", "))
-    }
-    if isNowEmphasized {
-      parts.append(loc("ends %@", clock(event.endDate)))
-    }
-    return parts.joined(separator: " · ")
-  }
-
   private func minutesUntil(_ date: Date) -> Int {
     max(0, Int((date.timeIntervalSince(now) / 60).rounded()))
   }
+}
+
+/// One secondary line of a timeline row: a fixed icon slot, a small gap, then
+/// the content. Icon-less lines keep the empty slot so every line's text
+/// shares the same left edge.
+private struct TimelineGutterRow<Content: View>: View {
+  var systemImage: String?
+  var iconColor: Color = .secondary
+  var accessibilityLabel: String?
+  @ViewBuilder var content: () -> Content
+
+  var body: some View {
+    HStack(alignment: .center, spacing: TimelineRowMetrics.iconGap) {
+      Group {
+        if let systemImage, let accessibilityLabel {
+          Image(systemName: systemImage)
+            .font(.system(size: TimelineRowMetrics.iconPointSize))
+            .foregroundStyle(iconColor)
+            .accessibilityLabel(accessibilityLabel)
+            .help(accessibilityLabel)
+        } else {
+          Color.clear
+        }
+      }
+      .frame(width: TimelineRowMetrics.iconWidth, height: TimelineRowMetrics.iconWidth)
+      content()
+    }
+  }
+}
+
+/// The expanded body of a regular timeline row: when and from which account,
+/// then what it is about and who is coming. Two quiet groups, no separators.
+private struct TimelineEventDetail: View {
+  var event: CalendarEvent
+
+  private var others: [Attendee] {
+    event.attendees.filter { !$0.selfUser && !$0.resource }
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: TimelineRowMetrics.groupGap) {
+      VStack(alignment: .leading, spacing: TimelineRowMetrics.metaGap) {
+        TimelineGutterRow {
+          Text(event.allDay ? loc("all-day") : timeRangeText(for: event))
+            .monospacedDigit()
+        }
+        if !event.account.email.isEmpty {
+          TimelineGutterRow(systemImage: "calendar", accessibilityLabel: loc("Calendar account")) {
+            Text(event.account.email)
+              .lineLimit(1)
+              .truncationMode(.middle)
+          }
+        }
+      }
+      .foregroundStyle(.secondary)
+
+      if !event.description.isEmpty || !others.isEmpty {
+        VStack(alignment: .leading, spacing: TimelineRowMetrics.contentGap) {
+          if !event.description.isEmpty {
+            TimelineGutterRow {
+              Text(descriptionAttributedString(event.description))
+                .foregroundStyle(.secondary)
+                .lineLimit(isBareLink(event.description) ? 2 : 10)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+          }
+          ForEach(others, id: \.email) { attendee in
+            TimelineGutterRow(
+              systemImage: attendeeResponseIcon(attendee.responseStatus),
+              iconColor: attendeeResponseColor(attendee.responseStatus),
+              accessibilityLabel: attendeeResponseLabel(attendee.responseStatus)
+            ) {
+              Text(attendee.name.isEmpty ? attendee.email : attendee.name)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            }
+          }
+        }
+      }
+    }
+    .font(.subheadline)
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
+/// What a collapsed timeline row says under its title.
+struct TimelineSummary: Equatable {
+  enum Kind: Equatable {
+    case location
+    case meetingProvider
+
+    var systemImage: String {
+      switch self {
+      case .location: return "mappin"
+      case .meetingProvider: return "video"
+      }
+    }
+
+    var accessibilityLabel: String {
+      switch self {
+      case .location: return loc("Location")
+      case .meetingProvider: return loc("Video call")
+      }
+    }
+  }
+
+  var kind: Kind
+  var text: String
+}
+
+/// The collapsed row's summary: the location, or the meeting provider when
+/// there is no location, or nothing. Attendees are deliberately excluded so
+/// the collapsed list stays one quiet line per event. Whitespace-only
+/// locations count as absent, matching the hero's metadata.
+func timelineSummary(for event: CalendarEvent) -> TimelineSummary? {
+  let location = event.location.trimmingCharacters(in: .whitespacesAndNewlines)
+  if !location.isEmpty {
+    return TimelineSummary(kind: .location, text: location)
+  }
+  if let provider = EventLinks.meetingProvider(for: event) {
+    return TimelineSummary(kind: .meetingProvider, text: provider.label)
+  }
+  return nil
+}
+
+/// True when a description is nothing but a single web URL, so a row can show
+/// it as a link clamped to two lines instead of treating it like prose.
+func isBareLink(_ description: String) -> Bool {
+  let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
+  guard !trimmed.isEmpty,
+        trimmed.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+        let scheme = URL(string: trimmed)?.scheme?.lowercased()
+  else {
+    return false
+  }
+  return scheme == "http" || scheme == "https"
 }
 
 private struct StateChip: View {
@@ -1460,15 +1643,6 @@ private struct StateChip: View {
       }
       .fixedSize(horizontal: true, vertical: false)
   }
-}
-
-/// Attendee display names for an event's metadata line: excludes the current
-/// user and resource attendees (rooms, etc.), preferring each attendee's name
-/// over their bare email.
-private func attendeeDisplayNames(for event: CalendarEvent) -> [String] {
-  event.attendees
-    .filter { !$0.selfUser && !$0.resource }
-    .map { $0.name.isEmpty ? $0.email : $0.name }
 }
 
 /// "start – end" clock times for a timed event. Shared by the hero's metadata
@@ -1572,27 +1746,22 @@ private struct EventActionConfirmationDialogs: ViewModifier {
   }
 }
 
-private enum EventDetailMetadataStyle {
-  case hero
-  case timeline
-}
-
+/// The hero's expanded detail: account, description, attendees. Regular
+/// timeline rows use `TimelineEventDetail` instead.
 private struct EventDetailView: View {
   var event: CalendarEvent
-  var metadataStyle: EventDetailMetadataStyle
 
   var body: some View {
     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-      let metadataLines = detailMetadataLines
-      ForEach(metadataLines.indices, id: \.self) { index in
-        Text(metadataLines[index])
+      if !event.account.email.isEmpty {
+        Text(event.account.email)
           .font(.caption)
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
       }
 
       if !event.description.isEmpty {
-        Text(htmlAttributedString(event.description))
+        Text(descriptionAttributedString(event.description))
           .font(.caption)
           .foregroundStyle(.secondary)
           .lineLimit(10)
@@ -1604,10 +1773,10 @@ private struct EventDetailView: View {
         VStack(alignment: .leading, spacing: 2) {
           ForEach(others, id: \.email) { attendee in
             HStack(spacing: 4) {
-              Image(systemName: responseIcon(attendee.responseStatus))
+              Image(systemName: attendeeResponseIcon(attendee.responseStatus))
                 .font(.system(size: 9))
-                .foregroundStyle(responseColor(attendee.responseStatus))
-                .accessibilityLabel(responseLabel(attendee.responseStatus))
+                .foregroundStyle(attendeeResponseColor(attendee.responseStatus))
+                .accessibilityLabel(attendeeResponseLabel(attendee.responseStatus))
               Text(attendee.name.isEmpty ? attendee.email : attendee.name)
                 .font(.caption)
                 .foregroundStyle(.primary)
@@ -1615,68 +1784,59 @@ private struct EventDetailView: View {
           }
         }
       }
-
     }
     .padding(.vertical, Theme.Spacing.xs)
   }
+}
 
-  private var detailMetadataLines: [String] {
-    switch metadataStyle {
-    case .hero:
-      return event.account.email.isEmpty ? [] : [event.account.email]
-    case .timeline:
-      let timePart = event.allDay ? loc("all-day") : timeRangeText(for: event)
-      return ["\(timePart) · \(event.account.email)"]
-    }
+private func attendeeResponseIcon(_ status: String) -> String {
+  switch status {
+  case "accepted": return "checkmark.circle.fill"
+  case "declined": return "xmark.circle.fill"
+  case "tentative": return "questionmark.circle.fill"
+  default: return "circle"
   }
+}
 
-  private func responseIcon(_ status: String) -> String {
-    switch status {
-    case "accepted": return "checkmark.circle.fill"
-    case "declined": return "xmark.circle.fill"
-    case "tentative": return "questionmark.circle.fill"
-    default: return "circle"
-    }
+private func attendeeResponseColor(_ status: String) -> Color {
+  switch status {
+  case "accepted": return .green
+  case "declined": return .red
+  case "tentative": return .orange
+  default: return .secondary
   }
+}
 
-  private func responseColor(_ status: String) -> Color {
-    switch status {
-    case "accepted": return .green
-    case "declined": return .red
-    case "tentative": return .orange
-    default: return .secondary
-    }
+private func attendeeResponseLabel(_ status: String) -> String {
+  switch status {
+  case "accepted": return loc("Accepted")
+  case "declined": return loc("Declined")
+  case "tentative": return loc("Tentative")
+  default: return loc("No response")
   }
+}
 
-  private func responseLabel(_ status: String) -> String {
-    switch status {
-    case "accepted": return loc("Accepted")
-    case "declined": return loc("Declined")
-    case "tentative": return loc("Tentative")
-    default: return loc("No response")
-    }
+/// Renders an event description (Google delivers HTML) as attributed text at
+/// the detail size, tinting links with the accent color.
+private func descriptionAttributedString(_ html: String) -> AttributedString {
+  let styled = "<span style=\"font-family: -apple-system; font-size: 11px;\">\(html)</span>"
+  guard let data = styled.data(using: .utf8),
+        let nsAttr = try? NSAttributedString(
+          data: data,
+          options: [
+            .documentType: NSAttributedString.DocumentType.html,
+            .characterEncoding: String.Encoding.utf8.rawValue
+          ],
+          documentAttributes: nil
+        ),
+        var attr = try? AttributedString(nsAttr, including: \.appKit)
+  else {
+    return AttributedString(html)
   }
-
-  private func htmlAttributedString(_ html: String) -> AttributedString {
-    let styled = "<span style=\"font-family: -apple-system; font-size: 11px;\">\(html)</span>"
-    guard let data = styled.data(using: .utf8),
-          let nsAttr = try? NSAttributedString(
-            data: data,
-            options: [
-              .documentType: NSAttributedString.DocumentType.html,
-              .characterEncoding: String.Encoding.utf8.rawValue
-            ],
-            documentAttributes: nil
-          ),
-          var attr = try? AttributedString(nsAttr, including: \.appKit)
-    else {
-      return AttributedString(html)
-    }
-    for run in attr.runs where run.link != nil {
-      attr[run.range].foregroundColor = NSColor.controlAccentColor
-    }
-    return attr
+  for run in attr.runs where run.link != nil {
+    attr[run.range].foregroundColor = NSColor.controlAccentColor
   }
+  return attr
 }
 
 private enum EventCopyFormatters {
