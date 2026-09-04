@@ -30,6 +30,29 @@ struct AppRuntimeOptions: Hashable {
   /// times beat `now`-relative ones for capture work.
   var demoFixturePath: String?
 
+  private struct DemoSwitch {
+    var flag: String
+    var environmentKey: String
+    var scenario: DemoScenario
+  }
+
+  /// Priority order matters when several switches are present. Notification
+  /// wins because it is the only scenario with an effect outside the app;
+  /// overlap is the richest visual state, followed by free-day and now.
+  private static let demoSwitches = [
+    DemoSwitch(
+      flag: "--demo-notification",
+      environmentKey: "UNTIL_DEMO_NOTIFICATION",
+      scenario: .notification
+    ),
+    DemoSwitch(flag: "--demo-overlap", environmentKey: "UNTIL_DEMO_OVERLAP", scenario: .overlap),
+    DemoSwitch(flag: "--demo-free", environmentKey: "UNTIL_DEMO_FREE", scenario: .freeDay),
+    DemoSwitch(flag: "--demo-now", environmentKey: "UNTIL_DEMO_NOW", scenario: .inProgress),
+    DemoSwitch(flag: "--demo-mode", environmentKey: "UNTIL_DEMO_MODE", scenario: .upcoming)
+  ]
+
+  private static let truthyEnvironmentValues: Set<String> = ["1", "true", "yes", "on"]
+
   /// Whether this run may schedule real `UNUserNotificationCenter` reminders.
   /// Demo mode is otherwise silent: a screenshot or dev run must not put
   /// synthetic events into the user's Notification Center.
@@ -44,50 +67,23 @@ struct AppRuntimeOptions: Hashable {
     arguments: [String] = CommandLine.arguments,
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) -> AppRuntimeOptions {
-    let demoFlags = Set(["--demo-mode"])
-    let demoNowFlags = Set(["--demo-now"])
-    let demoOverlapFlags = Set(["--demo-overlap"])
-    let demoFreeFlags = Set(["--demo-free"])
-    let demoNotificationFlags = Set(["--demo-notification"])
     let processArguments = arguments.dropFirst()
-    let hasFlag = processArguments.contains { demoFlags.contains($0) }
-    let hasNowFlag = processArguments.contains { demoNowFlags.contains($0) }
-    let hasOverlapFlag = processArguments.contains { demoOverlapFlags.contains($0) }
-    let hasFreeFlag = processArguments.contains { demoFreeFlags.contains($0) }
-    let hasNotificationFlag = processArguments.contains { demoNotificationFlags.contains($0) }
     let fixturePath = demoFixturePath(arguments: Array(processArguments), environment: environment)
-    let envValue = environment["UNTIL_DEMO_MODE"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    let hasEnv = ["1", "true", "yes", "on"].contains(envValue ?? "")
-    let envNowValue = environment["UNTIL_DEMO_NOW"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    let hasNowEnv = ["1", "true", "yes", "on"].contains(envNowValue ?? "")
-    let envOverlapValue = environment["UNTIL_DEMO_OVERLAP"]?
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-      .lowercased()
-    let hasOverlapEnv = ["1", "true", "yes", "on"].contains(envOverlapValue ?? "")
-    let envFreeValue = environment["UNTIL_DEMO_FREE"]?
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-      .lowercased()
-    let hasFreeEnv = ["1", "true", "yes", "on"].contains(envFreeValue ?? "")
-    let envNotificationValue = environment["UNTIL_DEMO_NOTIFICATION"]?
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-      .lowercased()
-    let hasNotificationEnv = ["1", "true", "yes", "on"].contains(envNotificationValue ?? "")
-    let hasNow = hasNowFlag || hasNowEnv
-    let hasOverlap = hasOverlapFlag || hasOverlapEnv
-    let hasFree = hasFreeFlag || hasFreeEnv
-    let hasNotification = hasNotificationFlag || hasNotificationEnv
-    // Notification wins outright: it is the only scenario with a side effect
-    // outside the app, so combining it with another switch must never quietly
-    // drop it. Overlap is next — it is the superset popover state (in-progress
-    // event AND imminent next) — then free-day, then in-progress.
-    let scenario: DemoScenario = hasNotification
-      ? .notification
-      : (hasOverlap ? .overlap : (hasFree ? .freeDay : (hasNow ? .inProgress : .upcoming)))
+    let enabledSwitches = demoSwitches.filter { demoSwitch in
+      processArguments.contains(demoSwitch.flag)
+        || isTruthy(environment[demoSwitch.environmentKey])
+    }
     return AppRuntimeOptions(
-      demoMode: hasFlag || hasEnv || hasNow || hasOverlap || hasFree || hasNotification
-        || fixturePath != nil,
-      demoScenario: scenario,
+      demoMode: !enabledSwitches.isEmpty || fixturePath != nil,
+      demoScenario: enabledSwitches.first?.scenario ?? .upcoming,
       demoFixturePath: fixturePath
+    )
+  }
+
+  private static func isTruthy(_ value: String?) -> Bool {
+    guard let value else { return false }
+    return truthyEnvironmentValues.contains(
+      value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     )
   }
 
