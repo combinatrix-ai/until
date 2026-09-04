@@ -1,15 +1,15 @@
 import Foundation
 
 final class CalendarClient {
-  private let auth: GoogleAuth
+  private let apiClient: GoogleAPIClient
   private let base = URL(string: "https://www.googleapis.com/calendar/v3")!
 
   init(auth: GoogleAuth) {
-    self.auth = auth
+    apiClient = GoogleAPIClient(auth: auth)
   }
 
   func listCalendars(selectedIds: [String]) async throws -> [CalendarSummary] {
-    let email = await auth.email
+    let email = await apiClient.accountEmail
     let data: CalendarListResponse = try await get(base.appending(path: "users/me/calendarList")
       .appending(queryItems: [URLQueryItem(name: "minAccessRole", value: "reader")]))
     return data.items.map { item in
@@ -99,20 +99,13 @@ final class CalendarClient {
   }
 
   private func get<T: Decodable>(_ url: URL) async throws -> T {
-    var request = URLRequest(url: url)
-    request.setValue("Bearer \(try await auth.accessToken())", forHTTPHeaderField: "Authorization")
-    let (data, response) = try await URLSession.shared.data(for: request)
-    guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-      let body = String(data: data, encoding: .utf8) ?? "unknown error"
-      throw AppError.message("Calendar API failed: \(body)")
-    }
-    return try JSONDecoder.google.decode(T.self, from: data)
+    try await apiClient.request(url, errorPrefix: "Calendar API failed")
   }
 
   /// Returns nil (dropping the event) when the start or end timestamp fails to
   /// parse, rather than substituting the current time — a corrupt event would
   /// otherwise surface in the menubar as "happening now".
-  private func normalize(_ raw: RawEvent, calendar: CalendarSummary, now: Date) -> CalendarEvent? {
+  private func normalize(_ raw: GoogleCalendarEvent, calendar: CalendarSummary, now: Date) -> CalendarEvent? {
     let allDay = raw.start?.date != nil && raw.start?.dateTime == nil
     guard let startISO = raw.start?.dateTime ?? localStartISO(raw.start?.date),
           let endISO = raw.end?.dateTime ?? localStartISO(raw.end?.date),
@@ -122,7 +115,7 @@ final class CalendarClient {
     }
     let attendees = normalizeAttendees(raw.attendees ?? [])
     let selfAttendee = attendees.first { $0.selfUser }
-    let noteURL = findExistingNote(raw)
+    let noteURL = raw.existingNoteURL
 
     return CalendarEvent(
       id: raw.id,
@@ -149,7 +142,7 @@ final class CalendarClient {
     )
   }
 
-  private func normalizeAttendees(_ rawAttendees: [RawAttendee]) -> [Attendee] {
+  private func normalizeAttendees(_ rawAttendees: [GoogleCalendarAttendee]) -> [Attendee] {
     rawAttendees.map {
       Attendee(
         email: $0.email ?? "",
@@ -170,9 +163,9 @@ final class CalendarClient {
     )
   }
 
-  private func conferenceURL(for raw: RawEvent) -> String {
+  private func conferenceURL(for raw: GoogleCalendarEvent) -> String {
     firstNonEmpty(
-      raw.conferenceData?.entryPoints?.first(where: { $0.entryPointType == "video" })?.uri,
+      raw.videoEntryPointURL,
       raw.hangoutLink,
       extractMeetingURL(raw.location),
       extractMeetingURL(raw.description)
@@ -193,77 +186,8 @@ private struct RawCalendarListEntry: Decodable {
 }
 
 private struct EventsResponse: Decodable {
-  var items: [RawEvent] = []
+  var items: [GoogleCalendarEvent] = []
   var nextPageToken: String?
-}
-
-private struct RawEvent: Decodable {
-  var id: String
-  var status: String?
-  var summary: String?
-  var description: String?
-  var location: String?
-  var htmlLink: String?
-  var hangoutLink: String?
-  var colorId: String?
-  var transparency: String?
-  var recurringEventId: String?
-  var start: RawEventDate?
-  var end: RawEventDate?
-  var organizer: RawPerson?
-  var conferenceData: RawConferenceData?
-  var attendees: [RawAttendee]?
-  var attachments: [RawAttachment]?
-}
-
-private struct RawEventDate: Decodable {
-  var dateTime: String?
-  var date: String?
-}
-
-private struct RawPerson: Decodable {
-  var email: String?
-}
-
-private struct RawConferenceData: Decodable {
-  var entryPoints: [RawEntryPoint]?
-}
-
-private struct RawEntryPoint: Decodable {
-  var entryPointType: String?
-  var uri: String?
-}
-
-private struct RawAttendee: Decodable {
-  var email: String?
-  var displayName: String?
-  var responseStatus: String?
-  var selfUser: Bool?
-  var resource: Bool?
-
-  enum CodingKeys: String, CodingKey {
-    case email, displayName, responseStatus, resource
-    case selfUser = "self"
-  }
-}
-
-private struct RawAttachment: Decodable {
-  var fileUrl: String?
-  var mimeType: String?
-}
-
-private let googleDocMimeType = "application/vnd.google-apps.document"
-
-private func findExistingNote(_ event: RawEvent) -> String? {
-  if let attachment = event.attachments?.first(where: isNotesAttachment), let url = attachment.fileUrl {
-    return url
-  }
-  return GoogleDocLinks.documentURL(from: event.description)
-}
-
-private func isNotesAttachment(_ attachment: RawAttachment) -> Bool {
-  let mimeType = attachment.mimeType ?? ""
-  return mimeType == googleDocMimeType
 }
 
 private func calendarKey(accountEmail: String, calendarId: String) -> String {
@@ -310,21 +234,4 @@ func extractMeetingURL(_ text: String?) -> String? {
       String(decoded[$0]).trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?"))
     }
   }.first { EventLinks.meetingProvider(for: $0) != nil }
-}
-
-func decodeHtmlEntities(_ value: String) -> String {
-  value
-    .replacingOccurrences(of: "&amp;", with: "&")
-    .replacingOccurrences(of: "&lt;", with: "<")
-    .replacingOccurrences(of: "&gt;", with: ">")
-    .replacingOccurrences(of: "&quot;", with: "\"")
-    .replacingOccurrences(of: "&#39;", with: "'")
-}
-
-extension URL {
-  func appending(queryItems: [URLQueryItem]) -> URL {
-    var components = URLComponents(url: self, resolvingAgainstBaseURL: false)!
-    components.queryItems = (components.queryItems ?? []) + queryItems
-    return components.url!
-  }
 }

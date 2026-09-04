@@ -1170,16 +1170,6 @@ struct AccountFetchResult {
   var error: String?
 }
 
-private extension String {
-  var nilIfEmpty: String? {
-    isEmpty ? nil : self
-  }
-
-  var emailDomain: String? {
-    split(separator: "@").last.map { String($0).trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-  }
-}
-
 private extension Dictionary where Key == String {
   mutating func removeValue(forCaseInsensitiveKey key: String) {
     guard let match = keys.first(where: { $0.caseInsensitiveCompare(key) == .orderedSame }) else {

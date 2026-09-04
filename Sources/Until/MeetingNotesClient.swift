@@ -14,12 +14,14 @@ struct NoteCreationOptions {
 @MainActor
 final class MeetingNotesClient {
   private let auth: GoogleAuth
+  private let apiClient: GoogleAPIClient
   private let calendarBase = URL(string: "https://www.googleapis.com/calendar/v3")!
   private let driveBase = URL(string: "https://www.googleapis.com/drive/v3")!
   private let docsBase = URL(string: "https://docs.googleapis.com/v1")!
 
   init(auth: GoogleAuth) {
     self.auth = auth
+    apiClient = GoogleAPIClient(auth: auth)
   }
 
   /// Creates (or reuses) a meeting-notes doc for `event`.
@@ -36,7 +38,7 @@ final class MeetingNotesClient {
     options: NoteCreationOptions
   ) async throws -> MeetingNoteResult {
     let latest = try await fetchEvent(calendarId: event.calendar.googleId, eventId: event.id)
-    if let existingNoteURL = findExistingNote(latest) {
+    if let existingNoteURL = latest.existingNoteURL {
       return MeetingNoteResult(
         webViewLink: existingNoteURL,
         resolvedFolder: nil,
@@ -68,7 +70,7 @@ final class MeetingNotesClient {
     let failedShareEmails = await shareWithAttendees(
       fileId: file.id,
       emails: attendeeEmails,
-      ownerDomain: emailDomain(auth.email),
+      ownerDomain: auth.email.emailDomain,
       shareExternalAttendees: options.shareExternalAttendees
     )
     try await attachToEvent(calendarId: event.calendar.googleId, event: latest, file: file)
@@ -90,7 +92,7 @@ final class MeetingNotesClient {
     fileName: String,
     folderId: String,
     templateDocId: String?,
-    event: GoogleEvent,
+    event: GoogleCalendarEvent,
     attendeeEmails: [String]
   ) async throws -> (file: DriveFile, templateError: String?) {
     var usedCopiedTemplate = false
@@ -144,7 +146,7 @@ final class MeetingNotesClient {
     folderName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? defaultMeetingNotesFolderName
   }
 
-  private func fetchEvent(calendarId: String, eventId: String) async throws -> GoogleEvent {
+  private func fetchEvent(calendarId: String, eventId: String) async throws -> GoogleCalendarEvent {
     let url = calendarBase
       .appending(path: "calendars")
       .appending(path: calendarId)
@@ -276,7 +278,7 @@ final class MeetingNotesClient {
       ])
     return try checkedDriveFile(try await api(url, method: "POST", body: [
       "name": fileName,
-      "mimeType": docMimeType,
+      "mimeType": googleDocumentMimeType,
       "parents": [folderId]
     ]))
   }
@@ -288,7 +290,11 @@ final class MeetingNotesClient {
     return file
   }
 
-  private func populateCopiedTemplate(documentId: String, event: GoogleEvent, attendeeEmails: [String]) async throws {
+  private func populateCopiedTemplate(
+    documentId: String,
+    event: GoogleCalendarEvent,
+    attendeeEmails: [String]
+  ) async throws {
     let replacements: [String: String] = [
       "{{title}}": event.summary ?? "Untitled",
       "{{datetime}}": formatEventRange(event),
@@ -309,7 +315,11 @@ final class MeetingNotesClient {
     })
   }
 
-  private func populateBuiltInTemplate(documentId: String, event: GoogleEvent, attendeeEmails: [String]) async throws {
+  private func populateBuiltInTemplate(
+    documentId: String,
+    event: GoogleCalendarEvent,
+    attendeeEmails: [String]
+  ) async throws {
     let attendees = attendeeEmails.isEmpty ? "No attendees" : attendeeEmails.map { "- \($0)" }.joined(separator: "\n")
     let text = """
     \(event.summary ?? "Untitled")
@@ -433,21 +443,20 @@ final class MeetingNotesClient {
         ] as [String: Any]
       ] as [String: Any]
     ]
-    let updated: GoogleEvent = try await api(url, method: "PATCH", body: body)
-    guard let link = updated.conferenceData?.entryPoints?.first(where: { $0.entryPointType == "video" })?.uri
-            ?? updated.hangoutLink
+    let updated: GoogleCalendarEvent = try await api(url, method: "PATCH", body: body)
+    guard let link = updated.videoEntryPointURL ?? updated.hangoutLink
     else {
       throw AppError.message("Google Meet link was not returned. The event may not support video conferencing.")
     }
     return link
   }
 
-  private func attachToEvent(calendarId: String, event: GoogleEvent, file: DriveFile) async throws {
+  private func attachToEvent(calendarId: String, event: GoogleCalendarEvent, file: DriveFile) async throws {
     let attachment: [String: Any] = [
       "fileId": file.id,
       "fileUrl": file.webViewLink,
       "title": file.name,
-      "mimeType": docMimeType
+      "mimeType": googleDocumentMimeType
     ]
     let existing = (event.attachments ?? [])
       .filter { $0.fileId != file.id }
@@ -465,110 +474,25 @@ final class MeetingNotesClient {
       .appending(path: "events")
       .appending(path: event.id)
       .appending(queryItems: [URLQueryItem(name: "supportsAttachments", value: "true")])
-    let _: GoogleEvent = try await api(url, method: "PATCH", body: ["attachments": existing + [attachment]])
+    let _: GoogleCalendarEvent = try await api(
+      url,
+      method: "PATCH",
+      body: ["attachments": existing + [attachment]]
+    )
   }
 
   private func api<T: Decodable>(_ url: URL, method: String = "GET", body: [String: Any]? = nil) async throws -> T {
-    var request = URLRequest(url: url)
-    request.httpMethod = method
-    request.setValue("Bearer \(try await auth.accessToken())", forHTTPHeaderField: "Authorization")
-    if let body {
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.httpBody = try JSONSerialization.data(withJSONObject: body)
-    }
-
-    let (data, response) = try await URLSession.shared.data(for: request)
-    guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-      let message = String(data: data, encoding: .utf8) ?? "unknown error"
-      throw AppError.message("Google API failed: \(message)")
-    }
-    return try JSONDecoder.google.decode(T.self, from: data.isEmpty ? Data("{}".utf8) : data)
-  }
-}
-
-enum GoogleDocLinks {
-  static func documentURL(from value: String?) -> String? {
-    guard let value, !value.isEmpty else { return nil }
-    let decoded = decodeHtmlEntities(value)
-    let pattern = #"https://docs\.google\.com/document/[^\s"'<>]+"#
-    guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
-    let range = NSRange(decoded.startIndex..<decoded.endIndex, in: decoded)
-    guard let match = regex.firstMatch(in: decoded, range: range),
-          let swiftRange = Range(match.range, in: decoded) else { return nil }
-    return cleanURL(String(decoded[swiftRange]))
-  }
-
-  static func documentId(from value: String) -> String? {
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return nil }
-    if !trimmed.contains("/") {
-      return trimmed
-    }
-    let pattern = #"/document/(?:u/\d+/)?d/([^/?#]+)"#
-    guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
-      return nil
-    }
-    let range = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
-    guard let match = regex.firstMatch(in: trimmed, range: range),
-          match.numberOfRanges > 1,
-          let swiftRange = Range(match.range(at: 1), in: trimmed) else { return nil }
-    return String(trimmed[swiftRange])
-  }
-
-  private static func decodeHtmlEntities(_ value: String) -> String {
-    value
-      .replacingOccurrences(of: "&amp;", with: "&")
-      .replacingOccurrences(of: "&lt;", with: "<")
-      .replacingOccurrences(of: "&gt;", with: ">")
-      .replacingOccurrences(of: "&quot;", with: "\"")
-      .replacingOccurrences(of: "&#39;", with: "'")
-  }
-
-  private static func cleanURL(_ value: String) -> String {
-    value.trimmingCharacters(in: CharacterSet(charactersIn: ").,;:!?]"))
+    try await apiClient.request(
+      url,
+      method: method,
+      body: body,
+      errorPrefix: "Google API failed",
+      emptyBodyAsObject: true
+    )
   }
 }
 
 private struct EmptyResponse: Decodable {}
-
-private struct GoogleEvent: Decodable {
-  var id: String
-  var summary: String?
-  var description: String?
-  var htmlLink: String?
-  var hangoutLink: String?
-  var start: GoogleEventDate?
-  var end: GoogleEventDate?
-  var attendees: [GoogleAttendee]?
-  var attachments: [GoogleAttachment]?
-  var conferenceData: GoogleConferenceData?
-}
-
-private struct GoogleConferenceData: Decodable {
-  var entryPoints: [GoogleConferenceEntryPoint]?
-}
-
-private struct GoogleConferenceEntryPoint: Decodable {
-  var entryPointType: String?
-  var uri: String?
-}
-
-private struct GoogleEventDate: Decodable {
-  var dateTime: String?
-  var date: String?
-}
-
-private struct GoogleAttendee: Decodable {
-  var email: String?
-  var resource: Bool?
-}
-
-private struct GoogleAttachment: Decodable {
-  var fileId: String?
-  var fileUrl: String?
-  var title: String?
-  var mimeType: String?
-}
 
 private struct DriveFileList: Decodable {
   var files: [DriveFile] = []
@@ -607,23 +531,10 @@ private struct DriveFileMeta: Decodable {
   }
 }
 
-private let docMimeType = "application/vnd.google-apps.document"
 private let folderMimeType = "application/vnd.google-apps.folder"
 private let defaultMeetingNotesFolderName = "Meeting Notes"
 
-private func findExistingNote(_ event: GoogleEvent) -> String? {
-  if let attachment = event.attachments?.first(where: isNotesAttachment), let url = attachment.fileUrl {
-    return url
-  }
-  return GoogleDocLinks.documentURL(from: event.description)
-}
-
-private func isNotesAttachment(_ attachment: GoogleAttachment) -> Bool {
-  let mimeType = attachment.mimeType ?? ""
-  return mimeType == docMimeType
-}
-
-private func attendeeEmails(from event: GoogleEvent) -> [String] {
+private func attendeeEmails(from event: GoogleCalendarEvent) -> [String] {
   let emails = Set((event.attendees ?? []).compactMap { attendee -> String? in
     guard attendee.resource != true else { return nil }
     let email = attendee.email?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
@@ -632,7 +543,7 @@ private func attendeeEmails(from event: GoogleEvent) -> [String] {
   return emails.sorted()
 }
 
-private func createFileName(for event: GoogleEvent, template: String?) -> String {
+private func createFileName(for event: GoogleCalendarEvent, template: String?) -> String {
   let title = event.summary ?? "Untitled"
   let fallbackDate = ISO8601DateFormatter.fallback.string(from: Date())
   let date = String((event.start?.dateTime ?? event.start?.date ?? fallbackDate).prefix(10))
@@ -658,7 +569,7 @@ private func attendeeListText(_ emails: [String]) -> String {
   emails.isEmpty ? "No attendees" : emails.map { "- \($0)" }.joined(separator: "\n")
 }
 
-private func formatEventRange(_ event: GoogleEvent) -> String {
+private func formatEventRange(_ event: GoogleCalendarEvent) -> String {
   let start = event.start?.dateTime ?? event.start?.date ?? ""
   let end = event.end?.dateTime ?? event.end?.date ?? ""
   let startText = formatDateTime(start)
@@ -668,7 +579,7 @@ private func formatEventRange(_ event: GoogleEvent) -> String {
   return "\(startText) - \(endText)"
 }
 
-private func formatEventDate(_ event: GoogleEvent) -> String {
+private func formatEventDate(_ event: GoogleCalendarEvent) -> String {
   let value = event.start?.dateTime ?? event.start?.date ?? ""
   if let date = ISO8601DateFormatter.shared.date(fromAnyInternetDate: value) {
     let formatter = DateFormatter()
@@ -697,21 +608,11 @@ private func formatTime(_ value: String) -> String {
   return formatter.string(from: date)
 }
 
-private func emailDomain(_ email: String?) -> String? {
-  email?.split(separator: "@").last.map { String($0).trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-}
-
 private func isExternalEmail(_ email: String, ownerDomain: String?) -> Bool {
   guard let ownerDomain, !ownerDomain.isEmpty else { return true }
-  return emailDomain(email) != ownerDomain
+  return email.emailDomain != ownerDomain
 }
 
 private func escapeDriveQuery(_ value: String) -> String {
   value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'")
-}
-
-private extension String {
-  var nilIfEmpty: String? {
-    isEmpty ? nil : self
-  }
 }
