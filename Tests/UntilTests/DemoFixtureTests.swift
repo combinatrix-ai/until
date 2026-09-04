@@ -5,7 +5,7 @@ import XCTest
 /// fixture reproducible: the clock decides the moment, so the same file has to
 /// produce the same day whenever it is loaded.
 final class DemoFixtureTests: XCTestCase {
-  private func write(_ json: String, file: StaticString = #filePath, line: UInt = #line) throws -> String {
+  private func write(_ json: String) throws -> String {
     let url = FileManager.default.temporaryDirectory
       .appendingPathComponent("demo-fixture-\(UUID().uuidString).json")
     try json.write(to: url, atomically: true, encoding: .utf8)
