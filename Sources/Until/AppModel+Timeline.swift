@@ -269,6 +269,7 @@ extension AppModel {
       timed: timed,
       now: now
     )
+    let nextEvent = nextTimelineEvent(heroEvent: heroEvent, timed: timed, now: now)
     let freeDayDecision = freeDayHeroNextEvent(timed: timed, now: now)
     let calendar = Calendar.current
     let endOfToday = calendar.date(
@@ -292,6 +293,7 @@ extension AppModel {
     return TimelinePresentation(
       heroEvent: heroEvent,
       nowEmphasisEvent: nowEmphasisEvent,
+      nextEvent: nextEvent,
       freeDayNextEvent: showsFreeDayHero ? freeDayNextEvent : nil,
       showsFreeDayHero: showsFreeDayHero
     )

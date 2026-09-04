@@ -554,14 +554,10 @@ final class AppModel: ObservableObject {
     return true
   }
 
-  /// Expansion is keyed per day so a multi-day all-day event repeated across
-  /// sections expands only on the row that was tapped.
-  func expansionKey(for event: CalendarEvent, on day: Date) -> String {
-    "\(day.timeIntervalSinceReferenceDate)::\(event.actionKey)"
-  }
-
-  func toggleExpanded(_ event: CalendarEvent, on day: Date) {
-    let key = expansionKey(for: event, on: day)
+  /// Expansion uses `DayEvent.id`, the same identity SwiftUI renders, so a
+  /// multi-day event expands only on the row that was tapped.
+  func toggleExpanded(_ dayEvent: DayEvent) {
+    let key = dayEvent.id
     expandedEventKey = expandedEventKey == key ? nil : key
   }
 
@@ -569,8 +565,8 @@ final class AppModel: ObservableObject {
     expandedEventKey = nil
   }
 
-  func isExpanded(_ event: CalendarEvent, on day: Date) -> Bool {
-    expandedEventKey == expansionKey(for: event, on: day)
+  func isExpanded(_ dayEvent: DayEvent) -> Bool {
+    expandedEventKey == dayEvent.id
   }
 
   func join(_ event: CalendarEvent) {
@@ -830,6 +826,28 @@ final class AppModel: ObservableObject {
       allDay: state.allDayEvents,
       now: now,
       lookaheadHours: config.lookaheadHours
+    )
+  }
+
+  func timelinePresentation(now: Date) -> TimelinePresentation {
+    Self.timelinePresentation(
+      menubarEvent: menubarEvent,
+      config: config,
+      timed: state.events,
+      now: now,
+      coverageEnd: state.calendarCoverageEnd
+    )
+  }
+
+  func timelineSections(
+    presentation: TimelinePresentation,
+    now: Date
+  ) -> [(section: DaySection, items: [PopoverListItem])] {
+    Self.timelineSections(
+      daySections(now: now),
+      presentation: presentation,
+      now: now,
+      coverageEnd: state.calendarCoverageEnd
     )
   }
 

@@ -222,7 +222,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         when = loc("all-day")
       } else if next.startDate <= now && next.endDate > now {
         // Event already underway: show time remaining instead of "now".
-        let remaining = max(0, Int((next.endDate.timeIntervalSince(now) / 60).rounded()))
+        let remaining = roundedMinutes(from: now, to: next.endDate)
         when = loc("%@ left", relativeWhen(remaining))
       } else {
         when = loc("in %@", relativeWhen(next.startMinutesFromNow))
@@ -393,6 +393,12 @@ func relativeWhen(_ minutes: Int) -> String {
   let hours = minutes / 60
   let mins = minutes % 60
   return mins == 0 ? "\(hours)h" : "\(hours)h\(mins)m"
+}
+
+/// Whole minutes between two instants for countdown UI. Values are rounded to
+/// the nearest minute and clamped at zero once the target has passed.
+func roundedMinutes(from start: Date, to end: Date) -> Int {
+  max(0, Int((end.timeIntervalSince(start) / 60).rounded()))
 }
 
 // Cached formatters: `clock` runs per visible row on every render, so a fresh

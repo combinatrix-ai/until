@@ -206,6 +206,23 @@ final class NowStripTests: XCTestCase {
 
     XCTAssertEqual(AppModel.nextTimelineEvent(heroEvent: hero, timed: [hero, next], now: now)?.id, "next")
     XCTAssertNil(AppModel.nextTimelineEvent(heroEvent: next, timed: [hero, next], now: now))
+
+    let inProgressPresentation = AppModel.timelinePresentation(
+      menubarEvent: hero,
+      config: .default,
+      timed: [hero, next],
+      now: now,
+      coverageEnd: nil
+    )
+    let upcomingPresentation = AppModel.timelinePresentation(
+      menubarEvent: next,
+      config: .default,
+      timed: [hero, next],
+      now: now,
+      coverageEnd: nil
+    )
+    XCTAssertEqual(inProgressPresentation.nextEvent?.id, "next")
+    XCTAssertNil(upcomingPresentation.nextEvent)
   }
 
   func testOngoingEventReturnedWhenThereIsNoMenubarEvent() {

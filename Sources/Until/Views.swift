@@ -62,13 +62,7 @@ struct PanelView: View {
       )
       .frame(maxHeight: .infinity)
     } else {
-      let presentation = AppModel.timelinePresentation(
-        menubarEvent: model.menubarEvent,
-        config: model.config,
-        timed: model.state.events,
-        now: now,
-        coverageEnd: model.state.calendarCoverageEnd
-      )
+      let presentation = model.timelinePresentation(now: now)
 
       VStack(spacing: 0) {
         // The timeline keeps the menubar selection inline and gives the
@@ -89,12 +83,7 @@ struct PanelView: View {
   }
 
   private func timeline(presentation: TimelinePresentation, now: Date) -> some View {
-    let sections = AppModel.timelineSections(
-      model.daySections(now: now),
-      presentation: presentation,
-      now: now,
-      coverageEnd: model.state.calendarCoverageEnd
-    )
+    let sections = model.timelineSections(presentation: presentation, now: now)
     let target = initialTimelineTarget(sections: sections, presentation: presentation, now: now)
 
     return GeometryReader { viewport in
@@ -176,20 +165,14 @@ struct PanelView: View {
       let event = dayEvent.event
       let isHero = presentation.heroEvent?.actionKey == event.actionKey
       let isNow = presentation.nowEmphasisEvent?.actionKey == event.actionKey
-      let nextEvent = AppModel.nextTimelineEvent(
-        heroEvent: presentation.heroEvent,
-        timed: model.state.events,
-        now: now
-      )
-      let isNext = nextEvent?.actionKey == event.actionKey
+      let isNext = presentation.nextEvent?.actionKey == event.actionKey
       if isHero {
-        HeroTimelineRow(event: event, model: model, now: now)
+        HeroTimelineRow(dayEvent: dayEvent, model: model, now: now)
           .background(heroFrameTracker)
           .id(item.id)
       } else {
         EventRow(
-          event: event,
-          day: dayEvent.day,
+          dayEvent: dayEvent,
           model: model,
           now: now,
           isNowEmphasized: isNow,
@@ -705,7 +688,7 @@ private struct HeroProgressBar: View {
 }
 
 private struct HeroTimelineRow: View {
-  var event: CalendarEvent
+  var dayEvent: DayEvent
   @ObservedObject var model: AppModel
   var now: Date
 
@@ -713,16 +696,14 @@ private struct HeroTimelineRow: View {
   @State private var showAddConferenceConfirmation = false
   @State private var showCreateNotesConfirmation = false
 
+  private var event: CalendarEvent { dayEvent.event }
+
   private var inProgress: Bool {
     AppModel.menubarHeroState(event: event, now: now) == .now
   }
 
   private var tintColor: Color {
     inProgress ? .green : .accentColor
-  }
-
-  private var day: Date {
-    Calendar.current.startOfDay(for: event.startDate)
   }
 
   private var hasAttachedActions: Bool {
@@ -809,7 +790,7 @@ private struct HeroTimelineRow: View {
           .padding(.top, Theme.Spacing.xs)
         }
 
-        if model.isExpanded(event, on: day) {
+        if model.isExpanded(dayEvent) {
           EventDetailView(event: event)
             .transition(
               .asymmetric(
@@ -819,26 +800,7 @@ private struct HeroTimelineRow: View {
             )
         }
 
-        if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
-          ExternalShareOverlay(prompt: prompt, model: model)
-        }
-
-        if let issue = model.noteError(for: event) {
-          NoteErrorOverlay(issue: issue) {
-            switch issue.kind {
-            case .retry:
-              model.createOrOpenNote(for: event)
-            case .reauthorize(let email):
-              model.startReauthorize(email: email)
-            }
-          }
-        }
-
-        if let error = model.conferenceError(for: event) {
-          NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
-            model.addConference(for: event)
-          }
-        }
+        EventInlineOverlays(event: event, model: model)
       }
       .padding(.horizontal, Theme.Spacing.md)
       .padding(.vertical, Theme.Spacing.md)
@@ -852,7 +814,7 @@ private struct HeroTimelineRow: View {
       .contentShape(Rectangle())
       .onTapGesture {
         withAnimation(.easeInOut(duration: 0.2)) {
-          model.toggleExpanded(event, on: day)
+          model.toggleExpanded(dayEvent)
         }
       }
       .onHover { isHovered = $0 }
@@ -880,14 +842,14 @@ private struct HeroTimelineRow: View {
 
   private var kickerText: String {
     inProgress
-      ? loc("Now · started %@ ago", relativeWhen(minutesSince(event.startDate)))
+      ? loc("Now · started %@ ago", relativeWhen(roundedMinutes(from: event.startDate, to: now)))
       : loc("Next")
   }
 
   private var countText: String {
     inProgress
-      ? loc("%@ left", relativeWhen(minutesUntil(event.endDate)))
-      : loc("in %@", relativeWhen(minutesUntil(event.startDate)))
+      ? loc("%@ left", relativeWhen(roundedMinutes(from: now, to: event.endDate)))
+      : loc("in %@", relativeWhen(roundedMinutes(from: now, to: event.startDate)))
   }
 
   private var progressFraction: Double {
@@ -905,7 +867,7 @@ private struct HeroTimelineRow: View {
   /// with it. The tooltip is only useful while the line is truncated.
   @ViewBuilder
   private var metadataSummary: some View {
-    if model.isExpanded(event, on: day) {
+    if model.isExpanded(dayEvent) {
       Text(metadataLine)
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -921,13 +883,6 @@ private struct HeroTimelineRow: View {
     }
   }
 
-  private func minutesUntil(_ date: Date) -> Int {
-    max(0, Int((date.timeIntervalSince(now) / 60).rounded()))
-  }
-
-  private func minutesSince(_ date: Date) -> Int {
-    max(0, Int((now.timeIntervalSince(date) / 60).rounded()))
-  }
 }
 
 private struct CondensedHeroStrip: View {
@@ -945,8 +900,8 @@ private struct CondensedHeroStrip: View {
 
   private var countText: String {
     heroState == .now
-      ? loc("%@ left", relativeWhen(minutesUntil(event.endDate)))
-      : loc("in %@", relativeWhen(minutesUntil(event.startDate)))
+      ? loc("%@ left", relativeWhen(roundedMinutes(from: now, to: event.endDate)))
+      : loc("in %@", relativeWhen(roundedMinutes(from: now, to: event.startDate)))
   }
 
   var body: some View {
@@ -997,9 +952,6 @@ private struct CondensedHeroStrip: View {
     .transition(.opacity)
   }
 
-  private func minutesUntil(_ date: Date) -> Int {
-    max(0, Int((date.timeIntervalSince(now) / 60).rounded()))
-  }
 }
 
 /// One menu content builder is used by both the ellipsis `Menu` and the row or
@@ -1271,8 +1223,7 @@ private enum TimelineRowMetrics {
 }
 
 struct EventRow: View {
-  var event: CalendarEvent
-  var day: Date
+  var dayEvent: DayEvent
   @ObservedObject var model: AppModel
   var now: Date
   var isNowEmphasized: Bool
@@ -1282,21 +1233,7 @@ struct EventRow: View {
   @State private var showAddConferenceConfirmation = false
   @State private var showCreateNotesConfirmation = false
 
-  init(
-    event: CalendarEvent,
-    day: Date,
-    model: AppModel,
-    now: Date = Date(),
-    isNowEmphasized: Bool = false,
-    isNext: Bool = false
-  ) {
-    self.event = event
-    self.day = day
-    self.model = model
-    self.now = now
-    self.isNowEmphasized = isNowEmphasized
-    self.isNext = isNext
-  }
+  private var event: CalendarEvent { dayEvent.event }
 
   var body: some View {
     // Time | rail | content. The rail sits beside a column holding both the
@@ -1322,41 +1259,20 @@ struct EventRow: View {
           .contentShape(Rectangle())
           .onTapGesture {
             withAnimation(.easeInOut(duration: 0.2)) {
-              model.toggleExpanded(event, on: day)
+              model.toggleExpanded(dayEvent)
             }
           }
           .onHover { isHovered = $0 }
           .opacity(rowOpacity)
 
-        if model.isExpanded(event, on: day) {
+        if model.isExpanded(dayEvent) {
           TimelineEventDetail(event: event)
             .padding(.bottom, Theme.Spacing.sm)
             .transition(.opacity.combined(with: .move(edge: .top)))
         }
 
-        Group {
-          if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
-            ExternalShareOverlay(prompt: prompt, model: model)
-          }
-
-          if let issue = model.noteError(for: event) {
-            NoteErrorOverlay(issue: issue) {
-              switch issue.kind {
-              case .retry:
-                model.createOrOpenNote(for: event)
-              case .reauthorize(let email):
-                model.startReauthorize(email: email)
-              }
-            }
-          }
-
-          if let error = model.conferenceError(for: event) {
-            NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
-              model.addConference(for: event)
-            }
-          }
-        }
-        .padding(.top, Theme.Spacing.xs)
+        EventInlineOverlays(event: event, model: model)
+          .padding(.top, Theme.Spacing.xs)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1399,7 +1315,10 @@ struct EventRow: View {
           }
           if isNext {
             StateChip(
-              label: loc("NEXT · in %@", relativeWhen(minutesUntil(event.startDate))),
+              label: loc(
+                "NEXT · in %@",
+                relativeWhen(roundedMinutes(from: now, to: event.startDate))
+              ),
               color: .accentColor
             )
           }
@@ -1488,9 +1407,6 @@ struct EventRow: View {
     Color(hex: googleEventColor(event.colorId) ?? event.calendar.backgroundColor) ?? .accentColor
   }
 
-  private func minutesUntil(_ date: Date) -> Int {
-    max(0, Int((date.timeIntervalSince(now) / 60).rounded()))
-  }
 }
 
 /// One secondary line of a timeline row: a fixed-width icon slot, a small
@@ -1523,10 +1439,6 @@ private struct TimelineGutterRow<Content: View>: View {
 private struct TimelineEventDetail: View {
   var event: CalendarEvent
 
-  private var others: [Attendee] {
-    event.attendees.filter { !$0.selfUser && !$0.resource }
-  }
-
   var body: some View {
     VStack(alignment: .leading, spacing: TimelineRowMetrics.groupGap) {
       VStack(alignment: .leading, spacing: TimelineRowMetrics.metaGap) {
@@ -1544,7 +1456,7 @@ private struct TimelineEventDetail: View {
       }
       .foregroundStyle(.secondary)
 
-      if !event.description.isEmpty || !others.isEmpty {
+      if !event.description.isEmpty || !event.otherAttendees.isEmpty {
         VStack(alignment: .leading, spacing: TimelineRowMetrics.contentGap) {
           if !event.description.isEmpty {
             TimelineGutterRow(
@@ -1558,7 +1470,7 @@ private struct TimelineEventDetail: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
           }
-          ForEach(others, id: \.email) { attendee in
+          ForEach(event.otherAttendees, id: \.email) { attendee in
             TimelineGutterRow(
               systemImage: attendeeResponseIcon(attendee.responseStatus),
               accessibilityLabel: attendeeResponseLabel(attendee.responseStatus),
@@ -1771,10 +1683,9 @@ private struct EventDetailView: View {
           .fixedSize(horizontal: false, vertical: true)
       }
 
-      let others = event.attendees.filter { !$0.selfUser && !$0.resource }
-      if !others.isEmpty {
+      if !event.otherAttendees.isEmpty {
         VStack(alignment: .leading, spacing: 2) {
-          ForEach(others, id: \.email) { attendee in
+          ForEach(event.otherAttendees, id: \.email) { attendee in
             HStack(spacing: 4) {
               Image(systemName: attendeeResponseIcon(attendee.responseStatus))
                 .font(.system(size: 9))
@@ -1789,6 +1700,12 @@ private struct EventDetailView: View {
       }
     }
     .padding(.vertical, Theme.Spacing.xs)
+  }
+}
+
+private extension CalendarEvent {
+  var otherAttendees: [Attendee] {
+    attendees.filter { !$0.selfUser && !$0.resource }
   }
 }
 
@@ -1913,6 +1830,39 @@ private func copyStringToPasteboard(_ string: String) {
 
 private func copyEventDetailsToPasteboard(_ event: CalendarEvent) {
   copyStringToPasteboard(eventCopyDetailsText(for: event))
+}
+
+/// Event-scoped prompts and failures render identically in the hero and in a
+/// regular timeline row. Keeping their action routing here prevents the two
+/// surfaces from drifting as new event actions are added.
+private struct EventInlineOverlays: View {
+  var event: CalendarEvent
+  @ObservedObject var model: AppModel
+
+  var body: some View {
+    Group {
+      if let prompt = model.externalSharePrompt, prompt.id == event.actionKey {
+        ExternalShareOverlay(prompt: prompt, model: model)
+      }
+
+      if let issue = model.noteError(for: event) {
+        NoteErrorOverlay(issue: issue) {
+          switch issue.kind {
+          case .retry:
+            model.createOrOpenNote(for: event)
+          case .reauthorize(let email):
+            model.startReauthorize(email: email)
+          }
+        }
+      }
+
+      if let error = model.conferenceError(for: event) {
+        NoteErrorOverlay(issue: NoteIssue(message: error, kind: .retry)) {
+          model.addConference(for: event)
+        }
+      }
+    }
+  }
 }
 
 private struct ExternalShareOverlay: View {

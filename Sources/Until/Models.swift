@@ -215,6 +215,7 @@ enum PopoverListItem: Identifiable, Hashable {
 struct TimelinePresentation: Equatable {
   var heroEvent: CalendarEvent?
   var nowEmphasisEvent: CalendarEvent?
+  var nextEvent: CalendarEvent?
   var freeDayNextEvent: CalendarEvent?
   var showsFreeDayHero: Bool
 }

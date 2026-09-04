@@ -220,6 +220,7 @@ final class FreeDayHeroTests: XCTestCase {
     let presentation = TimelinePresentation(
       heroEvent: nil,
       nowEmphasisEvent: nil,
+      nextEvent: nil,
       freeDayNextEvent: nil,
       showsFreeDayHero: false
     )
@@ -304,6 +305,7 @@ final class FreeDayHeroTests: XCTestCase {
     let presentation = TimelinePresentation(
       heroEvent: nil,
       nowEmphasisEvent: nil,
+      nextEvent: nil,
       freeDayNextEvent: nil,
       showsFreeDayHero: false
     )
@@ -333,6 +335,7 @@ final class FreeDayHeroTests: XCTestCase {
     let presentation = TimelinePresentation(
       heroEvent: nil,
       nowEmphasisEvent: nil,
+      nextEvent: nil,
       freeDayNextEvent: nil,
       showsFreeDayHero: false
     )
