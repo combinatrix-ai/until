@@ -173,15 +173,17 @@ struct DaySection: Identifiable, Hashable {
 
 /// A free-time divider inserted between two consecutive timed rows in the
 /// popover list (see `AppModel.insertingFreeGaps`). `until` is the next
-/// event's start time — the text shown is "free until <until>".
+/// event's start time; `from` preserves the preceding event's exact end time.
 struct FreeGap: Identifiable, Hashable {
   var afterActionKey: String
+  var from: Date
   var until: Date
   var durationMinutes: Int
   var id: String { "gap::\(afterActionKey)::\(until.timeIntervalSinceReferenceDate)" }
 
-  init(afterActionKey: String, until: Date, durationMinutes: Int = 0) {
+  init(afterActionKey: String, from: Date, until: Date, durationMinutes: Int) {
     self.afterActionKey = afterActionKey
+    self.from = from
     self.until = until
     self.durationMinutes = durationMinutes
   }

@@ -2,7 +2,7 @@ import XCTest
 @testable import Until
 
 /// Covers `AppModel.insertingFreeGaps`: the pure function that decides where
-/// "free until …" dividers belong in the popover list, between two
+/// free-time dividers belong in the popover list, between two
 /// consecutive TIMED rows separated by at least
 /// `AppModel.freeGapThresholdMinutes` (30) of open time.
 @MainActor
@@ -28,6 +28,7 @@ final class FreeGapDividerTests: XCTestCase {
       return
     }
     XCTAssertEqual(gap.afterActionKey, first.actionKey)
+    XCTAssertEqual(gap.from, firstEnd)
     XCTAssertEqual(gap.until, secondStart)
     XCTAssertEqual(gap.durationMinutes, 30)
     XCTAssertEqual(items[2], .event(rows[1]))

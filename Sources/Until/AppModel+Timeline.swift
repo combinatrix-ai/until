@@ -46,7 +46,7 @@ extension AppModel {
   }
 
   /// Gaps at or above this length between two consecutive timed rows earn a
-  /// "free until …" divider in the popover list.
+  /// free-time divider in the popover list.
   static let freeGapThresholdMinutes = 30
 
   /// Pure: interleaves `FreeGap` dividers into `rows` wherever two
@@ -67,6 +67,7 @@ extension AppModel {
             .gap(
               FreeGap(
                 afterActionKey: previous.event.actionKey,
+                from: previous.event.endDate,
                 until: row.event.startDate,
                 durationMinutes: max(0, Int(gapMinutes.rounded()))
               )

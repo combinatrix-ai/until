@@ -127,17 +127,13 @@ struct PanelView: View {
         VStack(alignment: .leading, spacing: 0) {
           ForEach(sections, id: \.section.id) { entry in
             TimelineDayHeader(day: entry.section.day, now: now)
-            VStack(alignment: .leading, spacing: 0) {
-              ForEach(entry.items) { item in
-                timelineItem(item, presentation: presentation, now: now)
-              }
-            }
-            .background(alignment: .leading) {
-              // One rail per day spans row padding, free time, and expanded details.
-              Rectangle()
-                .fill(Theme.hairline)
-                .frame(width: 2)
-                .padding(.leading, Theme.Spacing.lg + clockColumnWidth() + Theme.Spacing.sm + 10)
+            ForEach(entry.items) { item in
+              timelineItem(item, presentation: presentation, now: now)
+                .background(alignment: .leading) {
+                  TimelineRail(item: item)
+                    .frame(width: 2)
+                    .padding(.leading, Theme.Spacing.lg + clockColumnWidth() + Theme.Spacing.sm + 10)
+                }
             }
           }
         }
@@ -488,6 +484,30 @@ private struct TimelineTimeLabel: View {
   }
 }
 
+/// Each segment spans the whole row, including padding, so adjacent segments meet.
+private struct TimelineRail: View {
+  var item: PopoverListItem
+
+  private var isFree: Bool {
+    switch item {
+    case .gap, .freeDay, .freeDayHero: return true
+    case .event, .nowLine: return false
+    }
+  }
+
+  var body: some View {
+    GeometryReader { geometry in
+      Path { path in
+        path.move(to: CGPoint(x: 1, y: 0))
+        path.addLine(to: CGPoint(x: 1, y: geometry.size.height))
+      }
+      .stroke(Theme.hairline, style: StrokeStyle(lineWidth: 2, dash: isFree ? [4, 3] : []))
+    }
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
+  }
+}
+
 private struct TimelineRailNode: View {
   var color: Color
   var emphasized = false
@@ -555,18 +575,18 @@ private struct FreeGapRow: View {
     HStack(spacing: 0) {
       TimelineTimeLabel(label: "")
       Color.clear.frame(width: 22, height: 30)
-      Text(
-        loc(
-          "free until %@ · %@",
-          clock(gap.until),
-          loc("%dm", gap.durationMinutes)
-        )
-      )
+      HStack(spacing: Theme.Spacing.sm) {
+        Text(loc("%dm free", gap.durationMinutes))
+          .fontWeight(.medium)
+        Text("\(clock(gap.from))–\(clock(gap.until))")
+          .foregroundStyle(.tertiary)
+      }
       .font(.caption2)
       .foregroundStyle(.secondary)
       .lineLimit(1)
       .fixedSize(horizontal: true, vertical: false)
       .padding(.leading, Theme.Spacing.sm)
+      .accessibilityElement(children: .combine)
     }
     .padding(.horizontal, Theme.Spacing.lg)
     .padding(.vertical, Theme.Spacing.xs)
@@ -1224,7 +1244,7 @@ struct EventRow: View {
   private var event: CalendarEvent { dayEvent.event }
 
   var body: some View {
-    // Time | node | content. The day section owns the continuous rail;
+    // Time | node | content. The list draws the rail across the full row;
     // this row only positions its dot beside the first title line.
     HStack(alignment: .top, spacing: 0) {
       TimelineTimeLabel(
