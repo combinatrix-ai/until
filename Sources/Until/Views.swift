@@ -127,8 +127,17 @@ struct PanelView: View {
         VStack(alignment: .leading, spacing: 0) {
           ForEach(sections, id: \.section.id) { entry in
             TimelineDayHeader(day: entry.section.day, now: now)
-            ForEach(entry.items) { item in
-              timelineItem(item, presentation: presentation, now: now)
+            VStack(alignment: .leading, spacing: 0) {
+              ForEach(entry.items) { item in
+                timelineItem(item, presentation: presentation, now: now)
+              }
+            }
+            .background(alignment: .leading) {
+              // One rail per day spans row padding, free time, and expanded details.
+              Rectangle()
+                .fill(Theme.hairline)
+                .frame(width: 2)
+                .padding(.leading, Theme.Spacing.lg + clockColumnWidth() + Theme.Spacing.sm + 10)
             }
           }
         }
@@ -502,35 +511,14 @@ private struct TimelineRailNode: View {
 
   var body: some View {
     ZStack(alignment: topAligned ? .top : .center) {
-      Rectangle()
-        .fill(Theme.hairline)
-        .frame(width: 2)
+      Color.clear
         .frame(maxHeight: .infinity)
       Circle()
         .fill(color)
         .frame(width: dotSize, height: dotSize)
-        .overlay {
-          Circle()
-            .stroke(Color(nsColor: .textBackgroundColor), lineWidth: 3)
-        }
         .padding(.top, dotTopInset)
     }
     .frame(width: 22)
-  }
-}
-
-private struct TimelineDashedRail: View {
-  var body: some View {
-    Path { path in
-      // x matches TimelineRailNode's centered 2pt rail (22pt column center).
-      path.move(to: CGPoint(x: 11, y: 0))
-      path.addLine(to: CGPoint(x: 11, y: 30))
-    }
-    .stroke(
-      Theme.hairline,
-      style: StrokeStyle(lineWidth: 2, dash: [4, 3], dashPhase: 0)
-    )
-    .frame(width: 22, height: 30)
   }
 }
 
@@ -566,7 +554,7 @@ private struct FreeGapRow: View {
   var body: some View {
     HStack(spacing: 0) {
       TimelineTimeLabel(label: "")
-      TimelineDashedRail()
+      Color.clear.frame(width: 22, height: 30)
       Text(
         loc(
           "free until %@ · %@",
@@ -589,7 +577,7 @@ private struct FreeDayRow: View {
   var body: some View {
     HStack(spacing: 0) {
       TimelineTimeLabel(label: "")
-      TimelineDashedRail()
+      Color.clear.frame(width: 22, height: 30)
       HStack(spacing: Theme.Spacing.xs) {
         Image(systemName: "sun.max.fill")
           .foregroundStyle(.secondary)
@@ -1236,9 +1224,8 @@ struct EventRow: View {
   private var event: CalendarEvent { dayEvent.event }
 
   var body: some View {
-    // Time | rail | content. The rail sits beside a column holding both the
-    // header and the expanded detail, so it runs the row's full height by
-    // construction rather than being patched in with an overlay.
+    // Time | node | content. The day section owns the continuous rail;
+    // this row only positions its dot beside the first title line.
     HStack(alignment: .top, spacing: 0) {
       TimelineTimeLabel(
         label: event.allDay ? loc("all-day") : clock(event.startDate),
