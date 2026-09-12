@@ -26,6 +26,15 @@ scripts/package-app.sh
 open ".build/debug/Until.app"
 ```
 
+## Release workflow
+
+For release preparation, publication, status checks, or installing a release
+build, use the `alias-release` skill (display name `alias:release`) when available. The canonical local playbook is
+`~/obsidian/Wiki/work/playbooks/アプリ・CLIを公開して更新可能にする.md`.
+Read it before publishing and use this repository's workflows/scripts for the
+project-specific commands. The build script alone is not the complete release
+checklist. A release-status question stays read-only.
+
 ## Distributable build (Developer ID + notarized)
 ```
 scripts/release.sh
