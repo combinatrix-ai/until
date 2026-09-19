@@ -1273,7 +1273,10 @@ struct EventRow: View {
           .opacity(rowOpacity)
 
         if model.isExpanded(dayEvent) {
-          TimelineEventDetail(event: event)
+          TimelineEventDetail(
+            event: event,
+            calendarName: model.calendars.first { $0.id == event.calendar.id }?.name ?? ""
+          )
             .padding(.bottom, Theme.Spacing.sm)
             .transition(.opacity.combined(with: .move(edge: .top)))
         }
@@ -1445,6 +1448,7 @@ private struct TimelineGutterRow<Content: View>: View {
 /// then what it is about and who is coming. Two quiet groups, no separators.
 private struct TimelineEventDetail: View {
   var event: CalendarEvent
+  var calendarName: String
 
   var body: some View {
     VStack(alignment: .leading, spacing: TimelineRowMetrics.groupGap) {
@@ -1454,10 +1458,17 @@ private struct TimelineEventDetail: View {
             .monospacedDigit()
         }
         if !event.account.email.isEmpty {
-          TimelineGutterRow(systemImage: "calendar", accessibilityLabel: loc("Calendar account")) {
+          TimelineGutterRow(systemImage: "envelope", accessibilityLabel: loc("Calendar account")) {
             Text(event.account.email)
               .lineLimit(1)
               .truncationMode(.middle)
+          }
+        }
+        if !calendarName.isEmpty {
+          TimelineGutterRow(systemImage: "calendar", accessibilityLabel: loc("Calendar")) {
+            Text(calendarName)
+              .lineLimit(1)
+              .truncationMode(.tail)
           }
         }
       }
