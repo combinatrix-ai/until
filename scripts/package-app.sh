@@ -47,7 +47,7 @@ if [[ -d "$RESOURCE_BUNDLE" ]]; then
   # SwiftPM writes only CFBundleDevelopmentRegion into the bundle's Info.plist.
   # App Store validation (error 90276) rejects nested bundles without a
   # CFBundleIdentifier, so fill in the standard identity keys here.
-  RB_PLIST="$APP_DIR/Contents/Resources/Until_Until.bundle/Info.plist"
+  RB_PLIST="$APP_DIR/Contents/Resources/Until_Until.bundle/Contents/Info.plist"
   plutil -replace CFBundleIdentifier -string "ai.combinatrix.until.resources" "$RB_PLIST"
   plutil -replace CFBundleName -string "Until_Until" "$RB_PLIST"
   plutil -replace CFBundlePackageType -string "BNDL" "$RB_PLIST"
