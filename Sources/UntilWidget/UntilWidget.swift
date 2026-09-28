@@ -53,6 +53,22 @@ private struct AgendaWidgetView: View {
   }
 
   var body: some View {
+    GeometryReader { geometry in
+      agenda(additionalEventCount: additionalEventCount(height: geometry.size.height))
+    }
+    .padding(10)
+    .containerBackground(Color(nsColor: .textBackgroundColor), for: .widget)
+    .widgetURL(URL(string: "until://agenda"))
+  }
+
+  private func additionalEventCount(height: CGFloat) -> Int {
+    guard let presentation, let hero = presentation.hero else { return 0 }
+    let reservedHeight = CGFloat(16 + presentation.allDay.count * 17 + 58 + 16
+      + (hero.startDate > entry.date ? 13 : 0))
+    return min(presentation.additionalEvents.count, max(0, Int((height - reservedHeight) / 18)))
+  }
+
+  private func agenda(additionalEventCount: Int) -> some View {
     VStack(alignment: .leading, spacing: 0) {
       HStack(alignment: .firstTextBaseline) {
         Text(localized("Today"))
@@ -62,7 +78,7 @@ private struct AgendaWidgetView: View {
           .font(.caption2)
       }
       .foregroundStyle(.secondary)
-      .padding(.bottom, 2)
+      .frame(height: 16, alignment: .top)
 
       if let snapshot = entry.snapshot, snapshot.authenticated, let presentation {
         if let hero = presentation.hero {
@@ -73,13 +89,17 @@ private struct AgendaWidgetView: View {
             nowLine()
           }
           heroRow(hero)
-          footer(snapshot: snapshot, presentation: presentation)
+          ForEach(0..<additionalEventCount, id: \.self) { index in
+            additionalRow(presentation.additionalEvents[index])
+          }
+          footer(snapshot: snapshot, hiddenCount: presentation.hiddenCount
+            + presentation.additionalEvents.count - additionalEventCount)
         } else if !presentation.allDay.isEmpty {
           ForEach(presentation.allDay.indices, id: \.self) { index in
             allDayRow(presentation.allDay[index])
           }
           Spacer(minLength: 0)
-          footer(snapshot: snapshot, presentation: presentation)
+          footer(snapshot: snapshot, hiddenCount: presentation.hiddenCount)
         } else {
           emptyMessage(presentation.coversDay ? localized("No events today") : localized("Open Until to refresh"))
         }
@@ -88,10 +108,7 @@ private struct AgendaWidgetView: View {
           ? localized("Open Until to sign in") : localized("Open Until to refresh"))
       }
     }
-    .padding(10)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    .containerBackground(Color(nsColor: .textBackgroundColor), for: .widget)
-    .widgetURL(URL(string: "until://agenda"))
   }
 
   private func allDayRow(_ event: WidgetAgendaEvent) -> some View {
@@ -161,15 +178,31 @@ private struct AgendaWidgetView: View {
     .frame(height: 58, alignment: .top)
   }
 
-  private func footer(
-    snapshot: WidgetAgendaSnapshot,
-    presentation: WidgetAgendaPresentation
-  ) -> some View {
+  private func additionalRow(_ event: WidgetAgendaEvent) -> some View {
+    let isNow = event.startDate <= entry.date
+    let tint: Color = isNow ? .green : (Color(hex: event.colorHex) ?? .accentColor)
+    return HStack(spacing: 0) {
+      Text(event.startDate, format: .dateTime.hour().minute())
+        .font(.system(size: 10, design: .monospaced))
+        .foregroundStyle(isNow ? Color.green : Color.secondary)
+        .frame(width: 52, alignment: .trailing)
+      railNode(color: tint, size: 6)
+      Text(event.title)
+        .font(.system(size: 11))
+        .foregroundStyle(isNow ? Color.green : Color.primary)
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+    }
+    .frame(height: 18)
+  }
+
+  private func footer(snapshot: WidgetAgendaSnapshot, hiddenCount: Int) -> some View {
     Group {
       if let lastSync = snapshot.lastSync, entry.date.timeIntervalSince(lastSync) > 6 * 3600 {
         Text(localized("Open Until to refresh"))
-      } else if presentation.hiddenCount > 0 {
-        Text(String(format: localized("more_count"), presentation.hiddenCount))
+      } else if hiddenCount > 0 {
+        Text(String(format: localized("more_count"), hiddenCount))
       } else {
         Text(" ")
       }
@@ -178,6 +211,7 @@ private struct AgendaWidgetView: View {
     .foregroundStyle(.secondary)
     .padding(.leading, 74)
     .padding(.top, 2)
+    .frame(height: 16, alignment: .topLeading)
   }
 
   private func emptyMessage(_ message: String) -> some View {
@@ -230,18 +264,32 @@ private extension WidgetAgendaSnapshot {
     coverageEnd: .now.addingTimeInterval(48 * 3600),
     events: [
       WidgetAgendaEvent(
-        title: "Focus time",
-        startDate: Calendar.current.startOfDay(for: .now),
-        endDate: Calendar.current.startOfDay(for: .now).addingTimeInterval(24 * 3600),
-        allDay: true,
-        colorHex: "#4b87e8"
-      ),
-      WidgetAgendaEvent(
         title: "Design review",
         startDate: .now.addingTimeInterval(12 * 60),
         endDate: .now.addingTimeInterval(72 * 60),
         allDay: false,
         colorHex: "#087afb"
+      ),
+      WidgetAgendaEvent(
+        title: "Team sync",
+        startDate: .now.addingTimeInterval(90 * 60),
+        endDate: .now.addingTimeInterval(120 * 60),
+        allDay: false,
+        colorHex: "#9368c7"
+      ),
+      WidgetAgendaEvent(
+        title: "Focus time",
+        startDate: .now.addingTimeInterval(150 * 60),
+        endDate: .now.addingTimeInterval(210 * 60),
+        allDay: false,
+        colorHex: "#6ca8a8"
+      ),
+      WidgetAgendaEvent(
+        title: "Wrap up",
+        startDate: .now.addingTimeInterval(240 * 60),
+        endDate: .now.addingTimeInterval(270 * 60),
+        allDay: false,
+        colorHex: "#4b87e8"
       )
     ]
   )

@@ -39,25 +39,34 @@ struct WidgetAgendaSnapshot: Codable, Equatable {
   func presentation(at now: Date, calendar: Calendar = .current) -> WidgetAgendaPresentation {
     let start = calendar.startOfDay(for: now)
     guard let end = calendar.date(byAdding: .day, value: 1, to: start) else {
-      return WidgetAgendaPresentation(allDay: [], hero: nil, hiddenCount: 0, coversDay: false)
+      return WidgetAgendaPresentation(allDay: [], hero: nil, additionalEvents: [], hiddenCount: 0, coversDay: false)
     }
     let today = events.filter { $0.startDate < end && $0.endDate > start }
     let allDay = today.filter(\.allDay).sorted { $0.startDate < $1.startDate }
     let upcoming = today.filter { !$0.allDay && $0.endDate > now }
       .sorted { $0.startDate < $1.startDate }
     let imminent = imminentNextLeadMinutes.flatMap { leadMinutes in
-      upcoming.first { event in
+      upcoming.firstIndex { event in
         let startsIn = event.startDate.timeIntervalSince(now)
         return startsIn >= 0 && startsIn <= TimeInterval(max(0, leadMinutes)) * 60
       }
     }
     let visibleAllDay = Array(allDay.prefix(2))
+    // Remove only the selected occurrence, including when two calendars have
+    // identical event details. Keep the remaining agenda in time order.
+    let heroIndex = imminent ?? upcoming.lastIndex(where: { $0.startDate <= now }) ?? upcoming.indices.first
+    let additionalEvents = Array(upcoming.enumerated()
+      .filter { $0.offset != heroIndex }
+      .map(\.element)
+      .prefix(3))
     return WidgetAgendaPresentation(
       allDay: visibleAllDay,
       // Match the menubar's default choice when events overlap: the most
       // recently started active event, then the next event by start time.
-      hero: imminent ?? upcoming.last(where: { $0.startDate <= now }) ?? upcoming.first,
-      hiddenCount: max(0, allDay.count + upcoming.count - visibleAllDay.count - (upcoming.isEmpty ? 0 : 1)),
+      hero: heroIndex.map { upcoming[$0] },
+      additionalEvents: additionalEvents,
+      hiddenCount: max(0, allDay.count + upcoming.count - visibleAllDay.count
+        - (heroIndex == nil ? 0 : 1) - additionalEvents.count),
       coversDay: coverageEnd.map { $0 >= end } ?? false
     )
   }
@@ -87,6 +96,7 @@ struct WidgetAgendaSnapshot: Codable, Equatable {
 struct WidgetAgendaPresentation {
   var allDay: [WidgetAgendaEvent]
   var hero: WidgetAgendaEvent?
+  var additionalEvents: [WidgetAgendaEvent]
   var hiddenCount: Int
   var coversDay: Bool
 }
