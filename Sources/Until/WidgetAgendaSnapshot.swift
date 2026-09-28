@@ -39,7 +39,10 @@ struct WidgetAgendaSnapshot: Codable, Equatable {
   func presentation(at now: Date, calendar: Calendar = .current) -> WidgetAgendaPresentation {
     let start = calendar.startOfDay(for: now)
     guard let end = calendar.date(byAdding: .day, value: 1, to: start) else {
-      return WidgetAgendaPresentation(allDay: [], hero: nil, additionalEvents: [], hiddenCount: 0, coversDay: false)
+      return WidgetAgendaPresentation(
+        allDay: [], hero: nil, additionalEvents: [], hiddenCount: 0, coversDay: false,
+        dayEvents: [], hiddenAllDayCount: 0
+      )
     }
     let today = events.filter { $0.startDate < end && $0.endDate > start }
     let allDay = today.filter(\.allDay).sorted { $0.startDate < $1.startDate }
@@ -67,7 +70,9 @@ struct WidgetAgendaSnapshot: Codable, Equatable {
       additionalEvents: additionalEvents,
       hiddenCount: max(0, allDay.count + upcoming.count - visibleAllDay.count
         - (heroIndex == nil ? 0 : 1) - additionalEvents.count),
-      coversDay: coverageEnd.map { $0 >= end } ?? false
+      coversDay: coverageEnd.map { $0 >= end } ?? false,
+      dayEvents: today.filter { !$0.allDay }.sorted { $0.startDate < $1.startDate },
+      hiddenAllDayCount: allDay.count - visibleAllDay.count
     )
   }
 
@@ -99,6 +104,23 @@ struct WidgetAgendaPresentation {
   var additionalEvents: [WidgetAgendaEvent]
   var hiddenCount: Int
   var coversDay: Bool
+  var dayEvents: [WidgetAgendaEvent]
+  var hiddenAllDayCount: Int
+
+  var heroDayIndex: Int? {
+    hero.flatMap { dayEvents.firstIndex(of: $0) }
+  }
+
+  func dayEventRange(limit: Int) -> Range<Int> {
+    let count = min(max(0, limit), dayEvents.count)
+    guard count > 0 else { return 0..<0 }
+    // Show the full day when it fits. On crowded days keep the highlighted
+    // event visible with one preceding event for context.
+    let start = heroDayIndex.map { index in
+      index < count ? 0 : min(max(0, index - min(1, count - 1)), dayEvents.count - count)
+    } ?? 0
+    return start..<(start + count)
+  }
 }
 
 enum WidgetAgendaStore {

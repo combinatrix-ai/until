@@ -36,7 +36,7 @@ private struct AgendaWidget: Widget {
     }
     .configurationDisplayName("Until")
     .description("Today's events from Until")
-    .supportedFamilies([.systemMedium])
+    .supportedFamilies([.systemMedium, .systemLarge])
     .contentMarginsDisabled()
   }
 }
@@ -46,6 +46,7 @@ private struct AgendaWidget: Widget {
 }
 
 private struct AgendaWidgetView: View {
+  @Environment(\.widgetFamily) private var family
   let entry: AgendaEntry
 
   private var presentation: WidgetAgendaPresentation? {
@@ -54,7 +55,11 @@ private struct AgendaWidgetView: View {
 
   var body: some View {
     GeometryReader { geometry in
-      agenda(additionalEventCount: additionalEventCount(height: geometry.size.height))
+      if family == .systemLarge {
+        fullDayAgenda(height: geometry.size.height)
+      } else {
+        agenda(additionalEventCount: additionalEventCount(height: geometry.size.height))
+      }
     }
     .padding(10)
     .containerBackground(Color(nsColor: .textBackgroundColor), for: .widget)
@@ -70,15 +75,7 @@ private struct AgendaWidgetView: View {
 
   private func agenda(additionalEventCount: Int) -> some View {
     VStack(alignment: .leading, spacing: 0) {
-      HStack(alignment: .firstTextBaseline) {
-        Text(localized("Today"))
-          .font(.caption.weight(.bold))
-        Spacer()
-        Text(entry.date, format: .dateTime.month().day().weekday(.abbreviated))
-          .font(.caption2)
-      }
-      .foregroundStyle(.secondary)
-      .frame(height: 16, alignment: .top)
+      header
 
       if let snapshot = entry.snapshot, snapshot.authenticated, let presentation {
         if let hero = presentation.hero {
@@ -100,6 +97,59 @@ private struct AgendaWidgetView: View {
           }
           Spacer(minLength: 0)
           footer(snapshot: snapshot, hiddenCount: presentation.hiddenCount)
+        } else {
+          emptyMessage(presentation.coversDay ? localized("No events today") : localized("Open Until to refresh"))
+        }
+      } else {
+        emptyMessage(entry.snapshot?.authenticated == false
+          ? localized("Open Until to sign in") : localized("Open Until to refresh"))
+      }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+  }
+
+  private var header: some View {
+    HStack(alignment: .firstTextBaseline) {
+      Text(localized("Today"))
+        .font(.caption.weight(.bold))
+      Spacer()
+      Text(entry.date, format: .dateTime.month().day().weekday(.abbreviated))
+        .font(.caption2)
+    }
+    .foregroundStyle(.secondary)
+    .frame(height: 16, alignment: .top)
+  }
+
+  private func fullDayAgenda(height: CGFloat) -> some View {
+    VStack(alignment: .leading, spacing: 0) {
+      header
+      if let snapshot = entry.snapshot, snapshot.authenticated, let presentation {
+        if !presentation.dayEvents.isEmpty || !presentation.allDay.isEmpty {
+          let heroIndex = presentation.heroDayIndex
+          let showsNowLine = presentation.hero.map { $0.startDate > entry.date } ?? false
+          let headerAndAllDayHeight = CGFloat(32 + presentation.allDay.count * 17)
+          let heroHeight: CGFloat = heroIndex == nil ? 0 : 58
+          let nowLineHeight: CGFloat = showsNowLine ? 13 : 0
+          let reserved = headerAndAllDayHeight + heroHeight + nowLineHeight
+          let regularCount = presentation.dayEvents.count - (heroIndex == nil ? 0 : 1)
+          let available = max(0, height - reserved)
+          let rowHeight = min(26, max(18, available / CGFloat(max(1, regularCount))))
+          let limit = Int(available / rowHeight) + (heroIndex == nil ? 0 : 1)
+          let range = presentation.dayEventRange(limit: limit)
+          ForEach(presentation.allDay.indices, id: \.self) { index in
+            allDayRow(presentation.allDay[index])
+          }
+          ForEach(range, id: \.self) { index in
+            let event = presentation.dayEvents[index]
+            if index == heroIndex {
+              if showsNowLine { nowLine() }
+              heroRow(event)
+            } else {
+              additionalRow(event, height: rowHeight)
+            }
+          }
+          footer(snapshot: snapshot, hiddenCount: presentation.hiddenAllDayCount
+            + presentation.dayEvents.count - range.count)
         } else {
           emptyMessage(presentation.coversDay ? localized("No events today") : localized("Open Until to refresh"))
         }
@@ -178,8 +228,8 @@ private struct AgendaWidgetView: View {
     .frame(height: 58, alignment: .top)
   }
 
-  private func additionalRow(_ event: WidgetAgendaEvent) -> some View {
-    let isNow = event.startDate <= entry.date
+  private func additionalRow(_ event: WidgetAgendaEvent, height: CGFloat = 18) -> some View {
+    let isNow = event.startDate <= entry.date && event.endDate > entry.date
     let tint: Color = isNow ? .green : (Color(hex: event.colorHex) ?? .accentColor)
     return HStack(spacing: 0) {
       Text(event.startDate, format: .dateTime.hour().minute())
@@ -194,7 +244,8 @@ private struct AgendaWidgetView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
     }
-    .frame(height: 18)
+    .frame(height: height)
+    .opacity(event.endDate <= entry.date ? 0.45 : 1)
   }
 
   private func footer(snapshot: WidgetAgendaSnapshot, hiddenCount: Int) -> some View {
@@ -204,7 +255,7 @@ private struct AgendaWidgetView: View {
       } else if hiddenCount > 0 {
         Text(String(format: localized("more_count"), hiddenCount))
       } else {
-        Text(" ")
+        Text(localized("End"))
       }
     }
     .font(.system(size: 10, weight: .medium))

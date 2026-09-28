@@ -46,6 +46,7 @@ final class WidgetAgendaSnapshotTests: XCTestCase {
     XCTAssertEqual(view.allDay, [allDay])
     XCTAssertEqual(view.hero, current)
     XCTAssertEqual(view.additionalEvents, [later])
+    XCTAssertEqual(view.dayEvents, [elapsed, current, later])
     XCTAssertEqual(view.hiddenCount, 0)
     XCTAssertTrue(view.coversDay)
   }
@@ -205,6 +206,31 @@ final class WidgetAgendaSnapshotTests: XCTestCase {
     XCTAssertEqual(view.hero, event)
     XCTAssertEqual(view.additionalEvents, [event])
     XCTAssertEqual(view.hiddenCount, 0)
+  }
+
+  func testFullDayWindowKeepsHighlightedEventOnCrowdedDays() throws {
+    let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 9, day: 28)))
+    let events = (0..<20).map { hour in
+      WidgetAgendaEvent(
+        title: "Event \(hour)", startDate: day.addingTimeInterval(Double(hour) * 3600),
+        endDate: day.addingTimeInterval(Double(hour + 1) * 3600), allDay: false, colorHex: "#123456"
+      )
+    }
+    let snapshot = WidgetAgendaSnapshot(
+      authenticated: true, lastSync: day, coverageEnd: day.addingTimeInterval(86400), events: events
+    )
+    let view = snapshot.presentation(at: day.addingTimeInterval(15.5 * 3600), calendar: calendar)
+    XCTAssertEqual(view.dayEvents, events)
+    XCTAssertEqual(view.heroDayIndex, 15)
+    XCTAssertEqual(view.dayEventRange(limit: 20), 0..<20)
+    XCTAssertEqual(view.dayEventRange(limit: 6), 14..<20)
+    XCTAssertEqual(view.dayEventRange(limit: 1), 15..<16)
+    XCTAssertEqual(view.dayEventRange(limit: 0), 0..<0)
+
+    let finished = snapshot.presentation(at: day.addingTimeInterval(22 * 3600), calendar: calendar)
+    XCTAssertNil(finished.hero)
+    XCTAssertEqual(finished.dayEvents, events)
+    XCTAssertEqual(finished.dayEventRange(limit: 20), 0..<20)
   }
 
   func testSnapshotRoundTripsThroughSharedFile() throws {
