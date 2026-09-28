@@ -102,6 +102,36 @@ final class WidgetAgendaSnapshotTests: XCTestCase {
     XCTAssertEqual(snapshot.presentation(at: later.endDate, calendar: calendar).hero, next)
   }
 
+  func testPresentationUsesMenubarImminentNextPreference() throws {
+    let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 9, day: 28)))
+    let now = day.addingTimeInterval(12 * 3600)
+    let current = WidgetAgendaEvent(
+      title: "Current",
+      startDate: day.addingTimeInterval(11 * 3600),
+      endDate: day.addingTimeInterval(13 * 3600),
+      allDay: false,
+      colorHex: "#123456"
+    )
+    let next = WidgetAgendaEvent(
+      title: "Next",
+      startDate: now.addingTimeInterval(5 * 60),
+      endDate: day.addingTimeInterval(14 * 3600),
+      allDay: false,
+      colorHex: "#123456"
+    )
+    let snapshot = WidgetAgendaSnapshot(
+      authenticated: true,
+      lastSync: now,
+      coverageEnd: day.addingTimeInterval(24 * 3600),
+      events: [current, next],
+      imminentNextLeadMinutes: 10
+    )
+
+    XCTAssertEqual(snapshot.presentation(at: now, calendar: calendar).hero, next)
+    XCTAssertEqual(snapshot.presentation(at: now.addingTimeInterval(-6 * 60), calendar: calendar).hero, current)
+    XCTAssertEqual(snapshot.presentation(at: next.startDate, calendar: calendar).hero, next)
+  }
+
   func testTransitionsAreFutureSortedAndUnique() throws {
     let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 9, day: 28)))
     let now = day.addingTimeInterval(12 * 3600)

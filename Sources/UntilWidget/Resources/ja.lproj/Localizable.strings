@@ -1,4 +1,6 @@
 "Today" = "今日";
+"NOW" = "進行中";
+"NEXT" = "次の予定";
 "all-day" = "終日";
 "No events today" = "今日は予定なし";
 "Open Until to refresh" = "Until を開いて更新";

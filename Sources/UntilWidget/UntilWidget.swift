@@ -135,7 +135,7 @@ private struct AgendaWidgetView: View {
         .padding(.top, 7)
       VStack(alignment: .leading, spacing: 2) {
         HStack {
-          Text(isNow ? "NOW" : "NEXT")
+          Text(localized(isNow ? "NOW" : "NEXT"))
             .tracking(0.6)
           Spacer(minLength: 3)
           Text(isNow ? event.endDate : event.startDate, style: .relative)

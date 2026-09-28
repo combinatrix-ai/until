@@ -829,7 +829,8 @@ final class AppModel: ObservableObject {
           allDay: event.allDay,
           colorHex: event.calendar.backgroundColor
         )
-      }
+      },
+      imminentNextLeadMinutes: config.menubarPrefersImminentNext ? config.notifyLeadMinutes : nil
     )
     let previous = WidgetAgendaStore.read(from: url)
     guard previous != snapshot else { return }
@@ -839,7 +840,8 @@ final class AppModel: ObservableObject {
       let coverageChanged = dayEnd.map { end in
         (previous?.coverageEnd.map { $0 >= end } ?? false) != (snapshot.coverageEnd.map { $0 >= end } ?? false)
       } ?? false
-      if previous?.events != snapshot.events || previous?.authenticated != snapshot.authenticated || coverageChanged {
+      if previous?.events != snapshot.events || previous?.authenticated != snapshot.authenticated
+        || previous?.imminentNextLeadMinutes != snapshot.imminentNextLeadMinutes || coverageChanged {
         WidgetCenter.shared.reloadTimelines(ofKind: WidgetAgendaStore.widgetKind)
       }
     } catch {
