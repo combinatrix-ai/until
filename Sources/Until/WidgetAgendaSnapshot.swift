@@ -33,7 +33,9 @@ struct WidgetAgendaSnapshot: Codable, Equatable {
     let visibleAllDay = Array(allDay.prefix(2))
     return WidgetAgendaPresentation(
       allDay: visibleAllDay,
-      hero: upcoming.first,
+      // Match the menubar's default choice when events overlap: the most
+      // recently started active event, then the next event by start time.
+      hero: upcoming.last(where: { $0.startDate <= now }) ?? upcoming.first,
       hiddenCount: max(0, allDay.count + upcoming.count - visibleAllDay.count - (upcoming.isEmpty ? 0 : 1)),
       coversDay: coverageEnd.map { $0 >= end } ?? false
     )

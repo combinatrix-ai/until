@@ -67,6 +67,41 @@ final class WidgetAgendaSnapshotTests: XCTestCase {
     XCTAssertTrue(snapshot.presentation(at: day, calendar: calendar).allDay.isEmpty)
   }
 
+  func testPresentationPrefersMostRecentlyStartedCurrentEvent() throws {
+    let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 9, day: 28)))
+    let now = day.addingTimeInterval(12 * 3600)
+    let earlier = WidgetAgendaEvent(
+      title: "Earlier",
+      startDate: day.addingTimeInterval(10 * 3600),
+      endDate: day.addingTimeInterval(13 * 3600),
+      allDay: false,
+      colorHex: "#123456"
+    )
+    let later = WidgetAgendaEvent(
+      title: "Later",
+      startDate: day.addingTimeInterval(11 * 3600),
+      endDate: day.addingTimeInterval(14 * 3600),
+      allDay: false,
+      colorHex: "#123456"
+    )
+    let next = WidgetAgendaEvent(
+      title: "Next",
+      startDate: day.addingTimeInterval(15 * 3600),
+      endDate: day.addingTimeInterval(16 * 3600),
+      allDay: false,
+      colorHex: "#123456"
+    )
+    let snapshot = WidgetAgendaSnapshot(
+      authenticated: true,
+      lastSync: now,
+      coverageEnd: day.addingTimeInterval(24 * 3600),
+      events: [next, earlier, later]
+    )
+
+    XCTAssertEqual(snapshot.presentation(at: now, calendar: calendar).hero, later)
+    XCTAssertEqual(snapshot.presentation(at: later.endDate, calendar: calendar).hero, next)
+  }
+
   func testTransitionsAreFutureSortedAndUnique() throws {
     let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 9, day: 28)))
     let now = day.addingTimeInterval(12 * 3600)

@@ -69,7 +69,9 @@ private struct AgendaWidgetView: View {
           ForEach(presentation.allDay.indices, id: \.self) { index in
             allDayRow(presentation.allDay[index])
           }
-          nowLine()
+          if hero.startDate > entry.date {
+            nowLine()
+          }
           heroRow(hero)
           footer(snapshot: snapshot, presentation: presentation)
         } else if !presentation.allDay.isEmpty {
