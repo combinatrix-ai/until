@@ -101,6 +101,13 @@ if [[ -d "$RESOURCE_BUNDLE" ]]; then
   # App Store validation (error 90276) rejects nested bundles without a
   # CFBundleIdentifier, so fill in the standard identity keys here.
   RB_PLIST="$APP_DIR/Contents/Resources/Until_Until.bundle/Contents/Info.plist"
+  if [[ ! -f "$RB_PLIST" ]]; then
+    RB_PLIST="$APP_DIR/Contents/Resources/Until_Until.bundle/Info.plist"
+  fi
+  if [[ ! -f "$RB_PLIST" ]]; then
+    echo "Error: Info.plist not found in $RESOURCE_BUNDLE." >&2
+    exit 1
+  fi
   plutil -replace CFBundleIdentifier -string "ai.combinatrix.until.resources" "$RB_PLIST"
   plutil -replace CFBundleName -string "Until_Until" "$RB_PLIST"
   plutil -replace CFBundlePackageType -string "BNDL" "$RB_PLIST"

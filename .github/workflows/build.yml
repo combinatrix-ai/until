@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -26,18 +29,26 @@ jobs:
 
       - name: Build app bundle
         env:
-          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
-          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ github.event_name != 'pull_request' && secrets.GOOGLE_OAUTH_CLIENT_ID || '' }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ github.event_name != 'pull_request' && secrets.GOOGLE_OAUTH_CLIENT_SECRET || '' }}
         run: |
-          : "${GOOGLE_OAUTH_CLIENT_ID:?Missing GOOGLE_OAUTH_CLIENT_ID secret}"
-          : "${GOOGLE_OAUTH_CLIENT_SECRET:?Missing GOOGLE_OAUTH_CLIENT_SECRET secret}"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            GOOGLE_OAUTH_CLIENT_ID=ci-placeholder
+            GOOGLE_OAUTH_CLIENT_SECRET=ci-placeholder
+          else
+            : "${GOOGLE_OAUTH_CLIENT_ID:?Missing GOOGLE_OAUTH_CLIENT_ID secret}"
+            : "${GOOGLE_OAUTH_CLIENT_SECRET:?Missing GOOGLE_OAUTH_CLIENT_SECRET secret}"
+          fi
+          export GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET
           CONFIGURATION=release scripts/package-app.sh
 
       - name: Archive app bundle
+        if: github.event_name != 'pull_request'
         run: |
           ditto -c -k --keepParent .build/release/Until.app Until-${GITHUB_SHA}.zip
 
       - name: Upload app artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: Until-${{ github.sha }}
