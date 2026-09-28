@@ -44,12 +44,13 @@ echo "Built: $APP_DIR"
 # Fail early if the app signature is malformed or its sandbox entitlements were
 # not sealed into the bundle.
 codesign --verify --strict --verbose=2 "$APP_DIR"
-entitlements="$(codesign -d --entitlements :- "$APP_DIR" 2>/dev/null)"
+entitlements="$(codesign -d --entitlements - "$APP_DIR" 2>/dev/null)"
 for key in \
   'com.apple.security.app-sandbox' \
+  'com.apple.security.application-groups' \
   'com.apple.security.network.client' \
   'com.apple.security.network.server'; do
-  [[ "$entitlements" == *"<key>$key</key>"* ]] || {
+  [[ "$entitlements" == *"[Key] $key"* ]] || {
     echo "Error: signed app is missing entitlement '$key'." >&2
     exit 1
   }

@@ -23,6 +23,59 @@ APP_NAME="Until"
 APP_DIR="$ROOT/.build/$CONFIGURATION/$APP_NAME.app"
 EXECUTABLE="$ROOT/.build/$CONFIGURATION/Until"
 
+# The App Group's prefix must match the team that signs both bundles. Resolve
+# the identity before writing either Info.plist or the signing entitlements.
+DISTRIBUTION="${DISTRIBUTION:-0}"
+codesign_identity="${CODESIGN_IDENTITY:-}"
+if [[ -z "$codesign_identity" ]]; then
+  if [[ "$MAS" == "1" ]]; then
+    identity_patterns=('Apple Distribution' '3rd Party Mac Developer Application' 'Apple Development')
+  elif [[ "$DISTRIBUTION" == "1" ]]; then
+    identity_patterns=('Developer ID Application')
+  else
+    identity_patterns=('Apple Development')
+  fi
+  for identity_pattern in "${identity_patterns[@]}"; do
+    codesign_identity="$(
+      security find-identity -v -p codesigning 2>/dev/null \
+        | sed -n "s/.*\"\\(${identity_pattern}:[^\"]*\\)\".*/\\1/p" \
+        | head -n 1
+    )"
+    [[ -n "$codesign_identity" ]] && break
+  done
+fi
+
+signing_team=""
+if [[ -n "$codesign_identity" ]]; then
+  # The suffix in an Apple Development certificate's common name identifies
+  # the developer account. Its OU field is the actual signing team.
+  certificate_subject="$(
+    security find-certificate -c "$codesign_identity" -p 2>/dev/null \
+      | openssl x509 -noout -subject -nameopt RFC2253 2>/dev/null || true
+  )"
+  signing_team="$(sed -n 's/.*OU=\([A-Z0-9]\{10\}\).*/\1/p' <<< "$certificate_subject")"
+fi
+if [[ -n "${TEAM_ID:-}" && ! "$TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]; then
+  echo "Error: TEAM_ID must be a 10-character Apple Developer Team ID." >&2
+  exit 1
+fi
+if [[ -n "$signing_team" && -n "${TEAM_ID:-}" && "$signing_team" != "$TEAM_ID" ]]; then
+  echo "Error: TEAM_ID does not match the selected signing identity." >&2
+  exit 1
+fi
+signing_team="${TEAM_ID:-$signing_team}"
+if [[ -n "$codesign_identity" && -z "$signing_team" ]]; then
+  echo "Error: cannot determine signing team; set TEAM_ID or use a full signing identity." >&2
+  exit 1
+fi
+WIDGET_GROUP_ID="${signing_team:+$signing_team.ai.combinatrix.until}"
+entitlements_dir="$(mktemp -d -t until-entitlements)"
+trap 'rm -rf "$entitlements_dir"' EXIT
+for kind in app widget mas; do
+  sed "s|__WIDGET_GROUP__|$WIDGET_GROUP_ID|g" \
+    "$ROOT/scripts/entitlements/$kind.entitlements" > "$entitlements_dir/$kind.entitlements"
+done
+
 build_args=()
 if [[ -n "$CONFIGURATION" ]]; then
   build_args=(--configuration "$CONFIGURATION")
@@ -90,6 +143,13 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <string>Until</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key><string>ai.combinatrix.until.agenda</string>
+      <key>CFBundleURLSchemes</key><array><string>until</string></array>
+    </dict>
+  </array>
   <key>CFBundleShortVersionString</key>
   <string>${APP_VERSION}</string>
   <key>CFBundleVersion</key>
@@ -104,6 +164,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <false/>
   <key>NSUserNotificationAlertStyle</key>
   <string>alert</string>
+  <key>UntilWidgetGroupIdentifier</key>
+  <string>${WIDGET_GROUP_ID}</string>
   <key>GoogleOAuthClientID</key>
   <string>${GOOGLE_OAUTH_CLIENT_ID}</string>
   <key>GoogleOAuthClientSecret</key>
@@ -120,6 +182,33 @@ if [[ ! -f "$ICON_SRC" ]]; then
   swift "$ROOT/scripts/make-icon.swift" >/dev/null
 fi
 cp "$ICON_SRC" "$APP_DIR/Contents/Resources/Until.icns"
+
+# WidgetKit runs in its own process. Build a small extension executable using
+# the same pure snapshot model as the app, then embed it at the standard macOS
+# app-extension location. The extension never receives OAuth credentials.
+WIDGET_DIR="$APP_DIR/Contents/PlugIns/UntilWidget.appex"
+mkdir -p "$WIDGET_DIR/Contents/MacOS" "$WIDGET_DIR/Contents/Resources"
+widget_compile_args=(
+  -parse-as-library
+  -application-extension
+  -swift-version 5
+  -target "$(uname -m)-apple-macos14.0"
+  -module-cache-path "$ROOT/.build/widget-module-cache"
+  -framework SwiftUI
+  -framework WidgetKit
+)
+if [[ "$CONFIGURATION" == "release" ]]; then
+  widget_compile_args+=(-O)
+fi
+xcrun swiftc "${widget_compile_args[@]}" \
+  "$ROOT/Sources/Until/WidgetAgendaSnapshot.swift" \
+  "$ROOT/Sources/UntilWidget/UntilWidget.swift" \
+  -o "$WIDGET_DIR/Contents/MacOS/UntilWidget"
+cp "$ROOT/Sources/UntilWidget/Info.plist" "$WIDGET_DIR/Contents/Info.plist"
+plutil -replace CFBundleShortVersionString -string "$APP_VERSION" "$WIDGET_DIR/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$WIDGET_DIR/Contents/Info.plist"
+plutil -insert UntilWidgetGroupIdentifier -string "$WIDGET_GROUP_ID" "$WIDGET_DIR/Contents/Info.plist"
+cp -R "$ROOT/Sources/UntilWidget/Resources/." "$WIDGET_DIR/Contents/Resources/"
 
 if [[ "$MAS" != "1" ]]; then
   # Embed Sparkle.framework (auto-update). SwiftPM links against the xcframework
@@ -153,32 +242,6 @@ xattr -cr "$APP_DIR"
 #   hardened runtime and a secure timestamp — both prerequisites for
 #   notarization. Driven by scripts/release.sh.
 if [[ "$MAS" == "1" ]]; then
-  codesign_identity="${CODESIGN_IDENTITY:-}"
-  if [[ -z "$codesign_identity" ]]; then
-    for identity_pattern in \
-      'Apple Distribution' \
-      '3rd Party Mac Developer Application'; do
-      codesign_identity="$(
-        security find-identity -v -p codesigning 2>/dev/null \
-          | sed -n "s/.*\"\\(${identity_pattern}:[^\"]*\\)\".*/\\1/p" \
-          | head -n 1
-      )"
-      [[ -n "$codesign_identity" ]] && break
-    done
-  fi
-
-  if [[ -z "$codesign_identity" ]]; then
-    identity_pattern='Apple Development'
-    codesign_identity="$(
-      security find-identity -v -p codesigning 2>/dev/null \
-        | sed -n "s/.*\"\\(${identity_pattern}:[^\"]*\\)\".*/\\1/p" \
-        | head -n 1
-    )"
-    if [[ -n "$codesign_identity" ]]; then
-      echo "Warning: no Apple Distribution or 3rd Party Mac Developer Application identity found; using '$codesign_identity'. This is a local-test signature only; the app is still sandboxed but cannot be submitted to the Mac App Store." >&2
-    fi
-  fi
-
   if [[ -n "$codesign_identity" ]]; then
     if [[ "$codesign_identity" == "Apple Development"* ]]; then
       echo "Warning: MAS build is signed with Apple Development; this is a local-test signature only and cannot be submitted to the Mac App Store." >&2
@@ -190,14 +253,14 @@ if [[ "$MAS" == "1" ]]; then
     # authorizing them, AMFI refuses to launch the app (launchd spawn error 163).
     # So inject them only when both TEAM_ID and a profile are present; the base
     # file alone gives a locally testable sandboxed app.
-    entitlements_file="$ROOT/scripts/entitlements/mas.entitlements"
+    entitlements_file="$entitlements_dir/mas.entitlements"
     if [[ -n "${TEAM_ID:-}" && -n "${MAS_PROVISIONING_PROFILE:-}" ]]; then
-      entitlements_file="$(mktemp -t until-mas-entitlements).plist"
+      entitlements_file="$entitlements_dir/mas-profile.entitlements"
       sed "s|</dict>|  <key>com.apple.application-identifier</key>\\
   <string>${TEAM_ID}.ai.combinatrix.until</string>\\
   <key>com.apple.developer.team-identifier</key>\\
   <string>${TEAM_ID}</string>\\
-</dict>|" "$ROOT/scripts/entitlements/mas.entitlements" > "$entitlements_file"
+</dict>|" "$entitlements_dir/mas.entitlements" > "$entitlements_file"
     fi
 
     # Sign the nested resource bundle first (no entitlements — it has no code),
@@ -206,6 +269,8 @@ if [[ "$MAS" == "1" ]]; then
     if [[ -d "$RB_BUNDLE" ]]; then
       codesign --force --sign "$codesign_identity" --timestamp=none "$RB_BUNDLE" >/dev/null
     fi
+    codesign --force --sign "$codesign_identity" --timestamp=none \
+      --entitlements "$entitlements_dir/widget.entitlements" "$WIDGET_DIR" >/dev/null
 
     codesign_args=(
       --force
@@ -223,22 +288,6 @@ if [[ "$MAS" == "1" ]]; then
   exit 0
 fi
 
-DISTRIBUTION="${DISTRIBUTION:-0}"
-if [[ "$DISTRIBUTION" == "1" ]]; then
-  identity_pattern='Developer ID Application'
-else
-  identity_pattern='Apple Development'
-fi
-
-codesign_identity="${CODESIGN_IDENTITY:-}"
-if [[ -z "$codesign_identity" ]]; then
-  codesign_identity="$(
-    security find-identity -v -p codesigning 2>/dev/null \
-      | sed -n "s/.*\"\\(${identity_pattern}:[^\"]*\\)\".*/\\1/p" \
-      | head -n 1
-  )"
-fi
-
 if [[ -n "$codesign_identity" ]]; then
   codesign_args=(--force --sign "$codesign_identity")
   if [[ "$DISTRIBUTION" == "1" ]]; then
@@ -252,6 +301,8 @@ if [[ -n "$codesign_identity" ]]; then
   if [[ -d "$RB_BUNDLE" ]]; then
     codesign "${codesign_args[@]}" "$RB_BUNDLE" >/dev/null
   fi
+  codesign "${codesign_args[@]}" \
+    --entitlements "$entitlements_dir/widget.entitlements" "$WIDGET_DIR" >/dev/null
 
   # Sparkle ships nested helper code (XPC services, the Autoupdate CLI, and the
   # Updater UI app) that codesign will NOT reach when sealing the outer app
@@ -272,13 +323,14 @@ if [[ -n "$codesign_identity" ]]; then
     codesign "${codesign_args[@]}" "$SPARKLE_FW" >/dev/null
   fi
 
-  codesign "${codesign_args[@]}" "$APP_DIR" >/dev/null
+  codesign "${codesign_args[@]}" \
+    --entitlements "$entitlements_dir/app.entitlements" "$APP_DIR" >/dev/null
   echo "Signed with: $codesign_identity"
 elif [[ "$DISTRIBUTION" == "1" ]]; then
-  echo "Error: no '$identity_pattern' codesigning identity found; cannot build a distributable app." >&2
+  echo "Error: no Developer ID Application signing identity found; cannot build a distributable app." >&2
   exit 1
 else
-  echo "Warning: no '$identity_pattern' codesigning identity found; Keychain may ask again after rebuilds." >&2
+  echo "Warning: no Apple Development signing identity found; Keychain may ask again after rebuilds." >&2
 fi
 
 echo "$APP_DIR"
