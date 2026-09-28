@@ -191,6 +191,10 @@ mkdir -p "$WIDGET_DIR/Contents/MacOS" "$WIDGET_DIR/Contents/Resources"
 widget_compile_args=(
   -parse-as-library
   -application-extension
+  # ExtensionKit must bootstrap through Foundation's extension entry point.
+  # A plain swiftc executable starts at Swift's _main instead and crashes
+  # when WidgetKit asks ExtensionFoundation to initialize the widget.
+  -Xlinker -e -Xlinker _NSExtensionMain
   -swift-version 5
   -target "$(uname -m)-apple-macos14.0"
   -module-cache-path "$ROOT/.build/widget-module-cache"
