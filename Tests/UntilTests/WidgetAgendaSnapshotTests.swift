@@ -130,6 +130,8 @@ final class WidgetAgendaSnapshotTests: XCTestCase {
     XCTAssertEqual(snapshot.presentation(at: now, calendar: calendar).hero, next)
     XCTAssertEqual(snapshot.presentation(at: now.addingTimeInterval(-6 * 60), calendar: calendar).hero, current)
     XCTAssertEqual(snapshot.presentation(at: next.startDate, calendar: calendar).hero, next)
+    XCTAssertTrue(snapshot.transitionDates(after: now.addingTimeInterval(-6 * 60), calendar: calendar)
+      .contains(next.startDate.addingTimeInterval(-10 * 60)))
   }
 
   func testTransitionsAreFutureSortedAndUnique() throws {

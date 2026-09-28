@@ -48,7 +48,7 @@ struct WidgetAgendaSnapshot: Codable, Equatable {
     let imminent = imminentNextLeadMinutes.flatMap { leadMinutes in
       upcoming.first { event in
         let startsIn = event.startDate.timeIntervalSince(now)
-        return startsIn >= 0 && startsIn <= TimeInterval(max(0, leadMinutes) * 60)
+        return startsIn >= 0 && startsIn <= TimeInterval(max(0, leadMinutes)) * 60
       }
     }
     let visibleAllDay = Array(allDay.prefix(2))
@@ -69,7 +69,13 @@ struct WidgetAgendaSnapshot: Codable, Equatable {
       to: calendar.startOfDay(for: now)
     )
     let horizon = now.addingTimeInterval(24 * 3600)
-    return ([endOfToday].compactMap { $0 } + events.flatMap { [$0.startDate, $0.endDate] })
+    let imminentBoundaries = imminentNextLeadMinutes.map { leadMinutes in
+      events.filter { !$0.allDay }.map { event in
+        event.startDate.addingTimeInterval(-TimeInterval(max(0, leadMinutes)) * 60)
+      }
+    } ?? []
+    return ([endOfToday].compactMap { $0 } + events.flatMap { [$0.startDate, $0.endDate] }
+      + imminentBoundaries)
       .filter { $0 > now && $0 <= horizon }
       .sorted()
       .reduce(into: [Date]()) { result, date in
