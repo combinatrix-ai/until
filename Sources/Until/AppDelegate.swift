@@ -6,6 +6,7 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let model: AppModel
   private var statusController: StatusBarController?
+  private var showAgendaOnLaunch = false
 
   init(options: AppRuntimeOptions = .fromProcess()) {
     model = AppModel(options: options)
@@ -14,6 +15,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     statusController = StatusBarController(model: model)
+    if showAgendaOnLaunch {
+      statusController?.showPopover()
+      showAgendaOnLaunch = false
+    }
+  }
+
+  func application(_ application: NSApplication, open urls: [URL]) {
+    guard urls.contains(where: { $0.scheme == "until" && $0.host == "agenda" }) else { return }
+    if let statusController {
+      statusController.showPopover()
+    } else {
+      showAgendaOnLaunch = true
+    }
   }
 
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -178,6 +192,15 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
       popover.performClose(sender)
     } else {
       popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
+      popover.contentViewController?.view.window?.makeKey()
+    }
+  }
+
+  func showPopover() {
+    guard let button = item.button else { return }
+    NSApp.activate(ignoringOtherApps: true)
+    if !popover.isShown {
+      popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
       popover.contentViewController?.view.window?.makeKey()
     }
   }

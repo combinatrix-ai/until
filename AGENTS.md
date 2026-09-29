@@ -4,6 +4,12 @@ macOS menubar calendar app (Swift + SwiftUI/AppKit). Shows your next Google
 Calendar event in the menubar, filtered by user-authored structured rules.
 The SwiftPM package, target, and product are **Until** (bundle id `ai.combinatrix.until`).
 
+## Development workflow
+
+Make changes on a topic branch, push that branch, and open a pull request
+targeting `main`. Do not push directly or force-push to `main`; merge through
+the pull request after its checks pass.
+
 ## Install
 ```
 swift build

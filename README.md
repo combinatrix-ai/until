@@ -22,6 +22,8 @@ Privacy policy: <https://until.combinatrix.ai/privacy.html>
 - **Your day on one timeline** — the popover opens on the present moment: the
   current or next event sits inline as a card, the rest of the day runs above
   and below it on a single rail, and free gaps are called out between them.
+- **Today at a glance** — native macOS widgets show today's agenda, highlighting
+  the current or next event alongside all-day and upcoming events.
 - **Never lose the current meeting** — when the next event closes in, the
   countdown switches ahead while the meeting you're still in stays marked NOW
   on the timeline.

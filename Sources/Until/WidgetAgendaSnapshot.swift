@@ -1,0 +1,147 @@
+import Foundation
+
+struct WidgetAgendaEvent: Codable, Equatable, Hashable {
+  var title: String
+  var startDate: Date
+  var endDate: Date
+  var allDay: Bool
+  var colorHex: String
+}
+
+struct WidgetAgendaSnapshot: Codable, Equatable {
+  var authenticated: Bool
+  var lastSync: Date?
+  var coverageEnd: Date?
+  var events: [WidgetAgendaEvent]
+  var imminentNextLeadMinutes: Int?
+
+  init(
+    authenticated: Bool,
+    lastSync: Date?,
+    coverageEnd: Date?,
+    events: [WidgetAgendaEvent],
+    imminentNextLeadMinutes: Int? = nil
+  ) {
+    self.authenticated = authenticated
+    self.lastSync = lastSync
+    self.coverageEnd = coverageEnd
+    self.events = events
+    self.imminentNextLeadMinutes = imminentNextLeadMinutes
+  }
+
+  static let signedOut = WidgetAgendaSnapshot(
+    authenticated: false,
+    lastSync: nil,
+    coverageEnd: nil,
+    events: []
+  )
+
+  func presentation(at now: Date, calendar: Calendar = .current) -> WidgetAgendaPresentation {
+    let start = calendar.startOfDay(for: now)
+    guard let end = calendar.date(byAdding: .day, value: 1, to: start) else {
+      return WidgetAgendaPresentation(
+        allDay: [], hero: nil, additionalEvents: [], hiddenCount: 0, coversDay: false,
+        dayEvents: [], hiddenAllDayCount: 0
+      )
+    }
+    let today = events.filter { $0.startDate < end && $0.endDate > start }
+    let allDay = today.filter(\.allDay).sorted { $0.startDate < $1.startDate }
+    let upcoming = today.filter { !$0.allDay && $0.endDate > now }
+      .sorted { $0.startDate < $1.startDate }
+    let imminent = imminentNextLeadMinutes.flatMap { leadMinutes in
+      upcoming.firstIndex { event in
+        let startsIn = event.startDate.timeIntervalSince(now)
+        return startsIn >= 0 && startsIn <= TimeInterval(max(0, leadMinutes)) * 60
+      }
+    }
+    let visibleAllDay = Array(allDay.prefix(2))
+    // Remove only the selected occurrence, including when two calendars have
+    // identical event details. Keep the remaining agenda in time order.
+    let heroIndex = imminent ?? upcoming.lastIndex(where: { $0.startDate <= now }) ?? upcoming.indices.first
+    let additionalEvents = Array(upcoming.enumerated()
+      .filter { $0.offset != heroIndex }
+      .map(\.element)
+      .prefix(3))
+    return WidgetAgendaPresentation(
+      allDay: visibleAllDay,
+      // Match the menubar's default choice when events overlap: the most
+      // recently started active event, then the next event by start time.
+      hero: heroIndex.map { upcoming[$0] },
+      additionalEvents: additionalEvents,
+      hiddenCount: max(0, allDay.count + upcoming.count - visibleAllDay.count
+        - (heroIndex == nil ? 0 : 1) - additionalEvents.count),
+      coversDay: coverageEnd.map { $0 >= end } ?? false,
+      dayEvents: today.filter { !$0.allDay }.sorted { $0.startDate < $1.startDate },
+      hiddenAllDayCount: allDay.count - visibleAllDay.count
+    )
+  }
+
+  func transitionDates(after now: Date, calendar: Calendar = .current) -> [Date] {
+    let endOfToday = calendar.date(
+      byAdding: .day,
+      value: 1,
+      to: calendar.startOfDay(for: now)
+    )
+    let horizon = now.addingTimeInterval(24 * 3600)
+    let imminentBoundaries = imminentNextLeadMinutes.map { leadMinutes in
+      events.filter { !$0.allDay }.map { event in
+        event.startDate.addingTimeInterval(-TimeInterval(max(0, leadMinutes)) * 60)
+      }
+    } ?? []
+    return ([endOfToday].compactMap { $0 } + events.flatMap { [$0.startDate, $0.endDate] }
+      + imminentBoundaries)
+      .filter { $0 > now && $0 <= horizon }
+      .sorted()
+      .reduce(into: [Date]()) { result, date in
+        if result.last != date { result.append(date) }
+      }
+  }
+}
+
+struct WidgetAgendaPresentation {
+  var allDay: [WidgetAgendaEvent]
+  var hero: WidgetAgendaEvent?
+  var additionalEvents: [WidgetAgendaEvent]
+  var hiddenCount: Int
+  var coversDay: Bool
+  var dayEvents: [WidgetAgendaEvent]
+  var hiddenAllDayCount: Int
+
+  var heroDayIndex: Int? {
+    hero.flatMap { dayEvents.firstIndex(of: $0) }
+  }
+
+  func dayEventRange(limit: Int) -> Range<Int> {
+    let count = min(max(0, limit), dayEvents.count)
+    guard count > 0 else { return 0..<0 }
+    // Show the full day when it fits. On crowded days keep the highlighted
+    // event visible with one preceding event for context.
+    let start = heroDayIndex.map { index in
+      index < count ? 0 : min(max(0, index - min(1, count - 1)), dayEvents.count - count)
+    } ?? 0
+    return start..<(start + count)
+  }
+}
+
+enum WidgetAgendaStore {
+  static let widgetKind = "ai.combinatrix.until.agenda"
+  static let fileName = "agenda.json"
+
+  static func sharedURL(fileManager: FileManager = .default) -> URL? {
+    guard let groupIdentifier = Bundle.main.object(
+      forInfoDictionaryKey: "UntilWidgetGroupIdentifier"
+    ) as? String, !groupIdentifier.isEmpty else { return nil }
+    return fileManager.containerURL(forSecurityApplicationGroupIdentifier: groupIdentifier)?
+      .appendingPathComponent(fileName)
+  }
+
+  static func read(from url: URL) -> WidgetAgendaSnapshot? {
+    guard let data = try? Data(contentsOf: url) else { return nil }
+    return try? JSONDecoder().decode(WidgetAgendaSnapshot.self, from: data)
+  }
+
+  static func write(_ snapshot: WidgetAgendaSnapshot, to url: URL) throws {
+    let data = try JSONEncoder().encode(snapshot)
+    try data.write(to: url, options: .atomic)
+  }
+}

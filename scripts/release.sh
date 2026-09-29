@@ -33,6 +33,7 @@ CODESIGN_IDENTITY="${CODESIGN_IDENTITY:?Set CODESIGN_IDENTITY to your Developer 
 APP_DIR="$(
   CONFIGURATION=release \
   DISTRIBUTION=1 \
+  TEAM_ID="$TEAM_ID" \
   CODESIGN_IDENTITY="$CODESIGN_IDENTITY" \
   "$ROOT/scripts/package-app.sh" | tail -n 1
 )"

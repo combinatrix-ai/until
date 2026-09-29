@@ -1,7 +1,9 @@
 import AppKit
 import Combine
 import Foundation
+import OSLog
 import ServiceManagement
+import WidgetKit
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -797,6 +799,7 @@ final class AppModel: ObservableObject {
     state.events = timed
     state.allDayEvents = allDay
     state.next = AppModel.pickMenubarEvent(config: config, timed: timed, allDay: allDay, now: now)
+    publishWidgetSnapshot()
     let activeEvents = timed.filter { $0.endDate > now }
     let notificationEvents = config.notifyVideoOnly
       ? activeEvents.filter { !$0.conferenceUrl.isEmpty }
@@ -808,6 +811,42 @@ final class AppModel: ObservableObject {
         leadMinutes: config.notifyLeadMinutes,
         enabled: config.notifyEnabled
       )
+    }
+  }
+
+  private func publishWidgetSnapshot() {
+    // Demo runs must not replace the real calendar shown by an installed widget.
+    guard !runtimeOptions.demoMode, let url = WidgetAgendaStore.sharedURL() else { return }
+    let snapshot = WidgetAgendaSnapshot(
+      authenticated: !accounts.isEmpty,
+      lastSync: state.lastSync,
+      coverageEnd: state.calendarCoverageEnd,
+      events: (state.allDayEvents + state.events).map { event in
+        WidgetAgendaEvent(
+          title: event.title,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          allDay: event.allDay,
+          colorHex: event.calendar.backgroundColor
+        )
+      },
+      imminentNextLeadMinutes: config.menubarPrefersImminentNext ? config.notifyLeadMinutes : nil
+    )
+    let previous = WidgetAgendaStore.read(from: url)
+    guard previous != snapshot else { return }
+    do {
+      try WidgetAgendaStore.write(snapshot, to: url)
+      let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now))
+      let coverageChanged = dayEnd.map { end in
+        (previous?.coverageEnd.map { $0 >= end } ?? false) != (snapshot.coverageEnd.map { $0 >= end } ?? false)
+      } ?? false
+      if previous?.events != snapshot.events || previous?.authenticated != snapshot.authenticated
+        || previous?.imminentNextLeadMinutes != snapshot.imminentNextLeadMinutes || coverageChanged {
+        WidgetCenter.shared.reloadTimelines(ofKind: WidgetAgendaStore.widgetKind)
+      }
+    } catch {
+      Logger(subsystem: "ai.combinatrix.until", category: "widget")
+        .error("Could not update widget snapshot")
     }
   }
 
