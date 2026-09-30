@@ -48,6 +48,9 @@ struct PanelView: View {
   @ViewBuilder
   private func content(now: Date) -> some View {
     let hasEvents = !(model.state.events.isEmpty && model.state.allDayEvents.isEmpty)
+    if model.isPreviewingSample {
+      SamplePreviewBanner(model: model)
+    }
     if !model.state.auth.authenticated {
       OnboardingView(model: model)
     } else if let error = model.state.lastError, !hasEvents {
@@ -340,117 +343,147 @@ struct GoogleDataDisclosureView: View {
   }
 }
 
-/// First-run experience shown in the popover when no Google account is connected.
-/// Lets the user sign in directly instead of digging through Preferences.
+/// First-run experience shown in the popover when no calendar is connected.
+/// Mac calendars come first (no sign-in); Google adds notes and Meet links; a
+/// sample day lets people see the timeline before choosing either.
 struct OnboardingView: View {
   @ObservedObject var model: AppModel
 
   var body: some View {
-    VStack(spacing: Theme.Spacing.xl) {
-      Spacer(minLength: 0)
-
-      VStack(spacing: Theme.Spacing.md) {
-        ZStack {
-          Circle()
-            .fill(Color.accentColor.opacity(0.12))
-            .frame(width: 72, height: 72)
-          Image(nsImage: BrandIcon.menubarImage(size: 36))
-            .renderingMode(.template)
-            .foregroundStyle(Color.accentColor)
-        }
-        VStack(spacing: Theme.Spacing.xs) {
+    ScrollView(.vertical) {
+      VStack(spacing: Theme.Spacing.lg) {
+        VStack(spacing: Theme.Spacing.sm) {
+          ZStack {
+            Circle()
+              .fill(Color.accentColor.opacity(0.12))
+              .frame(width: 56, height: 56)
+            Image(nsImage: BrandIcon.menubarImage(size: 28))
+              .renderingMode(.template)
+              .foregroundStyle(Color.accentColor)
+          }
           Text("Until")
             .font(.title2.weight(.semibold))
-          Text(loc("Your next Google Calendar event, always in the menubar."))
+          Text(loc("Your next meeting, always in the menubar."))
             .font(.callout)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
-            .frame(maxWidth: 280)
         }
-      }
 
-      VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-        FeatureRow(
-          systemImage: "menubar.arrow.up.rectangle",
-          title: loc("Glance at what's next"),
-          detail: loc("Your upcoming meeting lives in the menubar.")
-        )
-        FeatureRow(
-          systemImage: "bell.badge",
-          title: loc("Never miss a join"),
-          detail: loc("Native reminders before your video calls start.")
-        )
-        FeatureRow(
-          systemImage: "doc.text",
-          title: loc("One-click meeting notes"),
-          detail: loc("Open or create notes straight from an event.")
-        )
-      }
-      .frame(maxWidth: 300)
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+          optionHeader(systemImage: "calendar", title: loc("Calendars on this Mac"))
+          Text(loc("Use the events already in the Calendar app — iCloud, Google, Outlook, and more. No sign-in."))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+          Button {
+            model.enableMacCalendars()
+          } label: {
+            Text(loc("Use Calendars on This Mac"))
+              .frame(maxWidth: .infinity)
+          }
+          .controlSize(.large)
+          .buttonStyle(.borderedProminent)
+          .disabled(model.isSigningIn)
+          if let error = model.macCalendarError {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+              InlineErrorView(message: error)
+              Button(loc("Open System Settings")) { model.openCalendarPrivacySettings() }
+                .buttonStyle(.link)
+                .font(.caption)
+            }
+          }
+        }
+        .card(.inset, padding: Theme.Spacing.md)
 
-      VStack(spacing: Theme.Spacing.sm) {
-        GoogleDataDisclosureView()
-          .card(.inset, padding: Theme.Spacing.md)
+        HStack(spacing: Theme.Spacing.sm) {
+          Rectangle().fill(Color.secondary.opacity(0.2)).frame(height: 1)
+          Text(loc("or"))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+          Rectangle().fill(Color.secondary.opacity(0.2)).frame(height: 1)
+        }
+
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+          optionHeader(systemImage: "person.crop.circle", title: loc("Google account"))
+          Text(loc("Adds one-click meeting notes and Google Meet links."))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+          GoogleDataDisclosureView()
+          Button {
+            model.startLogin()
+          } label: {
+            HStack(spacing: Theme.Spacing.sm) {
+              if model.isSigningIn {
+                ProgressView()
+                  .controlSize(.small)
+              }
+              Text(model.isSigningIn ? loc("Opening Google sign-in…") : loc("Sign in with Google"))
+            }
+            .frame(maxWidth: .infinity)
+          }
+          .controlSize(.large)
+          .disabled(model.isSigningIn)
+
+          if model.isSigningIn {
+            Button(loc("Cancel")) {
+              model.cancelSignIn()
+            }
+            .buttonStyle(.borderless)
+            .frame(maxWidth: .infinity)
+          }
+          if let error = model.signInError ?? model.state.lastError {
+            InlineErrorView(message: error)
+          }
+        }
+        .card(.inset, padding: Theme.Spacing.md)
 
         Button {
-          model.startLogin()
+          model.startSamplePreview()
         } label: {
-          HStack(spacing: Theme.Spacing.sm) {
-            if model.isSigningIn {
-              ProgressView()
-                .controlSize(.small)
-            } else {
-              Image(systemName: "person.crop.circle.badge.plus")
-            }
-            Text(model.isSigningIn ? loc("Opening Google sign-in…") : loc("Sign in with Google"))
-          }
-          .frame(maxWidth: .infinity)
+          Label(loc("Try it with a sample day"), systemImage: "sparkles")
+            .font(.callout)
         }
-        .controlSize(.large)
-        .buttonStyle(.borderedProminent)
-        .disabled(model.isSigningIn)
-
-        if model.isSigningIn {
-          Button(loc("Cancel")) {
-            model.cancelSignIn()
-          }
-          .buttonStyle(.borderless)
-        }
+        .buttonStyle(.link)
       }
-      .frame(maxWidth: 300)
-
-      if let error = model.signInError ?? model.state.lastError {
-        InlineErrorView(message: error)
-          .frame(maxWidth: 300)
-      }
-
-      Spacer(minLength: 0)
+      .frame(maxWidth: 320)
+      .frame(maxWidth: .infinity)
+      .padding(.horizontal, Theme.Spacing.xl)
+      .padding(.vertical, Theme.Spacing.lg)
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .padding(Theme.Spacing.xl)
+  }
+
+  private func optionHeader(systemImage: String, title: String) -> some View {
+    HStack(spacing: Theme.Spacing.sm) {
+      Image(systemName: systemImage)
+        .foregroundStyle(Color.accentColor)
+      Text(title)
+        .font(.callout.weight(.semibold))
+    }
   }
 }
 
-private struct FeatureRow: View {
-  var systemImage: String
-  var title: String
-  var detail: String
+/// Shown above the timeline while the sample day is on, with the way out.
+private struct SamplePreviewBanner: View {
+  @ObservedObject var model: AppModel
 
   var body: some View {
-    HStack(alignment: .top, spacing: Theme.Spacing.md) {
-      Image(systemName: systemImage)
-        .font(.body)
-        .foregroundStyle(Color.accentColor)
-        .frame(width: 22)
-      VStack(alignment: .leading, spacing: 2) {
-        Text(title)
-          .font(.callout.weight(.medium))
-        Text(detail)
-          .font(.caption)
-          .foregroundStyle(.secondary)
+    HStack(spacing: Theme.Spacing.sm) {
+      Image(systemName: "sparkles")
+      Text(loc("Sample day"))
+        .font(.caption.weight(.semibold))
+      Spacer(minLength: Theme.Spacing.sm)
+      Button(loc("Connect calendars")) {
+        model.endSamplePreview()
       }
-      Spacer(minLength: 0)
+      .buttonStyle(.link)
+      .font(.caption.weight(.semibold))
     }
+    .font(.caption)
+    .foregroundStyle(Color.orange)
+    .padding(.horizontal, Theme.Spacing.md)
+    .padding(.vertical, Theme.Spacing.xs + 2)
+    .background(Color.orange.opacity(0.12))
   }
 }
 
@@ -2011,7 +2044,7 @@ struct SettingsView: View {
 
     var label: String {
       switch self {
-      case .accounts: return loc("Accounts")
+      case .accounts: return loc("Calendars")
       case .general: return loc("General")
       case .filter: return loc("Filter")
       }
@@ -2019,7 +2052,7 @@ struct SettingsView: View {
 
     var systemImage: String {
       switch self {
-      case .accounts: return "person.crop.circle"
+      case .accounts: return "calendar"
       case .general: return "gearshape"
       case .filter: return "line.3.horizontal.decrease.circle"
       }
@@ -2100,6 +2133,7 @@ struct SettingsView: View {
 
   private var accountTab: some View {
     SettingsTab {
+      MacCalendarsPanel(model: model)
       ConnectedAccountsPanel(model: model, draft: $draft)
     }
     .task {
@@ -2435,6 +2469,83 @@ private struct SettingsTab<Content: View>: View {
   }
 }
 
+/// Calendars the Mac already syncs (iCloud, Exchange, Google, CalDAV), read
+/// through EventKit. No sign-in; nothing leaves the machine.
+private struct MacCalendarsPanel: View {
+  @ObservedObject var model: AppModel
+
+  var body: some View {
+    SettingsCard(
+      loc("Calendars on this Mac"),
+      subtitle: loc("Events from the Calendar app — iCloud, Exchange, Google, and more. No sign-in."),
+      accessory: {
+      Toggle("", isOn: Binding(
+        get: { model.config.macCalendarsEnabled },
+        set: { $0 ? model.enableMacCalendars() : model.disableMacCalendars() }
+      ))
+      .labelsHidden()
+      .toggleStyle(.switch)
+      },
+      content: {
+      if model.config.macCalendarsEnabled || model.macCalendarAccess == .denied {
+        accessRow
+      }
+      if let error = model.macCalendarError {
+        InlineErrorView(message: error)
+      }
+      if model.usesMacCalendars {
+        let calendars = model.calendars.filter { $0.source == .eventKit }
+        if calendars.isEmpty {
+          Text(loc("No calendars found in the Calendar app."))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        } else {
+          ForEach(groupedBySource(calendars), id: \.title) { group in
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+              Text(group.title.isEmpty ? loc("Other") : group.title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+              ForEach(group.calendars) { calendar in
+                CalendarSelectionRow(calendar: calendar, model: model)
+              }
+            }
+            .card(.inset, padding: Theme.Spacing.md)
+          }
+        }
+      }
+    })
+    .task {
+      if model.usesMacCalendars && !model.calendars.contains(where: { $0.source == .eventKit }) {
+        await model.refreshCalendars()
+      }
+    }
+  }
+
+  @ViewBuilder
+  private var accessRow: some View {
+    SettingRow(loc("Calendar access"), subtitle: loc("Granted in macOS System Settings")) {
+      HStack(spacing: Theme.Spacing.sm) {
+        Circle()
+          .fill(model.macCalendarAccess == .authorized ? Color.green : Color.orange)
+          .frame(width: 8, height: 8)
+        Text(model.macCalendarAccess.label)
+        if model.macCalendarAccess != .authorized {
+          Button(loc("Open")) { model.openCalendarPrivacySettings() }
+        }
+      }
+    }
+  }
+
+  private func groupedBySource(_ calendars: [CalendarSummary]) -> [(title: String, calendars: [CalendarSummary])] {
+    let groups = Dictionary(grouping: calendars, by: \.sourceTitle)
+    return groups.keys.sorted { lhs, rhs in
+      lhs.localizedStandardCompare(rhs) == .orderedAscending
+    }.map { key in
+      (title: key, calendars: groups[key, default: []].sorted { $0.name < $1.name })
+    }
+  }
+}
+
 private struct ConnectedAccountsPanel: View {
   @ObservedObject var model: AppModel
   @Binding var draft: AppConfig
@@ -2764,6 +2875,15 @@ private struct CalendarSelectionRow: View {
   var calendar: CalendarSummary
   @ObservedObject var model: AppModel
 
+  private var subtitle: String? {
+    switch calendar.source {
+    case .google:
+      return calendar.primary ? loc("primary") : calendar.googleId
+    case .eventKit:
+      return calendar.duplicatesGoogleAccount ? loc("Also connected as a Google account") : nil
+    }
+  }
+
   var body: some View {
     HStack(spacing: Theme.Spacing.md) {
       Toggle("", isOn: Binding(
@@ -2780,10 +2900,12 @@ private struct CalendarSelectionRow: View {
         Text(calendar.name)
           .font(.callout.weight(.medium))
           .lineLimit(1)
-        Text(calendar.primary ? loc("primary") : calendar.googleId)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
+        if let subtitle {
+          Text(subtitle)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
       }
       Spacer()
     }

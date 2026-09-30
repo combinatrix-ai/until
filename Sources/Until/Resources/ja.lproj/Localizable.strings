@@ -340,3 +340,27 @@
 "Return to Until." = "Untilに戻ってください。";
 "Login failed" = "ログインに失敗しました";
 "No authorization code returned." = "認証コードが返されませんでした。";
+
+/* MARK: - Calendars on this Mac, onboarding, sample day */
+"Calendars on this Mac" = "このMacのカレンダー";
+"Events from the Calendar app — iCloud, Exchange, Google, and more. No sign-in." = "カレンダーAppの予定を表示します。iCloud・Exchange・Googleなどに対応し、サインインは不要です。";
+"No calendars found in the Calendar app." = "カレンダーAppにカレンダーが見つかりません。";
+"Other" = "その他";
+"Calendar access" = "カレンダーへのアクセス";
+"Also connected as a Google account" = "Googleアカウントとしても接続済み";
+"Until can't read your calendars. Allow access in System Settings → Privacy & Security → Calendars." = "カレンダーを読み取れません。システム設定 → プライバシーとセキュリティ → カレンダー でUntilへのアクセスを許可してください。";
+"Restricted" = "制限あり";
+"Add-only" = "追加のみ";
+"Off" = "オフ";
+"Floating" = "浮動";
+"Full screen" = "全画面";
+"Your next meeting, always in the menubar." = "次の予定を、いつもメニューバーに。";
+"Use the events already in the Calendar app — iCloud, Google, Outlook, and more. No sign-in." = "カレンダーAppにある予定をそのまま使います。iCloud・Google・Outlookなどに対応し、サインインは不要です。";
+"Use Calendars on This Mac" = "このMacのカレンダーを使う";
+"Open System Settings" = "システム設定を開く";
+"or" = "または";
+"Google account" = "Googleアカウント";
+"Adds one-click meeting notes and Google Meet links." = "ワンクリックの議事録作成とGoogle Meetリンクの追加も使えます。";
+"Try it with a sample day" = "サンプルの一日で試す";
+"Sample day" = "サンプルの一日";
+"Connect calendars" = "カレンダーを接続";

@@ -340,3 +340,27 @@
 "Return to Until." = "Return to Until.";
 "Login failed" = "Login failed";
 "No authorization code returned." = "No authorization code returned.";
+
+/* MARK: - Calendars on this Mac, onboarding, sample day */
+"Calendars on this Mac" = "Calendars on this Mac";
+"Events from the Calendar app — iCloud, Exchange, Google, and more. No sign-in." = "Events from the Calendar app — iCloud, Exchange, Google, and more. No sign-in.";
+"No calendars found in the Calendar app." = "No calendars found in the Calendar app.";
+"Other" = "Other";
+"Calendar access" = "Calendar access";
+"Also connected as a Google account" = "Also connected as a Google account";
+"Until can't read your calendars. Allow access in System Settings → Privacy & Security → Calendars." = "Until can't read your calendars. Allow access in System Settings → Privacy & Security → Calendars.";
+"Restricted" = "Restricted";
+"Add-only" = "Add-only";
+"Off" = "Off";
+"Floating" = "Floating";
+"Full screen" = "Full screen";
+"Your next meeting, always in the menubar." = "Your next meeting, always in the menubar.";
+"Use the events already in the Calendar app — iCloud, Google, Outlook, and more. No sign-in." = "Use the events already in the Calendar app — iCloud, Google, Outlook, and more. No sign-in.";
+"Use Calendars on This Mac" = "Use Calendars on This Mac";
+"Open System Settings" = "Open System Settings";
+"or" = "or";
+"Google account" = "Google account";
+"Adds one-click meeting notes and Google Meet links." = "Adds one-click meeting notes and Google Meet links.";
+"Try it with a sample day" = "Try it with a sample day";
+"Sample day" = "Sample day";
+"Connect calendars" = "Connect calendars";

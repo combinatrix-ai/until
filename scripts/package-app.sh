@@ -171,6 +171,10 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <false/>
   <key>NSUserNotificationAlertStyle</key>
   <string>alert</string>
+  <key>NSCalendarsUsageDescription</key>
+  <string>Until shows your upcoming events from the Calendar app in the menu bar. Nothing leaves your Mac.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key>
+  <string>Until shows your upcoming events from the Calendar app in the menu bar. Nothing leaves your Mac.</string>
   <key>UntilWidgetGroupIdentifier</key>
   <string>${WIDGET_GROUP_ID}</string>
   <key>GoogleOAuthClientID</key>
