@@ -1,0 +1,35 @@
+name: Bug report
+description: Something in Until doesn't work as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw. Screenshots help.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Until version
+      description: Settings → the version under the sidebar.
+      placeholder: "1.2.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "15.5"
+  - type: dropdown
+    id: source
+    attributes:
+      label: Calendar source
+      options:
+        - Calendars on this Mac
+        - Google account
+        - Both
+  - type: markdown
+    attributes:
+      value: Please remove private details (event titles, attendees, links) from anything you paste.

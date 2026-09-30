@@ -1,0 +1,28 @@
+name: Meeting link not detected
+description: Until doesn't show a Join button for a meeting service.
+labels: [meeting-service, good first issue]
+body:
+  - type: input
+    id: service
+    attributes:
+      label: Service
+      placeholder: "e.g. Pumble, Butter, a self-hosted Jitsi"
+    validations:
+      required: true
+  - type: input
+    id: example
+    attributes:
+      label: Example link format
+      description: Replace IDs and passwords with placeholders.
+      placeholder: "https://meet.example.com/j/XXXX"
+    validations:
+      required: true
+  - type: dropdown
+    id: field
+    attributes:
+      label: Where the link is in the event
+      options:
+        - Location
+        - Description / notes
+        - URL field
+        - Not sure
