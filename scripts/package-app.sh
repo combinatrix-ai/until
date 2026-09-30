@@ -157,6 +157,13 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
       <key>CFBundleURLSchemes</key><array><string>until</string></array>
     </dict>
   </array>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>en</string>
+    <string>ja</string>
+  </array>
   <key>CFBundleShortVersionString</key>
   <string>${APP_VERSION}</string>
   <key>CFBundleVersion</key>
@@ -185,6 +192,17 @@ ${SPARKLE_PLIST_KEYS}
 </dict>
 </plist>
 PLIST
+
+# Localized Info.plist strings (the Calendar access prompt).
+mkdir -p "$APP_DIR/Contents/Resources/en.lproj" "$APP_DIR/Contents/Resources/ja.lproj"
+cat > "$APP_DIR/Contents/Resources/en.lproj/InfoPlist.strings" <<'STRINGS'
+"NSCalendarsUsageDescription" = "Until shows your upcoming events from the Calendar app in the menu bar. Nothing leaves your Mac.";
+"NSCalendarsFullAccessUsageDescription" = "Until shows your upcoming events from the Calendar app in the menu bar. Nothing leaves your Mac.";
+STRINGS
+cat > "$APP_DIR/Contents/Resources/ja.lproj/InfoPlist.strings" <<'STRINGS'
+"NSCalendarsUsageDescription" = "カレンダーAppの予定をメニューバーに表示するために使います。予定がこのMacの外に送られることはありません。";
+"NSCalendarsFullAccessUsageDescription" = "カレンダーAppの予定をメニューバーに表示するために使います。予定がこのMacの外に送られることはありません。";
+STRINGS
 
 # App icon. Generated once from scripts/make-icon.swift, then reused so dev
 # rebuilds stay fast; delete scripts/Until.icns to regenerate after a redesign.
