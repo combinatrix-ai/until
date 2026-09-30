@@ -933,9 +933,19 @@ private struct HeroTimelineRow: View {
 private struct EventLinkChips: View {
   var event: CalendarEvent
 
+  /// Shows as many whole chips as fit on one line rather than truncating
+  /// every chip's title.
   var body: some View {
+    ViewThatFits(in: .horizontal) {
+      ForEach(Array(stride(from: event.links.count, through: 1, by: -1)), id: \.self) { count in
+        chips(Array(event.links.prefix(count)))
+      }
+    }
+  }
+
+  private func chips(_ links: [EventLink]) -> some View {
     HStack(spacing: Theme.Spacing.xs) {
-      ForEach(event.links, id: \.url) { link in
+      ForEach(links, id: \.url) { link in
         Button {
           if let url = EventLinks.authenticatedURL(from: link.url, accountEmail: event.account.email) {
             NSWorkspace.shared.open(url)
@@ -944,6 +954,7 @@ private struct EventLinkChips: View {
           Label(link.title, systemImage: systemImage(for: link))
             .font(.caption)
             .lineLimit(1)
+            .fixedSize()
             .padding(.horizontal, Theme.Spacing.sm)
             .padding(.vertical, 2)
             .background(Color.primary.opacity(0.06), in: Capsule())
