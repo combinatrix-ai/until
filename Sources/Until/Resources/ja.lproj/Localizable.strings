@@ -340,3 +340,50 @@
 "Return to Until." = "Untilに戻ってください。";
 "Login failed" = "ログインに失敗しました";
 "No authorization code returned." = "認証コードが返されませんでした。";
+
+/* MARK: - Calendars on this Mac, onboarding, sample day */
+"Calendars on this Mac" = "このMacのカレンダー";
+"Events from the Calendar app — iCloud, Exchange, Google, and more. No sign-in." = "カレンダーAppの予定を表示します。iCloud・Exchange・Googleなどに対応し、サインインは不要です。";
+"No calendars found in the Calendar app." = "カレンダーAppにカレンダーが見つかりません。";
+"Other" = "その他";
+"Calendar access" = "カレンダーへのアクセス";
+"Also connected as a Google account" = "Googleアカウントとしても接続済み";
+"Until can't read your calendars. Allow access in System Settings → Privacy & Security → Calendars." = "カレンダーを読み取れません。システム設定 → プライバシーとセキュリティ → カレンダー でUntilへのアクセスを許可してください。";
+"Restricted" = "制限あり";
+"Add-only" = "追加のみ";
+"Off" = "オフ";
+"Floating" = "浮動";
+"Full screen" = "全画面";
+"Your next meeting, always in the menubar." = "次の予定を、いつもメニューバーに。";
+"Use the events already in the Calendar app — iCloud, Google, Outlook, and more. No sign-in." = "カレンダーAppにある予定をそのまま使います。iCloud・Google・Outlookなどに対応し、サインインは不要です。";
+"Use Calendars on This Mac" = "このMacのカレンダーを使う";
+"Open System Settings" = "システム設定を開く";
+"or" = "または";
+"Google account" = "Googleアカウント";
+"Adds one-click meeting notes and Google Meet links." = "ワンクリックの議事録作成とGoogle Meetリンクの追加も使えます。";
+"Try it with a sample day" = "サンプルの一日で試す";
+"Sample day" = "サンプルの一日";
+"Connect calendars" = "カレンダーを接続";
+
+/* MARK: - Meetings: join shortcut, start alert, day summary */
+"Dismiss" = "閉じる";
+"Snooze 1 min" = "1分後に再通知";
+"Starting now" = "開始";
+"Starts in %@" = "%@後に開始";
+"Join shortcut" = "参加ショートカット";
+"Join the current or next meeting from anywhere" = "どこからでも、進行中または直近の会議に参加";
+"Show event title" = "予定名を表示";
+"Turn off to show only the countdown, e.g. while presenting" = "オフにするとカウントダウンだけを表示します（発表中などに）";
+"Meetings" = "会議";
+"Open in desktop apps" = "デスクトップアプリで開く";
+"Zoom and Teams links open in their apps when installed" = "ZoomとTeamsのリンクを、インストール済みのアプリで開きます";
+"Start alert" = "開始アラート";
+"Put the meeting on screen as it starts, until you join or dismiss it" = "会議の開始時に画面へ表示し、参加するか閉じるまで出し続けます";
+"Alert timing" = "アラートのタイミング";
+"How long before the meeting the alert appears" = "会議の何分前にアラートを出すか";
+"Alert for" = "アラートの対象";
+"Preview alert" = "アラートを試す";
+"1 event" = "予定1件";
+"%d events" = "予定%d件";
+"%@ booked" = "計%@";
+"longest free %@" = "最長の空き%@";

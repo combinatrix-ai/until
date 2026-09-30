@@ -9,6 +9,8 @@
   <true/>
   <key>com.apple.security.network.server</key>
   <true/>
+  <key>com.apple.security.personal-information.calendars</key>
+  <true/>
   <key>com.apple.security.application-groups</key>
   <array><string>__WIDGET_GROUP__</string></array>
 </dict>

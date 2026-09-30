@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 726 402" width="726" height="402" role="img">
+<defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#1c1a17" flood-opacity=".18"/></filter></defs>
+<rect width="726" height="402" fill="#e8e4dc"/>
+<rect width="726" height="25" fill="#f4f1ec"/>
+<line x1="0" y1="25" x2="726" y2="25" stroke="#1d1d1f" stroke-opacity=".06"/>
+<text x="714" y="17" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="13" font-weight="500" fill="#1d1d1f" text-anchor="end">Wed Aug 12  9:53 AM</text>
+<g transform="translate(557.052 7)" fill="none" stroke="#1d1d1f" stroke-width="1.3"><rect x="0" y="0" width="14" height="5" rx="2.5"/><rect x="0" y="7" width="14" height="5" rx="2.5"/><circle cx="10.5" cy="2.5" r="1.3" fill="#1d1d1f"/><circle cx="3.5" cy="9.5" r="1.3" fill="#1d1d1f"/></g>
+<g transform="translate(530.052 6)" fill="none" stroke="#1d1d1f" stroke-width="1.5" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M8 8l3.5 3.5"/></g>
+<g transform="translate(224.56 3) scale(0.8)"><circle cx="7" cy="12" r="2.6" fill="#1d1d1f"/><path d="M12.5 7 17.5 12 12.5 17" fill="none" stroke="#1d1d1f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="244.56" y="17" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="13" font-weight="500" fill="#1d1d1f" text-anchor="start">in 7m Design review: website screenshots</text>
+<clipPath id="pop"><rect x="174.30575" y="36" width="390" height="520" rx="11"/></clipPath>
+<g filter="url(#shadow)">
+<path d="M358.30575 37 L369.30575 26 L380.30575 37 Z" fill="#ffffff"/>
+<rect x="174.30575" y="36" width="390" height="520" rx="11" fill="#ffffff"/></g>
+<g clip-path="url(#pop)">
+<text x="190.306" y="62" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11.5" font-weight="700" fill="#b0b0b5" text-anchor="start">Today</text>
+<line x1="268.30575" y1="72" x2="268.30575" y2="92" stroke="#e3e3e8" stroke-width="2"/>
+<text x="254.306" y="84" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="11" font-weight="400" fill="#86868b" text-anchor="end">all-day</text>
+<circle cx="268.30575" cy="80" r="3.6" fill="#5b8def"/>
+<text x="282.306" y="84" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="13.5" font-weight="400" fill="#3a3a3c" text-anchor="start">Launch assets due</text>
+<line x1="268.30575" y1="100" x2="268.30575" y2="136" stroke="#e3e3e8" stroke-width="2"/>
+<text x="254.306" y="114" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="11" font-weight="400" fill="#b0b0b5" text-anchor="end">8:55 AM</text>
+<circle cx="268.30575" cy="110" r="4.6" fill="#c9d7f4"/><circle cx="268.30575" cy="110" r="3" fill="#9db6e8"/>
+<text x="282.306" y="114" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="13.5" font-weight="400" fill="#b0b0b5" text-anchor="start" text-decoration="line-through">Morning run</text>
+<g transform="translate(282.306 122)" fill="none" stroke="#b0b0b5" stroke-width="1.1" stroke-linecap="round"><circle cx="4" cy="3.2" r="2.2"/><path d="M4 5.4v5M1 10.5h6"/></g>
+<text x="295.306" y="131" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11.5" font-weight="400" fill="#b0b0b5" text-anchor="start">Riverside Park</text>
+<text x="254.306" y="152" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="11" font-weight="700" fill="#28b44c" text-anchor="end">9:53 AM</text>
+<line x1="268.30575" y1="148" x2="548.30575" y2="148" stroke="#28b44c" stroke-width="2" stroke-linecap="round"/>
+<circle cx="268.30575" cy="148" r="4" fill="#28b44c"/>
+<line x1="268.30575" y1="172" x2="268.30575" y2="316" stroke="#e3e3e8" stroke-width="2"/>
+<text x="254.306" y="176" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="11" font-weight="700" fill="#0a6cff" text-anchor="end">10:00 AM</text>
+<circle cx="268.30575" cy="172" r="6" fill="#0a6cff"/>
+<rect x="280.30575" y="162" width="268.0" height="150" rx="10" fill="#eaf2fe"/>
+<text x="292.306" y="184" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="800" fill="#0a6cff" text-anchor="start" letter-spacing=".8">NEXT</text>
+<text x="538.306" y="184" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="12.5" font-weight="700" fill="#0a6cff" text-anchor="end">in 7m</text>
+<text x="292.306" y="206" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="15.5" font-weight="700" fill="#1d1d1f" text-anchor="start">Design review: website</text>
+<text x="292.306" y="225" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="15.5" font-weight="700" fill="#1d1d1f" text-anchor="start">screenshots</text>
+<text x="292.306" y="245" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11" font-weight="400" fill="#86868b" text-anchor="start">10:00 AM – 10:45 AM · Google Meet · Maya C…</text>
+<rect x="292.306" y="253" width="93.136" height="19" rx="9.5" fill="#1d1d1f" fill-opacity=".06"/>
+<g transform="translate(300.306 256.5)" fill="none" stroke="#3a3a3c" stroke-width="1.1" stroke-linejoin="round"><path d="M1 .5h5.5L9.5 3.5v8.5H1z"/><path d="M6.5 .5v3h3M3 6.5h4.5M3 8.8h4.5"/></g>
+<text x="315.306" y="266.5" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11" font-weight="500" fill="#3a3a3c" text-anchor="start">Google Doc</text>
+<rect x="391.442" y="253" width="65.185" height="19" rx="9.5" fill="#1d1d1f" fill-opacity=".06"/>
+<g transform="translate(399.442 257)" fill="none" stroke="#3a3a3c" stroke-width="1.1"><circle cx="5.5" cy="5.5" r="4.5"/><circle cx="3.6" cy="4.2" r=".7" fill="#3a3a3c"/><circle cx="6.8" cy="3.4" r=".7" fill="#3a3a3c"/><circle cx="7.6" cy="6.4" r=".7" fill="#3a3a3c"/></g>
+<text x="414.442" y="266.5" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11" font-weight="500" fill="#3a3a3c" text-anchor="start">Figma</text>
+<rect x="462.627" y="253" width="72.6925" height="19" rx="9.5" fill="#1d1d1f" fill-opacity=".06"/>
+<g transform="translate(470.627 257)" fill="none" stroke="#3a3a3c" stroke-width="1.1" stroke-linecap="round"><circle cx="2.5" cy="2" r="1.4"/><circle cx="2.5" cy="9.5" r="1.4"/><circle cx="8.5" cy="9.5" r="1.4"/><path d="M2.5 3.4v4.7M8.5 8.1V5.3a2 2 0 0 0-2-2H5"/></g>
+<text x="485.627" y="266.5" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11" font-weight="500" fill="#3a3a3c" text-anchor="start">PR #12</text>
+<rect x="292.30575" y="280" width="68.5125" height="24" rx="6" fill="#0a6cff"/>
+<g transform="translate(303.306 286.5)" fill="#ffffff"><rect x="0" y="1.5" width="10" height="8" rx="2"/><path d="M10.5 4.5 14 2.5v7l-3.5-2z"/></g>
+<text x="323.306" y="296.5" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">Join</text>
+<g transform="translate(374.818 286)" fill="none" stroke="#86868b" stroke-width="1.1" stroke-linejoin="round"><path d="M1 .5h5.5L9.5 3.5v8.5H1z"/><path d="M6.5 .5v3h3M3 6.5h4.5M3 8.8h4.5"/></g>
+<text x="390.818" y="296.5" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="12.5" font-weight="500" fill="#86868b" text-anchor="start">Open notes</text>
+<line x1="268.30575" y1="320" x2="268.30575" y2="346" stroke="#e3e3e8" stroke-width="2" stroke-dasharray="3 3"/>
+<text x="282.306" y="338" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="600" fill="#86868b" text-anchor="start">45m free</text>
+<text x="339.272" y="338" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="400" fill="#b0b0b5" text-anchor="start">10:45 AM–11:30 AM</text>
+<line x1="268.30575" y1="352" x2="268.30575" y2="396" stroke="#e3e3e8" stroke-width="2"/>
+<text x="254.306" y="368" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="11" font-weight="400" fill="#86868b" text-anchor="end">11:30 AM</text>
+<circle cx="268.30575" cy="364" r="3.6" fill="#f0a35e"/>
+<text x="282.306" y="368" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="13.5" font-weight="400" fill="#3a3a3c" text-anchor="start">Project work block</text>
+<g transform="translate(282.306 376)" fill="none" stroke="#86868b" stroke-width="1.1" stroke-linecap="round"><circle cx="4" cy="3.2" r="2.2"/><path d="M4 5.4v5M1 10.5h6"/></g>
+<text x="295.306" y="385" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11.5" font-weight="400" fill="#86868b" text-anchor="start">Desk</text>
+<line x1="268.30575" y1="398" x2="268.30575" y2="424" stroke="#e3e3e8" stroke-width="2" stroke-dasharray="3 3"/>
+<text x="282.306" y="416" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="600" fill="#86868b" text-anchor="start">30m free</text>
+<text x="339.272" y="416" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="400" fill="#b0b0b5" text-anchor="start">12:30 PM–1:00 PM</text>
+<line x1="268.30575" y1="430" x2="268.30575" y2="474" stroke="#e3e3e8" stroke-width="2"/>
+<text x="254.306" y="446" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="11" font-weight="400" fill="#86868b" text-anchor="end">1:00 PM</text>
+<circle cx="268.30575" cy="442" r="3.6" fill="#4caf50"/>
+<text x="282.306" y="446" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="13.5" font-weight="400" fill="#3a3a3c" text-anchor="start">Product sync</text>
+<g transform="translate(282.306 454)" fill="none" stroke="#86868b" stroke-width="1.1" stroke-linecap="round"><circle cx="4" cy="3.2" r="2.2"/><path d="M4 5.4v5M1 10.5h6"/></g>
+<text x="295.306" y="463" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11.5" font-weight="400" fill="#86868b" text-anchor="start">Google Meet</text>
+<line x1="268.30575" y1="476" x2="268.30575" y2="502" stroke="#e3e3e8" stroke-width="2" stroke-dasharray="3 3"/>
+<text x="282.306" y="494" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="600" fill="#86868b" text-anchor="start">60m free</text>
+<text x="339.272" y="494" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="400" fill="#b0b0b5" text-anchor="start">1:30 PM–2:30 PM</text>
+<line x1="268.30575" y1="508" x2="268.30575" y2="534" stroke="#e3e3e8" stroke-width="2"/>
+<text x="254.306" y="524" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="11" font-weight="400" fill="#86868b" text-anchor="end">2:30 PM</text>
+<circle cx="268.30575" cy="520" r="3.6" fill="#e57368"/>
+<text x="282.306" y="524" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="13.5" font-weight="400" fill="#3a3a3c" text-anchor="start">Focus: Until copy polish</text>
+</g>
+</svg>

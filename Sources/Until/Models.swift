@@ -8,11 +8,27 @@ struct Attendee: Hashable {
   var resource: Bool
 }
 
+/// Where an event or calendar comes from. Google events carry the richer
+/// Google-only actions (Meet links, notes docs); Mac calendars are read
+/// through EventKit and never leave the machine.
+enum EventSource: String, Hashable, Codable {
+  case google
+  case eventKit
+}
+
 struct CalendarRef: Hashable {
   var id: String
   var googleId: String
   var primary: Bool
   var backgroundColor: String
+  var source: EventSource = .google
+}
+
+/// A non-meeting link found on an event (a spec doc, a design file, a pull
+/// request) so the card can surface what the meeting is about.
+struct EventLink: Hashable {
+  var title: String
+  var url: String
 }
 
 struct AccountRef: Hashable {
@@ -40,6 +56,7 @@ struct CalendarEvent: Identifiable, Hashable {
   var colorId: String
   var transparency: String
   var htmlLink: String
+  var links: [EventLink]
 
   // Parsed once at construction from the source ISO strings. These were previously
   // computed properties that reparsed the ISO strings on every access; they are
@@ -49,6 +66,8 @@ struct CalendarEvent: Identifiable, Hashable {
   var endDate: Date
 
   var actionKey: String { "\(account.email)::\(calendar.googleId)::\(id)" }
+
+  var source: EventSource { calendar.source }
 
   /// Designated init taking the ISO strings; dates are parsed exactly once here.
   /// Returns nil if either bound fails to parse, so callers can drop the event
@@ -74,7 +93,8 @@ struct CalendarEvent: Identifiable, Hashable {
     notesUrl: String,
     colorId: String,
     transparency: String,
-    htmlLink: String
+    htmlLink: String,
+    links: [EventLink] = []
   ) {
     guard let start = ISO8601DateFormatter.shared.date(fromAnyInternetDate: startISO),
           let end = ISO8601DateFormatter.shared.date(fromAnyInternetDate: endISO) else {
@@ -100,6 +120,7 @@ struct CalendarEvent: Identifiable, Hashable {
     self.colorId = colorId
     self.transparency = transparency
     self.htmlLink = htmlLink
+    self.links = links
     self.startDate = start
     self.endDate = end
   }
@@ -138,12 +159,16 @@ struct EventActionSet: Equatable {
       attached.append(.openMeetingNotes)
     }
 
+    // Adding a Meet link or a notes doc writes to the Google event, so Mac
+    // calendar events only get the attached and common actions.
     var addable: [Item] = []
-    if !hasConference && !event.allDay {
-      addable.append(.addGoogleMeet)
-    }
-    if !hasNotes {
-      addable.append(.createNotes)
+    if event.source == .google {
+      if !hasConference && !event.allDay {
+        addable.append(.addGoogleMeet)
+      }
+      if !hasNotes {
+        addable.append(.createNotes)
+      }
     }
 
     return EventActionSet(
@@ -264,6 +289,12 @@ struct CalendarSummary: Identifiable, Hashable {
   var backgroundColor: String
   var selected: Bool
   var accountEmail: String
+  var source: EventSource = .google
+  /// The macOS account a Mac calendar belongs to ("iCloud", an email, …).
+  var sourceTitle: String = ""
+  /// A Mac calendar whose account is also connected directly to Google, so
+  /// its events would otherwise appear twice. Off by default.
+  var duplicatesGoogleAccount: Bool = false
 }
 
 struct AccountState: Identifiable, Hashable {
@@ -515,6 +546,25 @@ struct AppConfig: Codable, Hashable {
   /// value is the event's `endDate`, kept only so expired entries can be
   /// purged automatically instead of accumulating forever.
   var skippedMenubarEvents: [String: Date]
+  /// Read events from the Calendar app through EventKit (iCloud, Exchange,
+  /// Google, CalDAV — whatever macOS already syncs). No sign-in needed.
+  var macCalendarsEnabled: Bool
+  /// Explicit on/off choices for Mac calendars, keyed by `CalendarSummary.id`.
+  /// Calendars without a choice follow the default (on, unless the account is
+  /// also connected directly through Google).
+  var macCalendarSelections: [String: Bool]
+  /// A second global shortcut that joins the current or next meeting.
+  var joinHotkeyEnabled: Bool
+  var joinHotkeyPreset: String
+  /// Open Zoom and Teams links in their desktop apps when installed.
+  var openMeetingsInApps: Bool
+  /// "off", "floating", or "fullScreen": an on-screen alert as a meeting starts.
+  var startAlertStyle: String
+  var startAlertLeadMinutes: Int
+  var startAlertVideoOnly: Bool
+  /// Show the event title next to the countdown. Off keeps only the time,
+  /// which is handy while presenting.
+  var menubarShowsTitle: Bool
 
   // Google OAuth client credentials, injected at build/package time rather than
   // committed to source. Packaged builds read them from Info.plist (written by
@@ -534,6 +584,21 @@ struct AppConfig: Codable, Hashable {
     }
     return ProcessInfo.processInfo.environment[envKey]?
       .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+  }
+
+  /// Build-time credentials win over persisted values so rotating .env takes
+  /// effect without clearing config.
+  private static func decodedCredentials(
+    from container: KeyedDecodingContainer<CodingKeys>,
+    defaults: AppConfig
+  ) throws -> (clientId: String, clientSecret: String) {
+    let oauth = try container.nestedContainer(keyedBy: OAuthKeys.self, forKey: .oauth)
+    let storedClientId = try oauth.decodeIfPresent(String.self, forKey: .clientId)
+    let storedClientSecret = try oauth.decodeIfPresent(String.self, forKey: .clientSecret)
+    return (
+      resolvedCredential(buildTime: defaults.oauthClientId, stored: storedClientId),
+      resolvedCredential(buildTime: defaults.oauthClientSecret, stored: storedClientSecret)
+    )
   }
 
   private static func resolvedCredential(buildTime: String, stored: String?) -> String {
@@ -585,7 +650,16 @@ struct AppConfig: Codable, Hashable {
     meetingNotesTitleTemplatesByAccount: [:],
     meetingNotesTemplateDocsByAccount: [:],
     didApplyDefaultLaunchAtLogin: false,
-    skippedMenubarEvents: [:]
+    skippedMenubarEvents: [:],
+    macCalendarsEnabled: false,
+    macCalendarSelections: [:],
+    joinHotkeyEnabled: false,
+    joinHotkeyPreset: "ctrl-opt-j",
+    openMeetingsInApps: false,
+    startAlertStyle: StartAlertStyle.off.rawValue,
+    startAlertLeadMinutes: 1,
+    startAlertVideoOnly: true,
+    menubarShowsTitle: true
   )
 
   enum CodingKeys: String, CodingKey {
@@ -601,6 +675,11 @@ struct AppConfig: Codable, Hashable {
     case meetingNotesTemplateDocsByAccount
     case didApplyDefaultLaunchAtLogin
     case skippedMenubarEvents
+    case macCalendarsEnabled, macCalendarSelections
+    case joinHotkeyEnabled, joinHotkeyPreset
+    case openMeetingsInApps
+    case startAlertStyle, startAlertLeadMinutes, startAlertVideoOnly
+    case menubarShowsTitle
   }
 
   enum OAuthKeys: String, CodingKey {
@@ -628,7 +707,16 @@ struct AppConfig: Codable, Hashable {
     meetingNotesTitleTemplatesByAccount: [String: String],
     meetingNotesTemplateDocsByAccount: [String: String],
     didApplyDefaultLaunchAtLogin: Bool = false,
-    skippedMenubarEvents: [String: Date] = [:]
+    skippedMenubarEvents: [String: Date] = [:],
+    macCalendarsEnabled: Bool = false,
+    macCalendarSelections: [String: Bool] = [:],
+    joinHotkeyEnabled: Bool = false,
+    joinHotkeyPreset: String = "ctrl-opt-j",
+    openMeetingsInApps: Bool = false,
+    startAlertStyle: String = StartAlertStyle.off.rawValue,
+    startAlertLeadMinutes: Int = 1,
+    startAlertVideoOnly: Bool = true,
+    menubarShowsTitle: Bool = true
   ) {
     self.oauthClientId = oauthClientId
     self.oauthClientSecret = oauthClientSecret
@@ -651,60 +739,66 @@ struct AppConfig: Codable, Hashable {
     self.meetingNotesTemplateDocsByAccount = meetingNotesTemplateDocsByAccount
     self.didApplyDefaultLaunchAtLogin = didApplyDefaultLaunchAtLogin
     self.skippedMenubarEvents = skippedMenubarEvents
+    self.macCalendarsEnabled = macCalendarsEnabled
+    self.macCalendarSelections = macCalendarSelections
+    self.joinHotkeyEnabled = joinHotkeyEnabled
+    self.joinHotkeyPreset = joinHotkeyPreset
+    self.openMeetingsInApps = openMeetingsInApps
+    self.startAlertStyle = startAlertStyle
+    self.startAlertLeadMinutes = startAlertLeadMinutes
+    self.startAlertVideoOnly = startAlertVideoOnly
+    self.menubarShowsTitle = menubarShowsTitle
   }
 
   init(from decoder: Decoder) throws {
     let defaults = AppConfig.default
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    let oauth = try container.nestedContainer(keyedBy: OAuthKeys.self, forKey: .oauth)
-    let storedClientId = try oauth.decodeIfPresent(String.self, forKey: .clientId)
-    let storedClientSecret = try oauth.decodeIfPresent(String.self, forKey: .clientSecret)
-    // Build-time credentials win over persisted values so rotating .env takes
-    // effect without clearing config.
-    oauthClientId = Self.resolvedCredential(buildTime: defaults.oauthClientId, stored: storedClientId)
-    oauthClientSecret = Self.resolvedCredential(buildTime: defaults.oauthClientSecret, stored: storedClientSecret)
-    filterRules = try container.decode(.filterRules, default: defaults.filterRules)
-    selectedCalendarIds = try container.decode(.selectedCalendarIds, default: defaults.selectedCalendarIds)
-    lookaheadHours = try container.decode(.lookaheadHours, default: defaults.lookaheadHours)
-    pollIntervalSeconds = try container.decode(.pollIntervalSeconds, default: defaults.pollIntervalSeconds)
-    maxTitleLength = try container.decode(.maxTitleLength, default: defaults.maxTitleLength)
+    (oauthClientId, oauthClientSecret) = try Self.decodedCredentials(from: container, defaults: defaults)
+    filterRules = try container.decode(.filterRules, or: \.filterRules)
+    selectedCalendarIds = try container.decode(.selectedCalendarIds, or: \.selectedCalendarIds)
+    lookaheadHours = try container.decode(.lookaheadHours, or: \.lookaheadHours)
+    pollIntervalSeconds = try container.decode(.pollIntervalSeconds, or: \.pollIntervalSeconds)
+    maxTitleLength = try container.decode(.maxTitleLength, or: \.maxTitleLength)
     menubarLeadMinutes = AppConfig.snappedMenubarLead(
-      try container.decode(.menubarLeadMinutes, default: defaults.menubarLeadMinutes)
+      try container.decode(.menubarLeadMinutes, or: \.menubarLeadMinutes)
     )
-    menubarShowsNextAlways = try container.decode(.menubarShowsNextAlways, default: defaults.menubarShowsNextAlways)
-    menubarPrefersImminentNext = try container.decode(
-      .menubarPrefersImminentNext,
-      default: defaults.menubarPrefersImminentNext
-    )
-    notifyEnabled = try container.decode(.notifyEnabled, default: defaults.notifyEnabled)
-    notifyVideoOnly = try container.decode(.notifyVideoOnly, default: defaults.notifyVideoOnly)
-    notifyLeadMinutes = try container.decode(.notifyLeadMinutes, default: defaults.notifyLeadMinutes)
-    hotkeyEnabled = try container.decode(.hotkeyEnabled, default: defaults.hotkeyEnabled)
-    hotkeyPreset = try container.decode(.hotkeyPreset, default: defaults.hotkeyPreset)
+    menubarShowsNextAlways = try container.decode(.menubarShowsNextAlways, or: \.menubarShowsNextAlways)
+    menubarPrefersImminentNext = try container.decode(.menubarPrefersImminentNext, or: \.menubarPrefersImminentNext)
+    notifyEnabled = try container.decode(.notifyEnabled, or: \.notifyEnabled)
+    notifyVideoOnly = try container.decode(.notifyVideoOnly, or: \.notifyVideoOnly)
+    notifyLeadMinutes = try container.decode(.notifyLeadMinutes, or: \.notifyLeadMinutes)
+    hotkeyEnabled = try container.decode(.hotkeyEnabled, or: \.hotkeyEnabled)
+    hotkeyPreset = try container.decode(.hotkeyPreset, or: \.hotkeyPreset)
     meetingNotesFoldersByAccount = try container.decode(
       .meetingNotesFoldersByAccount,
-      default: defaults.meetingNotesFoldersByAccount
+      or: \.meetingNotesFoldersByAccount
     )
     meetingNotesFolderNamesByAccount = try container.decode(
       .meetingNotesFolderNamesByAccount,
-      default: defaults.meetingNotesFolderNamesByAccount
+      or: \.meetingNotesFolderNamesByAccount
     )
     meetingNotesTitleTemplatesByAccount = try container.decode(
       .meetingNotesTitleTemplatesByAccount,
-      default: defaults.meetingNotesTitleTemplatesByAccount
+      or: \.meetingNotesTitleTemplatesByAccount
     )
     meetingNotesTemplateDocsByAccount = try container.decode(
       .meetingNotesTemplateDocsByAccount,
-      default: defaults.meetingNotesTemplateDocsByAccount
+      or: \.meetingNotesTemplateDocsByAccount
     )
     didApplyDefaultLaunchAtLogin = try container.decode(
       .didApplyDefaultLaunchAtLogin,
-      default: defaults.didApplyDefaultLaunchAtLogin
+      or: \.didApplyDefaultLaunchAtLogin
     )
-    skippedMenubarEvents = try container.decode(
-      .skippedMenubarEvents,
-      default: defaults.skippedMenubarEvents
-    )
+    skippedMenubarEvents = try container.decode(.skippedMenubarEvents, or: \.skippedMenubarEvents)
+    macCalendarsEnabled = try container.decode(.macCalendarsEnabled, or: \.macCalendarsEnabled)
+    macCalendarSelections = try container.decode(.macCalendarSelections, or: \.macCalendarSelections)
+    joinHotkeyEnabled = try container.decode(.joinHotkeyEnabled, or: \.joinHotkeyEnabled)
+    joinHotkeyPreset = try container.decode(.joinHotkeyPreset, or: \.joinHotkeyPreset)
+    openMeetingsInApps = try container.decode(.openMeetingsInApps, or: \.openMeetingsInApps)
+    startAlertStyle = try container.decode(.startAlertStyle, or: \.startAlertStyle)
+    startAlertLeadMinutes = try container.decode(.startAlertLeadMinutes, or: \.startAlertLeadMinutes)
+    startAlertVideoOnly = try container.decode(.startAlertVideoOnly, or: \.startAlertVideoOnly)
+    menubarShowsTitle = try container.decode(.menubarShowsTitle, or: \.menubarShowsTitle)
   }
 
   func encode(to encoder: Encoder) throws {
@@ -733,12 +827,39 @@ struct AppConfig: Codable, Hashable {
     try container.encode(meetingNotesTemplateDocsByAccount, forKey: .meetingNotesTemplateDocsByAccount)
     try container.encode(didApplyDefaultLaunchAtLogin, forKey: .didApplyDefaultLaunchAtLogin)
     try container.encode(skippedMenubarEvents, forKey: .skippedMenubarEvents)
+    try container.encode(macCalendarsEnabled, forKey: .macCalendarsEnabled)
+    try container.encode(macCalendarSelections, forKey: .macCalendarSelections)
+    try container.encode(joinHotkeyEnabled, forKey: .joinHotkeyEnabled)
+    try container.encode(joinHotkeyPreset, forKey: .joinHotkeyPreset)
+    try container.encode(openMeetingsInApps, forKey: .openMeetingsInApps)
+    try container.encode(startAlertStyle, forKey: .startAlertStyle)
+    try container.encode(startAlertLeadMinutes, forKey: .startAlertLeadMinutes)
+    try container.encode(startAlertVideoOnly, forKey: .startAlertVideoOnly)
+    try container.encode(menubarShowsTitle, forKey: .menubarShowsTitle)
+  }
+}
+
+/// How a meeting announces itself on screen as it starts.
+enum StartAlertStyle: String, CaseIterable, Identifiable {
+  case off
+  case floating
+  case fullScreen
+
+  var id: String { rawValue }
+
+  var label: String {
+    switch self {
+    case .off: return loc("Off")
+    case .floating: return loc("Floating")
+    case .fullScreen: return loc("Full screen")
+    }
   }
 }
 
 private extension KeyedDecodingContainer where Key == AppConfig.CodingKeys {
-  func decode<T: Decodable>(_ key: Key, default defaultValue: T) throws -> T {
-    try decodeIfPresent(T.self, forKey: key) ?? defaultValue
+  /// Missing keys (older config files) fall back to the default config.
+  func decode<T: Decodable>(_ key: Key, or defaultValue: KeyPath<AppConfig, T>) throws -> T {
+    try decodeIfPresent(T.self, forKey: key) ?? AppConfig.default[keyPath: defaultValue]
   }
 }
 

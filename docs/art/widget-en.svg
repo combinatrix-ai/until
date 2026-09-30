@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 344 164" width="344" height="164" role="img">
+<defs></defs>
+<rect width="344" height="164" rx="22" fill="#ffffff"/>
+<text x="12" y="20" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11.5" font-weight="700" fill="#86868b" text-anchor="start">Today</text>
+<text x="332" y="20" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11" font-weight="500" fill="#86868b" text-anchor="end">Wed, Aug 12</text>
+<line x1="88" y1="28" x2="88" y2="136" stroke="#e3e3e8" stroke-width="1.5"/>
+<text x="76" y="39" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="10.5" font-weight="400" fill="#86868b" text-anchor="end">all-day</text>
+<circle cx="88" cy="35" r="3.3" fill="#5b8def"/>
+<text x="100" y="39" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="12.5" font-weight="400" fill="#1d1d1f" text-anchor="start">Launch assets due</text>
+<text x="76" y="55" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="10.5" font-weight="700" fill="#28b44c" text-anchor="end">9:53 AM</text>
+<line x1="88" y1="51" x2="332" y2="51" stroke="#28b44c" stroke-width="2" stroke-linecap="round"/>
+<circle cx="88" cy="51" r="3.6" fill="#28b44c"/>
+<text x="76" y="74" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="10.5" font-weight="700" fill="#0a6cff" text-anchor="end">10:00 AM</text>
+<circle cx="88" cy="88" r="5.5" fill="#0a6cff"/>
+<rect x="98" y="59" width="234" height="56" rx="9" fill="#eaf2fe"/>
+<text x="108" y="75" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10" font-weight="800" fill="#0a6cff" text-anchor="start" letter-spacing=".7">NEXT</text>
+<text x="324" y="75" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="700" fill="#0a6cff" text-anchor="end">7 min</text>
+<text x="108" y="93" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="14" font-weight="700" fill="#1d1d1f" text-anchor="start">Design review</text>
+<text x="108" y="108" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="400" fill="#86868b" text-anchor="start">10:00 AM–10:45 AM</text>
+<text x="76" y="131" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="10.5" font-weight="400" fill="#86868b" text-anchor="end">11:30 AM</text>
+<circle cx="88" cy="127" r="3.3" fill="#f0a35e"/>
+<text x="100" y="131" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="12.5" font-weight="400" fill="#1d1d1f" text-anchor="start">Project work block</text>
+<text x="100" y="150" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="500" fill="#86868b" text-anchor="start">+2 more</text>
+</svg>

@@ -266,7 +266,11 @@ extension DemoFixture {
       notesUrl: event.notesUrl ?? "",
       colorId: event.colorId ?? "9",
       transparency: event.transparency ?? "busy",
-      htmlLink: "https://calendar.google.com/calendar/event?eid=demo-\(event.id)"
+      htmlLink: "https://calendar.google.com/calendar/event?eid=demo-\(event.id)",
+      links: eventLinks(
+        description: event.description,
+        excluding: [event.conferenceUrl ?? "", event.notesUrl ?? ""]
+      )
     )
   }
 

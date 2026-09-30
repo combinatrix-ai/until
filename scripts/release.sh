@@ -16,6 +16,7 @@ set -euo pipefail
 # Usage:
 #   scripts/release.sh                # build + sign + notarize + staple
 #   NOTARIZE=0 scripts/release.sh     # build + Developer ID sign only
+#   UNIVERSAL=0 scripts/release.sh    # this Mac's architecture only (faster)
 #
 # Env overrides:
 #   CODESIGN_IDENTITY   signing identity, e.g. "Developer ID Application: Example Corp (TEAMID)"
@@ -33,6 +34,7 @@ CODESIGN_IDENTITY="${CODESIGN_IDENTITY:?Set CODESIGN_IDENTITY to your Developer 
 APP_DIR="$(
   CONFIGURATION=release \
   DISTRIBUTION=1 \
+  UNIVERSAL="${UNIVERSAL:-1}" \
   TEAM_ID="$TEAM_ID" \
   CODESIGN_IDENTITY="$CODESIGN_IDENTITY" \
   "$ROOT/scripts/package-app.sh" | tail -n 1

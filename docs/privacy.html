@@ -27,12 +27,13 @@
 
         <header class="legal-head">
           <h1>Privacy Policy</h1>
-          <p class="legal-date">Last updated: July 14, 2026</p>
+          <p class="legal-date">Last updated: September 30, 2026</p>
         </header>
 
         <p class="legal-lead">
-          Until is a macOS menubar app that shows your next Google Calendar
-          event and helps you join meetings and take notes. The short version:
+          Until is a macOS menubar app that shows your next calendar event
+          &mdash; from the Calendar app on your Mac, from Google Calendar, or
+          both &mdash; and helps you join meetings and take notes. The short version:
         </p>
         <ul class="legal-lead">
           <li>
@@ -53,6 +54,28 @@
           accesses, how that data is used, with whom it is shared, how it is
           protected, and how it is retained and deleted.
         </p>
+
+        <section>
+          <h2>Calendars on this Mac</h2>
+          <p>
+            If you turn on <strong>Calendars on this Mac</strong>, Until asks
+            macOS for access to your calendars and reads events from the
+            Calendar app through Apple&rsquo;s EventKit framework. Access is
+            read-only: Until never creates, changes, or deletes events there.
+            Events are used only on your Mac, for the same features described
+            below (showing, filtering, reminders, meeting links), and are
+            never sent anywhere. You can turn it off in
+            <strong>Settings &rarr; Calendars</strong>, or revoke access in
+            <strong>System Settings &rarr; Privacy &amp; Security &rarr;
+            Calendars</strong>.
+          </p>
+          <p>
+            For the desktop widget, Until keeps a small snapshot of
+            today&rsquo;s filtered events (titles, times, calendar colors) in
+            its app group container on your Mac. It never contains sign-in
+            tokens and is replaced on every refresh.
+          </p>
+        </section>
 
         <section>
           <h2>What Google user data Until accesses</h2>
@@ -195,7 +218,7 @@
             <li>
               <strong>OAuth tokens</strong> are retained in the macOS Keychain
               only while your account is connected. Removing the account in
-              <strong>Settings &rarr; Accounts</strong> deletes the tokens from
+              <strong>Settings &rarr; Calendars</strong> deletes the tokens from
               your Keychain immediately, along with the account&rsquo;s
               settings.
             </li>
@@ -206,7 +229,7 @@
             </li>
             <li>
               <strong>To delete all Google user data the app holds:</strong>
-              remove each account in <strong>Settings &rarr; Accounts</strong>
+              remove each account in <strong>Settings &rarr; Calendars</strong>
               (this deletes tokens and account data &mdash; do this before
               deleting the app, since uninstalling alone does not clear the
               Keychain), clear any Until notifications from Notification
@@ -243,7 +266,7 @@
           <p>You can disconnect Until at any time:</p>
           <ul>
             <li>
-              In the app, open <strong>Settings &rarr; Accounts</strong> and
+              In the app, open <strong>Settings &rarr; Calendars</strong> and
               choose <strong>Remove</strong> to sign out and clear the stored
               tokens from your Keychain.
             </li>

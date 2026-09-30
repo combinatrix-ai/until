@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import EventKit
 import Foundation
 import OSLog
 import ServiceManagement
@@ -27,6 +28,12 @@ final class AppModel: ObservableObject {
   @Published var externalSharePrompt: ExternalSharePrompt?
   @Published private(set) var launchAtLoginEnabled = false
   @Published private(set) var launchAtLoginError: String?
+  @Published private(set) var macCalendarAccess: MacCalendarAccess = MacCalendarSource.access()
+  @Published private(set) var macCalendarError: String?
+  /// A sample day shown before any calendar is connected, so the timeline can
+  /// be tried without signing in. Nothing is persisted, notified, or shared
+  /// with the widget while it is on.
+  @Published private(set) var isPreviewingSample = false
 
   /// Launch-at-login via `SMAppService` only works from a real .app bundle. In
   /// bare `swift run` dev mode the row is shown disabled — same bundle check
@@ -48,6 +55,9 @@ final class AppModel: ObservableObject {
   private let runtimeOptions: AppRuntimeOptions
   private let store = ConfigStore()
   private let notifier = EventNotifier()
+  private let macCalendars = MacCalendarSource()
+  private let startAlerts = StartAlertController()
+  private var macCalendarObserver: NSObjectProtocol?
   private var accounts: [GoogleAuth] = []
   private var rawEvents: [CalendarEvent] = []
   private var refreshTimer: Timer?
@@ -70,6 +80,8 @@ final class AppModel: ObservableObject {
       ? (demoFixture?.appConfig(base: demoConfig) ?? demoConfig)
       : store.load()
     observeWake()
+    startAlerts.onJoin = { [weak self] event in self?.join(event) }
+    startAlerts.onOpen = { [weak self] event in self?.open(event) }
     refreshLaunchAtLoginState()
     applyDefaultLaunchAtLoginIfNeeded()
     if runtimeOptions.demoMode {
@@ -86,6 +98,7 @@ final class AppModel: ObservableObject {
       return
     }
     accounts = KeychainStore.loadTokens().map { GoogleAuth(config: config, token: $0) }
+    observeMacCalendarChanges()
     updateAuthState()
     startTimers()
     Task {
@@ -97,6 +110,96 @@ final class AppModel: ObservableObject {
   deinit {
     if let wakeObserver {
       NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+    }
+    if let macCalendarObserver {
+      NotificationCenter.default.removeObserver(macCalendarObserver)
+    }
+  }
+
+  /// Demo runs and the sample preview both show synthetic data and must not
+  /// reach Google, the widget, or Notification Center.
+  private var isDemo: Bool {
+    runtimeOptions.demoMode || isPreviewingSample
+  }
+
+  func startSamplePreview() {
+    guard !runtimeOptions.demoMode, !state.auth.authenticated else { return }
+    isPreviewingSample = true
+    loadDemoData(now: Date())
+  }
+
+  func endSamplePreview() {
+    guard isPreviewingSample else { return }
+    isPreviewingSample = false
+    rawEvents = []
+    calendars = []
+    state.lastSync = nil
+    invalidateCalendarCoverage()
+    updateAuthState()
+    reapplyFilter()
+    Task {
+      await refreshCalendars()
+      await refresh()
+    }
+  }
+
+  /// Mac calendars are in use once the user turned them on and macOS still
+  /// grants full read access.
+  var usesMacCalendars: Bool {
+    config.macCalendarsEnabled && macCalendarAccess == .authorized
+  }
+
+  /// Turns on Mac calendars, asking macOS for access first when needed.
+  func enableMacCalendars() {
+    guard !runtimeOptions.demoMode else { return }
+    endSamplePreview()
+    macCalendarError = nil
+    Task {
+      let granted = await macCalendars.requestAccess()
+      macCalendarAccess = MacCalendarSource.access()
+      guard granted else {
+        macCalendarError = loc(
+          "Until can't read your calendars. Allow access in System Settings → Privacy & Security → Calendars."
+        )
+        return
+      }
+      var next = config
+      next.macCalendarsEnabled = true
+      saveConfig(next)
+      updateAuthState()
+    }
+  }
+
+  func disableMacCalendars() {
+    var next = config
+    next.macCalendarsEnabled = false
+    saveConfig(next)
+    updateAuthState()
+  }
+
+  func openCalendarPrivacySettings() {
+    let urls = [
+      "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Calendars",
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars"
+    ]
+    for value in urls {
+      guard let url = URL(string: value), NSWorkspace.shared.open(url) else { continue }
+      return
+    }
+  }
+
+  /// Calendar app edits (and syncs from iCloud/Exchange) land here right away
+  /// instead of waiting for the next poll.
+  private func observeMacCalendarChanges() {
+    macCalendarObserver = NotificationCenter.default.addObserver(
+      forName: .EKEventStoreChanged,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor in
+        guard let self, self.usesMacCalendars else { return }
+        await self.refresh()
+      }
     }
   }
 
@@ -112,7 +215,10 @@ final class AppModel: ObservableObject {
     guard RuleValidator.validate(next.filterRules) == nil else { return }
     invalidateCalendarCoverage()
     config = normalized(next)
-    if runtimeOptions.demoMode {
+    if isDemo {
+      if isPreviewingSample {
+        persistConfig()
+      }
       loadDemoData(now: Date())
       startTimers()
       return
@@ -137,7 +243,7 @@ final class AppModel: ObservableObject {
     var next = config
     next.skippedMenubarEvents[event.actionKey] = event.endDate
     config = AppModel.purgingExpiredSkips(next)
-    if !runtimeOptions.demoMode {
+    if !isDemo {
       persistConfig()
     }
     reapplyFilter()
@@ -148,7 +254,7 @@ final class AppModel: ObservableObject {
     var next = config
     next.skippedMenubarEvents.removeValue(forKey: event.actionKey)
     config = AppModel.purgingExpiredSkips(next)
-    if !runtimeOptions.demoMode {
+    if !isDemo {
       persistConfig()
     }
     reapplyFilter()
@@ -170,6 +276,7 @@ final class AppModel: ObservableObject {
   /// in-flight sign-in first so only one OAuth loopback server runs at a
   /// time.
   func startLogin() {
+    endSamplePreview()
     signInTask?.cancel()
     signInTask = Task { [weak self] in
       await self?.login()
@@ -252,7 +359,7 @@ final class AppModel: ObservableObject {
   }
 
   func logout(email: String? = nil) async {
-    guard !runtimeOptions.demoMode else {
+    guard !isDemo else {
       loadDemoData(now: Date())
       return
     }
@@ -279,19 +386,25 @@ final class AppModel: ObservableObject {
       state.lastError = nil
       reapplyFilter()
       updateAuthState()
+      if usesMacCalendars {
+        await refreshCalendars()
+        await refresh()
+      }
     } catch {
       state.lastError = error.localizedDescription
     }
   }
 
   func refresh() async {
-    if runtimeOptions.demoMode {
+    if isDemo {
       isRefreshing = true
       loadDemoData(now: Date())
       isRefreshing = false
       return
     }
-    guard !accounts.isEmpty else {
+    macCalendarAccess = MacCalendarSource.access()
+    updateAuthState()
+    guard !accounts.isEmpty || usesMacCalendars else {
       reapplyFilter()
       return
     }
@@ -302,11 +415,14 @@ final class AppModel: ObservableObject {
     let lookaheadHours = config.lookaheadHours
     calendarRefreshGeneration += 1
     let refreshGeneration = calendarRefreshGeneration
-    let results = await fetchAllAccounts(
+    var results = await fetchAllAccounts(
       selectedIds: config.selectedCalendarIds,
       lookaheadHours: lookaheadHours,
       now: fetchStart
     )
+    if usesMacCalendars {
+      results.append(fetchMacCalendars(lookaheadHours: lookaheadHours, now: fetchStart))
+    }
     applyFetchResults(
       results,
       fetchStart: fetchStart,
@@ -360,6 +476,21 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Mac calendars ride along as one more "account" so a failure there is
+  /// reported the same way and never discards Google events.
+  private func fetchMacCalendars(lookaheadHours: Int, now: Date) -> AccountFetchResult {
+    let calendars = macCalendars.calendars(
+      selections: config.macCalendarSelections,
+      googleAccountEmails: accounts.map(\.email)
+    )
+    let events = macCalendars.events(
+      calendars: calendars.filter(\.selected),
+      lookaheadHours: lookaheadHours,
+      now: now
+    )
+    return AccountFetchResult(email: loc("Calendars on this Mac"), calendars: calendars, events: events, error: nil)
+  }
+
   /// Aggregates per-account results, publishing the merged events/calendars
   /// only when at least one account succeeded — so a transient outage on
   /// every account leaves previously cached events (`rawEvents`) untouched
@@ -389,7 +520,7 @@ final class AppModel: ObservableObject {
     }
 
     if anySucceeded {
-      rawEvents = fetchedEvents.sorted { $0.startDate < $1.startDate }
+      rawEvents = mergingCalendarSources(fetchedEvents.sorted { $0.startDate < $1.startDate })
       calendars = fetchedCalendars.sorted { $0.name < $1.name }
       state.lastSync = fetchStart
     }
@@ -404,13 +535,21 @@ final class AppModel: ObservableObject {
   }
 
   func refreshCalendars() async {
-    if runtimeOptions.demoMode {
+    if isDemo {
       calendars = DemoCalendarData.calendars(selectedIds: config.selectedCalendarIds)
       return
     }
+    let macCalendarList = usesMacCalendars
+      ? macCalendars.calendars(
+        selections: config.macCalendarSelections,
+        googleAccountEmails: accounts.map(\.email)
+      )
+      : []
     guard !accounts.isEmpty else {
-      calendars = []
-      invalidateCalendarCoverage()
+      calendars = macCalendarList.sorted { $0.name < $1.name }
+      if macCalendarList.isEmpty {
+        invalidateCalendarCoverage()
+      }
       return
     }
     let selectedIds = config.selectedCalendarIds
@@ -431,7 +570,7 @@ final class AppModel: ObservableObject {
         }
         return collected
       }
-      calendars = next.sorted { $0.name < $1.name }
+      calendars = (next + macCalendarList).sorted { $0.name < $1.name }
     } catch {
       invalidateCalendarCoverage()
       state.lastError = error.localizedDescription
@@ -439,7 +578,15 @@ final class AppModel: ObservableObject {
   }
 
   func setCalendar(_ id: String, selected: Bool) {
+    if id.hasPrefix(macCalendarIdPrefix) {
+      var next = config
+      next.macCalendarSelections[id] = selected
+      saveConfig(next)
+      return
+    }
     var ids = Set(config.selectedCalendarIds)
+    // Keep "all selected" (an empty list) about Google calendars only.
+    let calendars = self.calendars.filter { $0.source == .google }
     if ids.isEmpty {
       ids = Set(calendars.map(\.id))
     }
@@ -545,6 +692,51 @@ final class AppModel: ObservableObject {
 
   // MARK: - Join menubar meeting
 
+  /// Shows the start alert for the next meeting right away so the chosen
+  /// style can be seen without waiting for a real meeting.
+  func previewStartAlert() {
+    let now = Date()
+    let sample = state.events.first { $0.endDate > now && !$0.conferenceUrl.isEmpty }
+      ?? state.events.first { $0.endDate > now }
+      ?? DemoCalendarData.events(now: now, selectedIds: [], scenario: .upcoming).first { !$0.allDay }
+    guard let sample else { return }
+    startAlerts.preview(sample, style: StartAlertStyle(rawValue: config.startAlertStyle) ?? .floating)
+  }
+
+  /// The meeting the join shortcut opens: the menubar's meeting when it has a
+  /// link, otherwise the joinable meeting that is running or starts soonest
+  /// within the next 15 minutes.
+  nonisolated static func joinTarget(
+    menubarEvent: CalendarEvent?,
+    timed: [CalendarEvent],
+    now: Date
+  ) -> CalendarEvent? {
+    if let menubarEvent, !menubarEvent.conferenceUrl.isEmpty {
+      return menubarEvent
+    }
+    let soon = now.addingTimeInterval(15 * 60)
+    return timed
+      .filter { !$0.allDay && !$0.conferenceUrl.isEmpty && $0.endDate > now && $0.startDate <= soon }
+      .min { lhs, rhs in
+        // A running meeting beats one that hasn't started; among running
+        // ones the most recently started wins, like the menubar.
+        let lhsRunning = lhs.startDate <= now
+        let rhsRunning = rhs.startDate <= now
+        if lhsRunning != rhsRunning { return lhsRunning }
+        return lhsRunning ? lhs.startDate > rhs.startDate : lhs.startDate < rhs.startDate
+      }
+  }
+
+  /// The global join shortcut. Returns false when there is nothing to join.
+  @discardableResult
+  func joinNextMeeting() -> Bool {
+    guard let event = Self.joinTarget(menubarEvent: state.next, timed: state.events, now: Date()) else {
+      return false
+    }
+    join(event)
+    return true
+  }
+
   @discardableResult
   /// Join the meeting currently shown in the menubar (`state.next`). Returns
   /// false when there's nothing shown or it has no conference URL — the caller
@@ -573,7 +765,7 @@ final class AppModel: ObservableObject {
 
   func join(_ event: CalendarEvent) {
     guard let url = EventLinks.conferenceURL(for: event) else { return }
-    NSWorkspace.shared.open(url)
+    EventLinks.openMeeting(url, preferDesktopApp: config.openMeetingsInApps)
   }
 
   func noteURL(for event: CalendarEvent) -> String {
@@ -607,8 +799,9 @@ final class AppModel: ObservableObject {
   }
 
   func addConference(for event: CalendarEvent) {
+    guard event.source == .google else { return }
     let key = event.actionKey
-    if runtimeOptions.demoMode {
+    if isDemo {
       rawEvents = rawEvents.map { current in
         guard current.actionKey == key else { return current }
         var next = current
@@ -663,7 +856,7 @@ final class AppModel: ObservableObject {
   /// Creates an app-managed template Google Doc for the account, stores its id,
   /// and opens it in the browser for editing.
   func createTemplateDoc(for accountEmail: String) {
-    guard !runtimeOptions.demoMode else {
+    guard !isDemo else {
       var next = config
       next.meetingNotesTemplateDocsByAccount[accountEmail] = "demo-template-\(accountEmail)"
       saveConfig(next)
@@ -713,6 +906,9 @@ final class AppModel: ObservableObject {
       openNote(url: notesUrl, accountEmail: event.account.email)
       return
     }
+    // Notes docs are attached to the Google event; Mac calendar events can
+    // only open a notes link they already carry.
+    guard event.source == .google else { return }
 
     let external = externalAttendees(for: event)
     if !external.isEmpty {
@@ -801,10 +997,20 @@ final class AppModel: ObservableObject {
     state.next = AppModel.pickMenubarEvent(config: config, timed: timed, allDay: allDay, now: now)
     publishWidgetSnapshot()
     let activeEvents = timed.filter { $0.endDate > now }
+    // Local UI only, so demo runs may show it too; the sample preview may not.
+    startAlerts.sync(
+      events: isPreviewingSample ? [] : activeEvents,
+      rules: StartAlertSchedule.Rules(
+        style: StartAlertStyle(rawValue: config.startAlertStyle) ?? .off,
+        leadMinutes: config.startAlertLeadMinutes,
+        videoOnly: config.startAlertVideoOnly
+      )
+    )
     let notificationEvents = config.notifyVideoOnly
       ? activeEvents.filter { !$0.conferenceUrl.isEmpty }
       : activeEvents
-    guard runtimeOptions.allowsNotifications else { return }
+    guard runtimeOptions.allowsNotifications, !isPreviewingSample else { return }
+    notifier.prefersDesktopApps = config.openMeetingsInApps
     Task {
       await notifier.sync(
         events: notificationEvents,
@@ -816,9 +1022,9 @@ final class AppModel: ObservableObject {
 
   private func publishWidgetSnapshot() {
     // Demo runs must not replace the real calendar shown by an installed widget.
-    guard !runtimeOptions.demoMode, let url = WidgetAgendaStore.sharedURL() else { return }
+    guard !isDemo, let url = WidgetAgendaStore.sharedURL() else { return }
     let snapshot = WidgetAgendaSnapshot(
-      authenticated: !accounts.isEmpty,
+      authenticated: state.auth.authenticated,
       lastSync: state.lastSync,
       coverageEnd: state.calendarCoverageEnd,
       events: (state.allDayEvents + state.events).map { event in
@@ -967,10 +1173,11 @@ final class AppModel: ObservableObject {
         accounts: demoFixture.accountEmails().map { AccountState(email: $0) }
       )
     } else {
-      calendars = DemoCalendarData.calendars(selectedIds: config.selectedCalendarIds)
+      let selectedIds = isPreviewingSample ? [] : config.selectedCalendarIds
+      calendars = DemoCalendarData.calendars(selectedIds: selectedIds)
       rawEvents = DemoCalendarData.events(
         now: now,
-        selectedIds: config.selectedCalendarIds,
+        selectedIds: selectedIds,
         scenario: runtimeOptions.demoScenario
       )
       state.auth = DemoCalendarData.accountState()
@@ -990,7 +1197,7 @@ final class AppModel: ObservableObject {
       .map { AccountState(email: $0.email) }
       .sorted { $0.email < $1.email }
     state.auth = AuthState(
-      authenticated: !accountStates.isEmpty,
+      authenticated: !accountStates.isEmpty || usesMacCalendars,
       accounts: accountStates
     )
   }
@@ -1003,7 +1210,7 @@ final class AppModel: ObservableObject {
     defer { creatingNoteKey = nil }
 
     do {
-      if runtimeOptions.demoMode {
+      if isDemo {
         noteResults[key] = DemoCalendarData.noteResult(for: event)
         return
       }

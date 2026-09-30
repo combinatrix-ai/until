@@ -19,6 +19,8 @@ CONFIGURATION="${CONFIGURATION:-debug}"
 APP_VERSION="${APP_VERSION:-0.1.0}"
 BUILD_NUMBER="${BUILD_NUMBER:-1}"
 MAS="${MAS:-0}"
+# UNIVERSAL=1 builds one binary for Apple Silicon and Intel (release.sh sets it).
+UNIVERSAL="${UNIVERSAL:-0}"
 APP_NAME="Until"
 APP_DIR="$ROOT/.build/$CONFIGURATION/$APP_NAME.app"
 EXECUTABLE="$ROOT/.build/$CONFIGURATION/Until"
@@ -82,6 +84,9 @@ if [[ -n "$CONFIGURATION" ]]; then
 fi
 if [[ "$MAS" == "1" ]]; then
   build_args+=(--disable-default-traits)
+fi
+if [[ "$UNIVERSAL" == "1" ]]; then
+  build_args+=(--arch arm64 --arch x86_64)
 fi
 swift build "${build_args[@]}"
 
@@ -157,6 +162,13 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
       <key>CFBundleURLSchemes</key><array><string>until</string></array>
     </dict>
   </array>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>en</string>
+    <string>ja</string>
+  </array>
   <key>CFBundleShortVersionString</key>
   <string>${APP_VERSION}</string>
   <key>CFBundleVersion</key>
@@ -171,6 +183,10 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <false/>
   <key>NSUserNotificationAlertStyle</key>
   <string>alert</string>
+  <key>NSCalendarsUsageDescription</key>
+  <string>Until shows your upcoming events from the Calendar app in the menu bar. Nothing leaves your Mac.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key>
+  <string>Until shows your upcoming events from the Calendar app in the menu bar. Nothing leaves your Mac.</string>
   <key>UntilWidgetGroupIdentifier</key>
   <string>${WIDGET_GROUP_ID}</string>
   <key>GoogleOAuthClientID</key>
@@ -181,6 +197,17 @@ ${SPARKLE_PLIST_KEYS}
 </dict>
 </plist>
 PLIST
+
+# Localized Info.plist strings (the Calendar access prompt).
+mkdir -p "$APP_DIR/Contents/Resources/en.lproj" "$APP_DIR/Contents/Resources/ja.lproj"
+cat > "$APP_DIR/Contents/Resources/en.lproj/InfoPlist.strings" <<'STRINGS'
+"NSCalendarsUsageDescription" = "Until shows your upcoming events from the Calendar app in the menu bar. Nothing leaves your Mac.";
+"NSCalendarsFullAccessUsageDescription" = "Until shows your upcoming events from the Calendar app in the menu bar. Nothing leaves your Mac.";
+STRINGS
+cat > "$APP_DIR/Contents/Resources/ja.lproj/InfoPlist.strings" <<'STRINGS'
+"NSCalendarsUsageDescription" = "カレンダーAppの予定をメニューバーに表示するために使います。予定がこのMacの外に送られることはありません。";
+"NSCalendarsFullAccessUsageDescription" = "カレンダーAppの予定をメニューバーに表示するために使います。予定がこのMacの外に送られることはありません。";
+STRINGS
 
 # App icon. Generated once from scripts/make-icon.swift, then reused so dev
 # rebuilds stay fast; delete scripts/Until.icns to regenerate after a redesign.
@@ -203,7 +230,6 @@ widget_compile_args=(
   # when WidgetKit asks ExtensionFoundation to initialize the widget.
   -Xlinker -e -Xlinker _NSExtensionMain
   -swift-version 5
-  -target "$(uname -m)-apple-macos14.0"
   -module-cache-path "$ROOT/.build/widget-module-cache"
   -framework SwiftUI
   -framework WidgetKit
@@ -211,10 +237,22 @@ widget_compile_args=(
 if [[ "$CONFIGURATION" == "release" ]]; then
   widget_compile_args+=(-O)
 fi
-xcrun swiftc "${widget_compile_args[@]}" \
-  "$ROOT/Sources/Until/WidgetAgendaSnapshot.swift" \
-  "$ROOT/Sources/UntilWidget/UntilWidget.swift" \
-  -o "$WIDGET_DIR/Contents/MacOS/UntilWidget"
+widget_archs=("$(uname -m)")
+if [[ "$UNIVERSAL" == "1" ]]; then
+  widget_archs=(arm64 x86_64)
+fi
+widget_slices=()
+for arch in "${widget_archs[@]}"; do
+  slice="$ROOT/.build/widget-$arch/UntilWidget"
+  mkdir -p "$(dirname "$slice")"
+  xcrun swiftc "${widget_compile_args[@]}" \
+    -target "$arch-apple-macos14.0" \
+    "$ROOT/Sources/Until/WidgetAgendaSnapshot.swift" \
+    "$ROOT/Sources/UntilWidget/UntilWidget.swift" \
+    -o "$slice"
+  widget_slices+=("$slice")
+done
+lipo -create "${widget_slices[@]}" -output "$WIDGET_DIR/Contents/MacOS/UntilWidget"
 cp "$ROOT/Sources/UntilWidget/Info.plist" "$WIDGET_DIR/Contents/Info.plist"
 plutil -replace CFBundleShortVersionString -string "$APP_VERSION" "$WIDGET_DIR/Contents/Info.plist"
 plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$WIDGET_DIR/Contents/Info.plist"

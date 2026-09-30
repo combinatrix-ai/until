@@ -340,3 +340,50 @@
 "Return to Until." = "Return to Until.";
 "Login failed" = "Login failed";
 "No authorization code returned." = "No authorization code returned.";
+
+/* MARK: - Calendars on this Mac, onboarding, sample day */
+"Calendars on this Mac" = "Calendars on this Mac";
+"Events from the Calendar app — iCloud, Exchange, Google, and more. No sign-in." = "Events from the Calendar app — iCloud, Exchange, Google, and more. No sign-in.";
+"No calendars found in the Calendar app." = "No calendars found in the Calendar app.";
+"Other" = "Other";
+"Calendar access" = "Calendar access";
+"Also connected as a Google account" = "Also connected as a Google account";
+"Until can't read your calendars. Allow access in System Settings → Privacy & Security → Calendars." = "Until can't read your calendars. Allow access in System Settings → Privacy & Security → Calendars.";
+"Restricted" = "Restricted";
+"Add-only" = "Add-only";
+"Off" = "Off";
+"Floating" = "Floating";
+"Full screen" = "Full screen";
+"Your next meeting, always in the menubar." = "Your next meeting, always in the menubar.";
+"Use the events already in the Calendar app — iCloud, Google, Outlook, and more. No sign-in." = "Use the events already in the Calendar app — iCloud, Google, Outlook, and more. No sign-in.";
+"Use Calendars on This Mac" = "Use Calendars on This Mac";
+"Open System Settings" = "Open System Settings";
+"or" = "or";
+"Google account" = "Google account";
+"Adds one-click meeting notes and Google Meet links." = "Adds one-click meeting notes and Google Meet links.";
+"Try it with a sample day" = "Try it with a sample day";
+"Sample day" = "Sample day";
+"Connect calendars" = "Connect calendars";
+
+/* MARK: - Meetings: join shortcut, start alert, day summary */
+"Dismiss" = "Dismiss";
+"Snooze 1 min" = "Snooze 1 min";
+"Starting now" = "Starting now";
+"Starts in %@" = "Starts in %@";
+"Join shortcut" = "Join shortcut";
+"Join the current or next meeting from anywhere" = "Join the current or next meeting from anywhere";
+"Show event title" = "Show event title";
+"Turn off to show only the countdown, e.g. while presenting" = "Turn off to show only the countdown, e.g. while presenting";
+"Meetings" = "Meetings";
+"Open in desktop apps" = "Open in desktop apps";
+"Zoom and Teams links open in their apps when installed" = "Zoom and Teams links open in their apps when installed";
+"Start alert" = "Start alert";
+"Put the meeting on screen as it starts, until you join or dismiss it" = "Put the meeting on screen as it starts, until you join or dismiss it";
+"Alert timing" = "Alert timing";
+"How long before the meeting the alert appears" = "How long before the meeting the alert appears";
+"Alert for" = "Alert for";
+"Preview alert" = "Preview alert";
+"1 event" = "1 event";
+"%d events" = "%d events";
+"%@ booked" = "%@ booked";
+"longest free %@" = "longest free %@";

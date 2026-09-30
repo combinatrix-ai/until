@@ -116,6 +116,11 @@ final class CalendarClient {
     let attendees = normalizeAttendees(raw.attendees ?? [])
     let selfAttendee = attendees.first { $0.selfUser }
     let noteURL = raw.existingNoteURL
+    let conference = conferenceURL(for: raw)
+    let attachmentLinks = (raw.attachments ?? []).compactMap { attachment -> EventLink? in
+      guard let url = attachment.fileUrl, !url.isEmpty else { return nil }
+      return EventLink(title: attachment.title?.nilIfEmpty ?? linkTitle(for: url), url: url)
+    }
 
     return CalendarEvent(
       id: raw.id,
@@ -134,11 +139,16 @@ final class CalendarClient {
       organizer: raw.organizer?.email ?? "",
       selfResponse: selfAttendee?.responseStatus ?? "none",
       isRecurring: raw.recurringEventId != nil,
-      conferenceUrl: conferenceURL(for: raw),
+      conferenceUrl: conference,
       notesUrl: noteURL ?? "",
       colorId: raw.colorId ?? "",
       transparency: raw.transparency == "transparent" ? "free" : "busy",
-      htmlLink: raw.htmlLink ?? ""
+      htmlLink: raw.htmlLink ?? "",
+      links: eventLinks(
+        description: raw.description,
+        attachments: attachmentLinks,
+        excluding: [conference, noteURL ?? ""]
+      )
     )
   }
 

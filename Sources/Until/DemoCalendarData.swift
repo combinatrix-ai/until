@@ -387,7 +387,12 @@ enum DemoCalendarData {
       DemoEventSpec(
         id: "design-review",
         title: "Design review: website screenshots",
-        description: "Pick the strongest Until states for the landing page and press kit.",
+        description: """
+        Pick the strongest Until states for the landing page and press kit.
+        Brief: https://docs.google.com/document/d/until-launch-brief/edit
+        Layouts: https://www.figma.com/design/until-website
+        Site PR: https://github.com/combinatrix-ai/until/pull/12
+        """,
         location: "Google Meet",
         start: ctx.nextSlot,
         end: minutes(from: ctx.nextSlot, 45),
@@ -590,7 +595,8 @@ enum DemoCalendarData {
       notesUrl: spec.notesUrl,
       colorId: spec.colorId,
       transparency: spec.transparency,
-      htmlLink: "https://calendar.google.com/calendar/event?eid=demo-\(spec.id)"
+      htmlLink: "https://calendar.google.com/calendar/event?eid=demo-\(spec.id)",
+      links: eventLinks(description: spec.description, excluding: [spec.conferenceUrl, spec.notesUrl])
     )
   }
 

@@ -77,6 +77,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
   private var cancellables = Set<AnyCancellable>()
   private var settingsWindow: NSWindow?
   private var hotkeyManager: HotkeyManager?
+  private var joinHotkeyManager: HotkeyManager?
   /// When true the menubar shows only the icon, hiding the event text. Toggled by
   /// right-clicking the status item; in-memory only (resets on relaunch).
   private var collapsed = false
@@ -87,8 +88,12 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
   init(model: AppModel) {
     self.model = model
     super.init()
-    hotkeyManager = HotkeyManager { [weak self] in
+    hotkeyManager = HotkeyManager(id: 1) { [weak self] in
       self?.hotkeyToggle()
+    }
+    joinHotkeyManager = HotkeyManager(id: 2) { [weak self] in
+      guard let self else { return }
+      if !self.model.joinNextMeeting() { self.shakeStatusItem() }
     }
     popover.behavior = .transient
     popover.delegate = self
@@ -112,6 +117,17 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
       .removeDuplicates { $0 == $1 }
       .sink { [weak self] enabled, preset in
         self?.applyHotkey(enabled: enabled, preset: preset)
+      }
+      .store(in: &cancellables)
+    model.$config
+      .map { ($0.joinHotkeyEnabled, $0.joinHotkeyPreset) }
+      .removeDuplicates { $0 == $1 }
+      .sink { [weak self] enabled, preset in
+        if enabled {
+          self?.joinHotkeyManager?.register(presetId: preset)
+        } else {
+          self?.joinHotkeyManager?.unregister()
+        }
       }
       .store(in: &cancellables)
     observeMenubarAvailability()
@@ -247,12 +263,15 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         // Event already underway: show time remaining instead of "now".
         let remaining = roundedMinutes(from: now, to: next.endDate)
         when = loc("%@ left", relativeWhen(remaining))
+      } else if next.startMinutesFromNow <= 0 {
+        // Starts within the next half minute: "in now" reads wrong.
+        when = loc("now")
       } else {
         when = loc("in %@", relativeWhen(next.startMinutesFromNow))
       }
       nextContent = .event(
         when: when,
-        title: next.title,
+        title: config.menubarShowsTitle ? next.title : "",
         maximumTitleCharacters: config.maxTitleLength
       )
     } else if state.auth.authenticated && state.events.isEmpty && state.allDayEvents.isEmpty && state.lastError == nil {

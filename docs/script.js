@@ -13,3 +13,21 @@ const observer = new IntersectionObserver(
 document.querySelectorAll(".notes-visual").forEach((node) => {
   observer.observe(node);
 });
+
+document.querySelectorAll(".copy-button").forEach((button) => {
+  const label = button.textContent;
+  button.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(button.dataset.copy);
+      button.textContent = button.dataset.copied || label;
+      setTimeout(() => {
+        button.textContent = label;
+      }, 1600);
+    } catch {
+      const code = button.parentElement.querySelector("code");
+      if (code) {
+        window.getSelection().selectAllChildren(code);
+      }
+    }
+  });
+});

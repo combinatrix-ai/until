@@ -47,7 +47,7 @@ extension AppModel {
 
   /// Gaps at or above this length between two consecutive timed rows earn a
   /// free-time divider in the popover list.
-  static let freeGapThresholdMinutes = 30
+  nonisolated static let freeGapThresholdMinutes = 30
 
   /// Pure: interleaves `FreeGap` dividers into `rows` wherever two
   /// consecutive TIMED rows are separated by at least
@@ -446,5 +446,66 @@ extension AppModel {
       .filter { $0.startDate > now }
       .min { lhs, rhs in lhs.startDate < rhs.startDate }
     return .free(next: next)
+  }
+}
+
+/// Today at a glance, for the line under the timeline's day header.
+struct DaySummary: Equatable {
+  var eventCount: Int
+  var bookedMinutes: Int
+  /// The longest stretch still free between now and the day's last busy
+  /// event; nil once nothing busy is left.
+  var longestFreeMinutes: Int?
+
+  var text: String {
+    var parts = [eventCount == 1 ? loc("1 event") : loc("%d events", eventCount)]
+    if bookedMinutes > 0 {
+      parts.append(loc("%@ booked", relativeWhen(bookedMinutes)))
+    }
+    if let longestFreeMinutes, longestFreeMinutes >= AppModel.freeGapThresholdMinutes {
+      parts.append(loc("longest free %@", relativeWhen(longestFreeMinutes)))
+    }
+    return parts.joined(separator: " · ")
+  }
+}
+
+extension AppModel {
+  /// Pure: summarizes the busy timed events on `day`. Overlapping events are
+  /// counted once toward booked time; free time is measured from `now`.
+  nonisolated static func daySummary(timed: [CalendarEvent], day: Date, now: Date) -> DaySummary? {
+    let calendar = Calendar.current
+    let dayStart = calendar.startOfDay(for: day)
+    guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { return nil }
+    let events = timed.filter {
+      !$0.allDay && $0.transparency != "free" && $0.startDate < dayEnd && $0.endDate > dayStart
+    }
+    guard !events.isEmpty else { return nil }
+
+    var merged: [(start: Date, end: Date)] = []
+    for event in events.sorted(by: { $0.startDate < $1.startDate }) {
+      let start = max(event.startDate, dayStart)
+      let end = min(event.endDate, dayEnd)
+      if let last = merged.last, start <= last.end {
+        merged[merged.count - 1].end = max(last.end, end)
+      } else {
+        merged.append((start, end))
+      }
+    }
+    let booked = merged.reduce(0) { $0 + $1.end.timeIntervalSince($1.start) }
+
+    var cursor = now
+    var longestFree: TimeInterval?
+    for interval in merged where interval.end > now {
+      if interval.start > cursor {
+        longestFree = max(longestFree ?? 0, interval.start.timeIntervalSince(cursor))
+      }
+      cursor = max(cursor, interval.end)
+    }
+
+    return DaySummary(
+      eventCount: events.count,
+      bookedMinutes: Int((booked / 60).rounded()),
+      longestFreeMinutes: longestFree.map { Int(($0 / 60).rounded()) }
+    )
   }
 }
