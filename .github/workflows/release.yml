@@ -79,6 +79,9 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME:-$(git rev-parse --short HEAD)}"
           cp .build/release/Until.dmg "Until-${TAG}.dmg"
+          # A stable name too, so releases/latest/download/Until.dmg always
+          # points at the newest installer (the website and README link it).
+          cp .build/release/Until.dmg Until.dmg
           # Sparkle updates from a .zip of the notarized + stapled .app (the .dmg
           # is only for first-time install). Stapled ticket rides inside the zip
           # so the update validates offline.
@@ -110,7 +113,7 @@ jobs:
           # releases/latest/download/appcast.xml URL that the app's SUFeedURL
           # points at; the .zip is the update payload, the .dmg the installer.
           gh release create "$GITHUB_REF_NAME" \
-            Until-*.dmg Until-*.zip appcast.xml \
+            Until.dmg Until-*.dmg Until-*.zip appcast.xml \
             --title "$GITHUB_REF_NAME" --generate-notes
 
       - name: Upload app artifact
