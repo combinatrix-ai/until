@@ -19,6 +19,9 @@ final class EventNotifier: NSObject, UNUserNotificationCenterDelegate {
 
   private let backend: Backend
 
+  /// Mirrors `AppConfig.openMeetingsInApps` for the Join action.
+  var prefersDesktopApps = false
+
   /// Script backend only: fire-once timers, since osascript has no
   /// UNUserNotificationCenter to schedule against.
   private var scriptTimers: [String: Timer] = [:]
@@ -333,10 +336,10 @@ final class EventNotifier: NSObject, UNUserNotificationCenterDelegate {
       return "event-reminder-teams"
     case .webex:
       return "event-reminder-webex"
-    case .blueJeans, .goToMeeting, .whereby, .around:
-      return "event-reminder-video"
     case nil:
       return "event-reminder"
+    default:
+      return "event-reminder-video"
     }
   }
 
@@ -377,15 +380,15 @@ final class EventNotifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     let userInfo = response.notification.request.content.userInfo
+    let joinURL = (userInfo["joinURL"] as? String).flatMap { $0.isEmpty ? nil : $0 }
     let preferredURL: String?
     switch response.actionIdentifier {
     case "join":
-      preferredURL = userInfo["joinURL"] as? String
+      preferredURL = joinURL
     case "open":
       preferredURL = userInfo["eventURL"] as? String
     case UNNotificationDefaultActionIdentifier:
-      preferredURL = (userInfo["joinURL"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-        ?? (userInfo["eventURL"] as? String)
+      preferredURL = joinURL ?? (userInfo["eventURL"] as? String)
     default:
       preferredURL = userInfo["eventURL"] as? String
     }
@@ -395,8 +398,12 @@ final class EventNotifier: NSObject, UNUserNotificationCenterDelegate {
           let url = URL(string: urlString)
     else { return }
 
-    _ = await MainActor.run {
-      NSWorkspace.shared.open(url)
+    await MainActor.run {
+      if urlString == joinURL {
+        EventLinks.openMeeting(url, preferDesktopApp: prefersDesktopApps)
+      } else {
+        NSWorkspace.shared.open(url)
+      }
     }
   }
 }

@@ -364,3 +364,26 @@
 "Try it with a sample day" = "Try it with a sample day";
 "Sample day" = "Sample day";
 "Connect calendars" = "Connect calendars";
+
+/* MARK: - Meetings: join shortcut, start alert, day summary */
+"Dismiss" = "Dismiss";
+"Snooze 1 min" = "Snooze 1 min";
+"Starting now" = "Starting now";
+"Starts in %@" = "Starts in %@";
+"Join shortcut" = "Join shortcut";
+"Join the current or next meeting from anywhere" = "Join the current or next meeting from anywhere";
+"Show event title" = "Show event title";
+"Turn off to show only the countdown, e.g. while presenting" = "Turn off to show only the countdown, e.g. while presenting";
+"Meetings" = "Meetings";
+"Open in desktop apps" = "Open in desktop apps";
+"Zoom and Teams links open in their apps when installed" = "Zoom and Teams links open in their apps when installed";
+"Start alert" = "Start alert";
+"Put the meeting on screen as it starts, until you join or dismiss it" = "Put the meeting on screen as it starts, until you join or dismiss it";
+"Alert timing" = "Alert timing";
+"How long before the meeting the alert appears" = "How long before the meeting the alert appears";
+"Alert for" = "Alert for";
+"Preview alert" = "Preview alert";
+"1 event" = "1 event";
+"%d events" = "%d events";
+"%@ booked" = "%@ booked";
+"longest free %@" = "longest free %@";

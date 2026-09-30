@@ -364,3 +364,26 @@
 "Try it with a sample day" = "サンプルの一日で試す";
 "Sample day" = "サンプルの一日";
 "Connect calendars" = "カレンダーを接続";
+
+/* MARK: - Meetings: join shortcut, start alert, day summary */
+"Dismiss" = "閉じる";
+"Snooze 1 min" = "1分後に再通知";
+"Starting now" = "開始";
+"Starts in %@" = "%@後に開始";
+"Join shortcut" = "参加ショートカット";
+"Join the current or next meeting from anywhere" = "どこからでも、進行中または直近の会議に参加";
+"Show event title" = "予定名を表示";
+"Turn off to show only the countdown, e.g. while presenting" = "オフにするとカウントダウンだけを表示します（発表中などに）";
+"Meetings" = "会議";
+"Open in desktop apps" = "デスクトップアプリで開く";
+"Zoom and Teams links open in their apps when installed" = "ZoomとTeamsのリンクを、インストール済みのアプリで開きます";
+"Start alert" = "開始アラート";
+"Put the meeting on screen as it starts, until you join or dismiss it" = "会議の開始時に画面へ表示し、参加するか閉じるまで出し続けます";
+"Alert timing" = "アラートのタイミング";
+"How long before the meeting the alert appears" = "会議の何分前にアラートを出すか";
+"Alert for" = "アラートの対象";
+"Preview alert" = "アラートを試す";
+"1 event" = "予定1件";
+"%d events" = "予定%d件";
+"%@ booked" = "計%@";
+"longest free %@" = "最長の空き%@";

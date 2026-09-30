@@ -56,6 +56,7 @@ final class AppModel: ObservableObject {
   private let store = ConfigStore()
   private let notifier = EventNotifier()
   private let macCalendars = MacCalendarSource()
+  private let startAlerts = StartAlertController()
   private var macCalendarObserver: NSObjectProtocol?
   private var accounts: [GoogleAuth] = []
   private var rawEvents: [CalendarEvent] = []
@@ -79,6 +80,8 @@ final class AppModel: ObservableObject {
       ? (demoFixture?.appConfig(base: demoConfig) ?? demoConfig)
       : store.load()
     observeWake()
+    startAlerts.onJoin = { [weak self] event in self?.join(event) }
+    startAlerts.onOpen = { [weak self] event in self?.open(event) }
     refreshLaunchAtLoginState()
     applyDefaultLaunchAtLoginIfNeeded()
     if runtimeOptions.demoMode {
@@ -689,6 +692,51 @@ final class AppModel: ObservableObject {
 
   // MARK: - Join menubar meeting
 
+  /// Shows the start alert for the next meeting right away so the chosen
+  /// style can be seen without waiting for a real meeting.
+  func previewStartAlert() {
+    let now = Date()
+    let sample = state.events.first { $0.endDate > now && !$0.conferenceUrl.isEmpty }
+      ?? state.events.first { $0.endDate > now }
+      ?? DemoCalendarData.events(now: now, selectedIds: [], scenario: .upcoming).first { !$0.allDay }
+    guard let sample else { return }
+    startAlerts.preview(sample, style: StartAlertStyle(rawValue: config.startAlertStyle) ?? .floating)
+  }
+
+  /// The meeting the join shortcut opens: the menubar's meeting when it has a
+  /// link, otherwise the joinable meeting that is running or starts soonest
+  /// within the next 15 minutes.
+  nonisolated static func joinTarget(
+    menubarEvent: CalendarEvent?,
+    timed: [CalendarEvent],
+    now: Date
+  ) -> CalendarEvent? {
+    if let menubarEvent, !menubarEvent.conferenceUrl.isEmpty {
+      return menubarEvent
+    }
+    let soon = now.addingTimeInterval(15 * 60)
+    return timed
+      .filter { !$0.allDay && !$0.conferenceUrl.isEmpty && $0.endDate > now && $0.startDate <= soon }
+      .min { lhs, rhs in
+        // A running meeting beats one that hasn't started; among running
+        // ones the most recently started wins, like the menubar.
+        let lhsRunning = lhs.startDate <= now
+        let rhsRunning = rhs.startDate <= now
+        if lhsRunning != rhsRunning { return lhsRunning }
+        return lhsRunning ? lhs.startDate > rhs.startDate : lhs.startDate < rhs.startDate
+      }
+  }
+
+  /// The global join shortcut. Returns false when there is nothing to join.
+  @discardableResult
+  func joinNextMeeting() -> Bool {
+    guard let event = Self.joinTarget(menubarEvent: state.next, timed: state.events, now: Date()) else {
+      return false
+    }
+    join(event)
+    return true
+  }
+
   @discardableResult
   /// Join the meeting currently shown in the menubar (`state.next`). Returns
   /// false when there's nothing shown or it has no conference URL — the caller
@@ -717,7 +765,7 @@ final class AppModel: ObservableObject {
 
   func join(_ event: CalendarEvent) {
     guard let url = EventLinks.conferenceURL(for: event) else { return }
-    NSWorkspace.shared.open(url)
+    EventLinks.openMeeting(url, preferDesktopApp: config.openMeetingsInApps)
   }
 
   func noteURL(for event: CalendarEvent) -> String {
@@ -949,10 +997,20 @@ final class AppModel: ObservableObject {
     state.next = AppModel.pickMenubarEvent(config: config, timed: timed, allDay: allDay, now: now)
     publishWidgetSnapshot()
     let activeEvents = timed.filter { $0.endDate > now }
+    // Local UI only, so demo runs may show it too; the sample preview may not.
+    startAlerts.sync(
+      events: isPreviewingSample ? [] : activeEvents,
+      rules: StartAlertSchedule.Rules(
+        style: StartAlertStyle(rawValue: config.startAlertStyle) ?? .off,
+        leadMinutes: config.startAlertLeadMinutes,
+        videoOnly: config.startAlertVideoOnly
+      )
+    )
     let notificationEvents = config.notifyVideoOnly
       ? activeEvents.filter { !$0.conferenceUrl.isEmpty }
       : activeEvents
     guard runtimeOptions.allowsNotifications, !isPreviewingSample else { return }
+    notifier.prefersDesktopApps = config.openMeetingsInApps
     Task {
       await notifier.sync(
         events: notificationEvents,

@@ -284,10 +284,13 @@ struct PanelView: View {
         Button(loc("Cancel"), role: .cancel) {}
       }
 
-      Text(statusText(now: now))
+      // Today's shape when there is one; the sync time moves to the tooltip.
+      let summary = AppModel.daySummary(timed: model.state.events, day: now, now: now)
+      Text(summary?.text ?? statusText(now: now))
         .font(.caption)
         .foregroundStyle(.secondary)
         .lineLimit(1)
+        .help(statusText(now: now))
 
       Spacer()
 
@@ -351,22 +354,26 @@ struct OnboardingView: View {
 
   var body: some View {
     ScrollView(.vertical) {
-      VStack(spacing: Theme.Spacing.lg) {
-        VStack(spacing: Theme.Spacing.sm) {
+      VStack(spacing: Theme.Spacing.md) {
+        VStack(spacing: Theme.Spacing.xs) {
           ZStack {
             Circle()
               .fill(Color.accentColor.opacity(0.12))
-              .frame(width: 56, height: 56)
-            Image(nsImage: BrandIcon.menubarImage(size: 28))
+              .frame(width: 44, height: 44)
+            Image(nsImage: BrandIcon.menubarImage(size: 22))
               .renderingMode(.template)
               .foregroundStyle(Color.accentColor)
           }
-          Text("Until")
-            .font(.title2.weight(.semibold))
           Text(loc("Your next meeting, always in the menubar."))
-            .font(.callout)
-            .foregroundStyle(.secondary)
+            .font(.callout.weight(.medium))
             .multilineTextAlignment(.center)
+          Button {
+            model.startSamplePreview()
+          } label: {
+            Label(loc("Try it with a sample day"), systemImage: "sparkles")
+              .font(.caption)
+          }
+          .buttonStyle(.link)
         }
 
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -437,19 +444,11 @@ struct OnboardingView: View {
           }
         }
         .card(.inset, padding: Theme.Spacing.md)
-
-        Button {
-          model.startSamplePreview()
-        } label: {
-          Label(loc("Try it with a sample day"), systemImage: "sparkles")
-            .font(.callout)
-        }
-        .buttonStyle(.link)
       }
       .frame(maxWidth: 320)
       .frame(maxWidth: .infinity)
       .padding(.horizontal, Theme.Spacing.xl)
-      .padding(.vertical, Theme.Spacing.lg)
+      .padding(.vertical, Theme.Spacing.md)
     }
   }
 
@@ -804,6 +803,10 @@ private struct HeroTimelineRow: View {
           }
         }
 
+        if !event.links.isEmpty {
+          EventLinkChips(event: event)
+        }
+
         // Without an attached action the row would hold nothing but the
         // hover-revealed ellipsis, stretching the card for no content.
         if hasAttachedActions {
@@ -924,6 +927,41 @@ private struct HeroTimelineRow: View {
     }
   }
 
+}
+
+/// What the meeting is about — the doc, design, or PR linked from the invite.
+private struct EventLinkChips: View {
+  var event: CalendarEvent
+
+  var body: some View {
+    HStack(spacing: Theme.Spacing.xs) {
+      ForEach(event.links, id: \.url) { link in
+        Button {
+          if let url = EventLinks.authenticatedURL(from: link.url, accountEmail: event.account.email) {
+            NSWorkspace.shared.open(url)
+          }
+        } label: {
+          Label(link.title, systemImage: systemImage(for: link))
+            .font(.caption)
+            .lineLimit(1)
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.vertical, 2)
+            .background(Color.primary.opacity(0.06), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(link.url)
+      }
+    }
+  }
+
+  private func systemImage(for link: EventLink) -> String {
+    let title = link.title
+    if title.hasPrefix("Google") { return "doc.text" }
+    if title == "Figma" || title == "Miro" { return "paintpalette" }
+    if title.hasPrefix("PR #") { return "arrow.triangle.pull" }
+    if title.hasPrefix("Issue #") || title == "Jira" || title == "Linear" { return "checklist" }
+    return "link"
+  }
 }
 
 private struct CondensedHeroStrip: View {
@@ -2180,6 +2218,21 @@ struct SettingsView: View {
               .labelsHidden()
           }
         }
+        Divider()
+        SettingRow(loc("Join shortcut"), subtitle: loc("Join the current or next meeting from anywhere")) {
+          HStack(spacing: Theme.Spacing.sm) {
+            Picker("", selection: $draft.joinHotkeyPreset) {
+              ForEach(joinHotkeyPresets) { preset in
+                Text(preset.label).tag(preset.id)
+              }
+            }
+            .labelsHidden()
+            .frame(width: 130)
+            .disabled(!draft.joinHotkeyEnabled)
+            Toggle("", isOn: $draft.joinHotkeyEnabled)
+              .labelsHidden()
+          }
+        }
 #if SPARKLE
         Divider()
         SettingRow(
@@ -2226,11 +2279,20 @@ struct SettingsView: View {
       }
 
       SettingsCard(loc("Menubar")) {
+        SettingRow(
+          loc("Show event title"),
+          subtitle: loc("Turn off to show only the countdown, e.g. while presenting")
+        ) {
+          Toggle("", isOn: $draft.menubarShowsTitle)
+            .labelsHidden()
+        }
+        Divider()
         stepperRow(
           loc("Max title length"),
           subtitle: loc("Longer event titles are shortened with “…”"),
           value: $draft.maxTitleLength, range: 10...120, step: 1, unit: loc("characters")
         )
+        .disabled(!draft.menubarShowsTitle)
         Divider()
         SettingRow(loc("Show upcoming event"), subtitle: loc("When the next event appears in the menubar")) {
           Picker("", selection: menubarWindowSelection) {
@@ -2258,6 +2320,8 @@ struct SettingsView: View {
           .fixedSize(horizontal: false, vertical: true)
           .frame(maxWidth: .infinity, alignment: .leading)
       }
+
+      meetingsCard
 
       SettingsCard(loc("Notifications")) {
         SettingRow(loc("Event reminders"), subtitle: loc("Send a notification before an event starts")) {
@@ -2333,6 +2397,74 @@ struct SettingsView: View {
     }
     .task {
       await model.refreshNotificationAuthorizationState()
+    }
+  }
+
+  /// The join shortcut can't reuse the popover shortcut's keys while that
+  /// one is on.
+  private var joinHotkeyPresets: [HotkeyManager.Preset] {
+    HotkeyManager.presets.filter { !draft.hotkeyEnabled || $0.id != draft.hotkeyPreset }
+  }
+
+  private var startAlertStyle: Binding<StartAlertStyle> {
+    Binding(
+      get: { StartAlertStyle(rawValue: draft.startAlertStyle) ?? .off },
+      set: { draft.startAlertStyle = $0.rawValue }
+    )
+  }
+
+  private var meetingsCard: some View {
+    SettingsCard(loc("Meetings")) {
+      SettingRow(
+        loc("Open in desktop apps"),
+        subtitle: loc("Zoom and Teams links open in their apps when installed")
+      ) {
+        Toggle("", isOn: $draft.openMeetingsInApps)
+          .labelsHidden()
+      }
+      Divider()
+      SettingRow(
+        loc("Start alert"),
+        subtitle: loc("Put the meeting on screen as it starts, until you join or dismiss it")
+      ) {
+        Picker("", selection: startAlertStyle) {
+          ForEach(StartAlertStyle.allCases) { style in
+            Text(style.label).tag(style)
+          }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(width: 240)
+      }
+      Divider()
+      stepperRow(
+        loc("Alert timing"),
+        subtitle: loc("How long before the meeting the alert appears"),
+        value: $draft.startAlertLeadMinutes, range: 0...10, step: 1, unit: loc("min before")
+      )
+      .disabled(startAlertStyle.wrappedValue == .off)
+      Divider()
+      SettingRow(loc("Alert for"), subtitle: nil) {
+        Picker("", selection: $draft.startAlertVideoOnly) {
+          Text(loc("All events")).tag(false)
+          Text(loc("Video only")).tag(true)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(width: 210)
+      }
+      .disabled(startAlertStyle.wrappedValue == .off)
+      Divider()
+      HStack {
+        Button {
+          model.saveConfig(draft)
+          model.previewStartAlert()
+        } label: {
+          Label(loc("Preview alert"), systemImage: "rectangle.inset.topright.filled")
+        }
+        .disabled(startAlertStyle.wrappedValue == .off)
+        Spacer()
+      }
     }
   }
 
