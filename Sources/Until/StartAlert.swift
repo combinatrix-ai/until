@@ -287,25 +287,23 @@ struct StartAlertView: View {
 
   @ViewBuilder
   private func buttons(tint: Color) -> some View {
+    let large = style == .fullScreen
     HStack(spacing: Theme.Spacing.sm) {
       if !event.conferenceUrl.isEmpty {
         Button(action: actions.join) {
           Label(loc("Join"), systemImage: "video.fill")
-            .frame(minWidth: style == .fullScreen ? 90 : nil)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(tint)
-        .controlSize(style == .fullScreen ? .large : .regular)
+        .buttonStyle(StartAlertButtonStyle(fill: tint, large: large))
         .keyboardShortcut(.defaultAction)
       } else {
         Button(loc("Open Event"), action: actions.open)
-          .controlSize(style == .fullScreen ? .large : .regular)
+          .buttonStyle(StartAlertButtonStyle(fill: tint, large: large))
           .keyboardShortcut(.defaultAction)
       }
       Button(loc("Snooze 1 min"), action: actions.snooze)
-        .controlSize(style == .fullScreen ? .large : .regular)
+        .buttonStyle(StartAlertButtonStyle(fill: nil, large: large))
       Button(loc("Dismiss"), action: actions.dismiss)
-        .controlSize(style == .fullScreen ? .large : .regular)
+        .buttonStyle(StartAlertButtonStyle(fill: nil, large: large))
         .keyboardShortcut(.cancelAction)
     }
   }
@@ -319,5 +317,25 @@ struct StartAlertView: View {
 
   private var detail: String {
     heroMetadataParts(for: event).joined(separator: " · ")
+  }
+}
+
+/// The floating alert never becomes the key window, where system bordered
+/// buttons lose their accent color, so the alert draws its own.
+private struct StartAlertButtonStyle: ButtonStyle {
+  var fill: Color?
+  var large: Bool
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .font(large ? .body.weight(.semibold) : .callout.weight(.semibold))
+      .foregroundStyle(fill == nil ? Color.primary : Color.white)
+      .padding(.horizontal, large ? 18 : 12)
+      .padding(.vertical, large ? 8 : 5)
+      .background(
+        (fill ?? Color.primary.opacity(0.08)).opacity(configuration.isPressed ? 0.75 : 1),
+        in: RoundedRectangle(cornerRadius: large ? 9 : 7, style: .continuous)
+      )
+      .contentShape(Rectangle())
   }
 }
