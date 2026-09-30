@@ -263,6 +263,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         // Event already underway: show time remaining instead of "now".
         let remaining = roundedMinutes(from: now, to: next.endDate)
         when = loc("%@ left", relativeWhen(remaining))
+      } else if next.startMinutesFromNow <= 0 {
+        // Starts within the next half minute: "in now" reads wrong.
+        when = loc("now")
       } else {
         when = loc("in %@", relativeWhen(next.startMinutesFromNow))
       }
