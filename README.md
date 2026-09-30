@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/until-hero-menubar-timeline.webp" alt="Until's menubar countdown expanded into the day timeline, with the next event's Join and Open notes actions inline" width="720" />
+  <img src="docs/art/hero-en.svg" alt="Until's menubar countdown expanded into the day timeline, with the next event's Join and Open notes actions inline" width="720" />
 </p>
 
 ## Install

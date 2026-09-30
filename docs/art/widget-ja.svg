@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 344 164" width="344" height="164" role="img">
+<defs></defs>
+<rect width="344" height="164" rx="22" fill="#ffffff"/>
+<text x="12" y="20" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11.5" font-weight="700" fill="#86868b" text-anchor="start">今日</text>
+<text x="332" y="20" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="11" font-weight="500" fill="#86868b" text-anchor="end">8月12日(水)</text>
+<line x1="68" y1="28" x2="68" y2="136" stroke="#e3e3e8" stroke-width="1.5"/>
+<text x="56" y="39" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="10.5" font-weight="400" fill="#86868b" text-anchor="end">終日</text>
+<circle cx="68" cy="35" r="3.3" fill="#5b8def"/>
+<text x="80" y="39" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="12.5" font-weight="400" fill="#1d1d1f" text-anchor="start">ローンチ素材の締切</text>
+<text x="56" y="55" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="10.5" font-weight="700" fill="#28b44c" text-anchor="end">9:53</text>
+<line x1="68" y1="51" x2="332" y2="51" stroke="#28b44c" stroke-width="2" stroke-linecap="round"/>
+<circle cx="68" cy="51" r="3.6" fill="#28b44c"/>
+<text x="56" y="74" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="10.5" font-weight="700" fill="#0a6cff" text-anchor="end">10:00</text>
+<circle cx="68" cy="88" r="5.5" fill="#0a6cff"/>
+<rect x="78" y="59" width="254" height="56" rx="9" fill="#eaf2fe"/>
+<text x="88" y="75" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10" font-weight="800" fill="#0a6cff" text-anchor="start" letter-spacing=".7">次の予定</text>
+<text x="324" y="75" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="700" fill="#0a6cff" text-anchor="end">7分</text>
+<text x="88" y="93" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="14" font-weight="700" fill="#1d1d1f" text-anchor="start">デザインレビュー</text>
+<text x="88" y="108" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="400" fill="#86868b" text-anchor="start">10:00–10:45</text>
+<text x="56" y="131" font-family="'SF Mono', ui-monospace, Menlo, Monaco, monospace" font-size="10.5" font-weight="400" fill="#86868b" text-anchor="end">11:30</text>
+<circle cx="68" cy="127" r="3.3" fill="#f0a35e"/>
+<text x="80" y="131" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="12.5" font-weight="400" fill="#1d1d1f" text-anchor="start">プロジェクト作業</text>
+<text x="80" y="150" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif" font-size="10.5" font-weight="500" fill="#86868b" text-anchor="start">ほか2件</text>
+</svg>

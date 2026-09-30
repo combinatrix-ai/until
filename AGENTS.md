@@ -126,6 +126,18 @@ working tomorrow. Anything wrong in the file stops the app with a message on
 stderr instead of falling back, so a typo cannot hand back a subtly different
 shot. See `scripts/demo-data-example.json` for the schema.
 
+## Website and README art
+
+The site lives in `docs/` (GitHub Pages deploys it on every push to `main`;
+`docs/ja/` is the Japanese page). Its UI illustrations are SVGs in `docs/art/`,
+drawn by `scripts/make-site-art.py` from one layout with English and Japanese
+copy; the README uses the same files. After changing the UI or its wording:
+
+```
+python3 scripts/make-site-art.py   # docs/art/*-en.svg, *-ja.svg
+scripts/render-og.sh               # docs/og-image.png, docs/og-image-ja.png
+```
+
 ## Filter language
 The Swift build evaluates structured rule conditions natively.
 

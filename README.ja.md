@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/until-hero-menubar-timeline.webp" alt="メニューバーのカウントダウンから一日のタイムラインを開いたところ。次の予定のカードに参加ボタンと議事録ボタンがある" width="720" />
+  <img src="docs/art/hero-ja.svg" alt="メニューバーのカウントダウンから一日のタイムラインを開いたところ。次の予定のカードに参加ボタンと議事録ボタンがある" width="720" />
 </p>
 
 ## インストール

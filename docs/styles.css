@@ -1152,6 +1152,29 @@ ul.legal-lead {
   border-radius: 999px;
 }
 
+/* The illustrations under docs/art/ draw their own panel, shadow, and
+   desktop, so the frames made for raster screenshots stay off them. */
+.timeline-visual {
+  width: min(100%, 440px);
+}
+
+.timeline-visual img[src$=".svg"],
+.notification-visual img[src$=".svg"],
+.alert-stage img[src$=".svg"] {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  filter: none;
+}
+
+.notification-visual {
+  width: min(100%, 420px);
+}
+
+.alert-stage img[src$=".svg"] {
+  width: min(100%, 404px);
+}
+
 :lang(ja) h1,
 :lang(ja) h2 {
   max-width: 13em;
