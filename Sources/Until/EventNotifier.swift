@@ -323,7 +323,7 @@ final class EventNotifier: NSObject, UNUserNotificationCenterDelegate {
   private func notificationBody(for event: CalendarEvent) -> String {
     let when = loc("Starts at %@", Self.shortTimeFormatter.string(from: event.startDate))
     let provider = EventLinks.meetingProvider(for: event)?.label ?? ""
-    return [when, provider, event.location].filter { !$0.isEmpty }.joined(separator: " · ")
+    return [when, provider, EventLinks.displayLocation(for: event)].filter { !$0.isEmpty }.joined(separator: " · ")
   }
 
   private func notificationCategoryIdentifier(for event: CalendarEvent) -> String {

@@ -1619,7 +1619,7 @@ struct TimelineSummary: Equatable {
 /// the collapsed list stays one quiet line per event. Whitespace-only
 /// locations count as absent, matching the hero's metadata.
 func timelineSummary(for event: CalendarEvent) -> TimelineSummary? {
-  let location = event.location.trimmingCharacters(in: .whitespacesAndNewlines)
+  let location = EventLinks.displayLocation(for: event)
   if !location.isEmpty {
     return TimelineSummary(kind: .location, text: location)
   }
@@ -1678,7 +1678,7 @@ func heroMetadataParts(for event: CalendarEvent) -> [String] {
     parts.append(time)
   }
 
-  let location = event.location.trimmingCharacters(in: .whitespacesAndNewlines)
+  let location = EventLinks.displayLocation(for: event)
   if !location.isEmpty {
     parts.append(location)
   }

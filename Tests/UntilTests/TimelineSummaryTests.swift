@@ -22,6 +22,21 @@ final class TimelineSummaryTests: XCTestCase {
     XCTAssertEqual(timelineSummary(for: event)?.kind, .meetingProvider)
   }
 
+  func testMeetingLinkLocationShowsAsTheServiceName() {
+    let meet = "https://meet.google.com/abc-defg-hij"
+    let event = makeEvent(location: meet, conferenceUrl: meet)
+
+    XCTAssertEqual(timelineSummary(for: event), TimelineSummary(kind: .meetingProvider, text: "Google Meet"))
+    XCTAssertFalse(heroMetadataParts(for: event).contains(meet))
+    XCTAssertTrue(heroMetadataParts(for: event).contains("Google Meet"))
+  }
+
+  func testOrdinaryLinkLocationIsKept() {
+    let event = makeEvent(location: "https://example.com/office")
+
+    XCTAssertEqual(timelineSummary(for: event)?.text, "https://example.com/office")
+  }
+
   func testSummaryIsOmittedWithoutLocationOrProvider() {
     XCTAssertNil(timelineSummary(for: makeEvent()))
   }

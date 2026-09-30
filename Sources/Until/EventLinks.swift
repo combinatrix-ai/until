@@ -163,6 +163,15 @@ enum EventLinks {
     }
   }
 
+  /// The event's location for display. A location that is just a meeting
+  /// link (common in invites from the Calendar app) reads better as the
+  /// service name, which callers show separately, so it becomes empty.
+  static func displayLocation(for event: CalendarEvent) -> String {
+    let location = event.location.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !location.contains(" "), meetingProvider(for: location) != nil else { return location }
+    return ""
+  }
+
   /// The desktop-app form of a meeting link, for services whose apps register
   /// their own URL scheme. Nil when the link should just open as is.
   static func desktopAppURL(for url: URL) -> URL? {
